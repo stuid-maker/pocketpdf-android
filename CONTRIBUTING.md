@@ -177,10 +177,14 @@ fun `chunk document with overlap keeps source page metadata`()
 
 - OS：Windows 11
 - JDK：17.0.13 (Microsoft OpenJDK)
-- Android Studio：（W0 安装后填）
-- Gradle：（建工程后填）
+- Android Studio：装在 `D:\AndroidStudio\`（自带 JBR OpenJDK 21.0.9）
+- Gradle：9.2.1（wrapper 锁定）
+- AGP：9.0.1
+- Kotlin：2.2.20（Gradle 9.2.1 内嵌；AGP 9 已内置 Kotlin Android 支持，无需单独 apply `org.jetbrains.kotlin.android`）
+- Daemon JVM：Java 21 toolchain（`gradle/gradle-daemon-jvm.properties`）
+- JVM target：Java 17（`compileOptions` 已配）
 - LLM Runtime：LM Studio（CLI `lms.exe`，commit `0b2a176`），监听 `http://localhost:1234/v1`
-- 默认 chat 模型：`lmstudio-community/gemma-3-4b-it` Q4_K_M
-- 备选 chat 模型：`lmstudio-community/gemma-3n-e4b-it` Q8_0
+- 默认 chat 模型 ID：`google/gemma-3-4b`（API 返回 ID，磁盘命名 `lmstudio-community/gemma-3-4b-it` Q4_K_M）
+- 备选 chat 模型 ID：`google/gemma-4-e4b`（磁盘命名 `lmstudio-community/gemma-3n-e4b-it` Q8_0）
 - Embedding 模型：端侧 ONNX `all-MiniLM-L6-v2`（384 维，走 Sentence-Embeddings-Android，不走 LM Studio）
 - 测试设备：（填型号 + Android 版本）
