@@ -9,24 +9,24 @@ DDL：2026-06-15（周日，第 5 周末）
 
 ---
 
-## Week 0 · 环境就绪（2 天 / 约 8h）｜🟡
+## Week 0 · 环境就绪（2 天 / 约 8h）｜🟡 Day 1 完成 ~85%
 
 **目标**：把"动手前能阻塞 4 周后的事"全部解决。
 
 - [x] 写 `PLAN.md` / `ROADMAP.md` / `README.md` / `CONTRIBUTING.md` / `.gitignore`
 - [x] 写 `docs/dev-log/TEMPLATE.md` 和 `docs/dev-log/week0.md`
-- [ ] 创建本地 Git 仓库（在最终的工作目录），首次 commit
-- [ ] 创建 GitHub 远端仓库 `pocketpdf-android`（私有或公开都可），push
-- [ ] 安装 / 验证 Android Studio（最新稳定版）
-- [ ] 用 AS 新建工程（**路径要无中文无空格**），配 Version Catalog
-- [ ] 加 Hilt 依赖，写 `PocketPdfApp.kt` 注解 `@HiltAndroidApp`，`./gradlew assembleDebug` 通过
+- [x] 创建本地 Git 仓库（在最终的工作目录），首次 commit `e4d1946`
+- [x] 创建 GitHub 远端仓库 `pocketpdf-android`（公开），push
+- [x] 安装 / 验证 Android Studio（`D:\AndroidStudio\`，JBR OpenJDK 21.0.9）
+- [x] 用 AS 新建工程（路径 `c:\Users\33755\Desktop\pocketPDF`，纯英文无空格），配 Version Catalog
+- [x] 加 Hilt 依赖，写 `PocketPdfApp.kt` 注解 `@HiltAndroidApp`，`./gradlew assembleDebug` 通过（AGP 8.7.3 黄金组合，详见 ADR-004）
 - [x] 确认 LM Studio 已装（CLI `lms.exe` + 已下载 Gemma 3 4B-IT Q4_K_M）
-- [ ] LM Studio GUI → Developer / Local Server → Start Server（端口 1234）
-- [ ] PowerShell 跑 `curl http://localhost:1234/v1/models` 列出模型
-- [ ] 真机或模拟器跑通空 App
-- [ ] `adb reverse tcp:1234 tcp:1234` 设置
-- [ ] App 里写最小 Demo：按钮 → 调 `/v1/models` → Toast 显示模型名
-- [ ] 打 tag `v0.0.1-env-ready`，写 `week0.md` 总结
+- [x] LM Studio GUI → Developer / Local Server → Start Server（端口 1234）
+- [x] PowerShell 跑 `curl http://localhost:1234/v1/models` 列出模型
+- [ ] 真机或模拟器跑通空 App ← **Day 2**
+- [ ] `adb reverse tcp:1234 tcp:1234` 设置 ← Day 2
+- [ ] App 里写最小 Demo：按钮 → 调 `/v1/models` → Toast 显示模型名 ← Day 2
+- [ ] 打 tag `v0.0.1-env-ready`，写 `week0.md` 收尾 ← Day 2
 
 **验收**：模拟器或真机上点按钮，Toast 显示当前 LM Studio 加载的模型 ID（如 `gemma-3-4b-it`）。
 

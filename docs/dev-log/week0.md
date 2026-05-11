@@ -1,5 +1,7 @@
 # Week 0 · 2026-05-11 至 2026-05-12
 
+> Day 1 收尾时间：2026-05-11 20:36 (UTC+8)。Day 1 完成 ~85% Week 0 任务，剩 PingActivity + tag 推到 Day 2。
+
 > 第 0 周：环境就绪 + 文档骨架。"动手前能阻塞 4 周后的事"全部解决。
 
 ## 1. 本周目标（来自 ROADMAP）
@@ -10,16 +12,16 @@
 - [x] 创建本地 Git 仓库（在最终的工作目录），首次 commit（`e4d1946`）
 - [x] 创建 GitHub 远端仓库 `pocketpdf-android`，push（<https://github.com/stuid-maker/pocketpdf-android>）
 - [x] 决定工作目录是否迁出 `PDF小助手app`（中文+空格路径风险）→ 已改名为 `pocketPDF`
-- [ ] 验证 Android Studio 安装情况
-- [ ] 用 AS 新建工程，配 Version Catalog + Hilt + Room + Retrofit 依赖
-- [ ] 验证 `./gradlew assembleDebug` 通过
+- [x] 验证 Android Studio 安装情况（`D:\AndroidStudio\`，自带 JBR OpenJDK 21.0.9）
+- [x] 用 AS 新建工程（包名 `com.asuka.pocketpdf`），配 Version Catalog + Hilt + KSP + Retrofit + Moshi + OkHttp + Coroutines + Timber + Test 套件
+- [x] 验证 `./gradlew :app:assembleDebug` 通过（41 tasks，BUILD SUCCESSFUL，APK 已生成）
 - [x] ~~安装 Ollama，`ollama pull qwen2.5:3b-instruct`~~ → 改为复用已装 LM Studio（详见 ADR-002 修订）
-- [ ] LM Studio GUI 启动 Local Server（端口 1234）
-- [ ] PowerShell 跑通 `curl http://localhost:1234/v1/models`
-- [ ] 模拟器或真机跑通空 App
-- [ ] `adb reverse tcp:1234 tcp:1234` 设置
-- [ ] App 内最小 Demo：按钮 → 调 `/v1/models` → Toast 模型名
-- [ ] 打 tag `v0.0.1-env-ready`
+- [x] LM Studio GUI 启动 Local Server（端口 1234，模型 `google/gemma-3-4b` / `google/gemma-4-e4b`）
+- [x] PowerShell 跑通 `curl http://localhost:1234/v1/models`（200 OK，返回模型列表）
+- [ ] 模拟器或真机跑通空 App ← **明日继续**
+- [ ] `adb reverse tcp:1234 tcp:1234` 设置 ← 明日
+- [ ] App 内最小 Demo：按钮 → 调 `/v1/models` → Toast 模型名 ← 明日
+- [ ] 打 tag `v0.0.1-env-ready` ← 明日（W0 全部完成后）
 
 ## 2. 实际完成
 
@@ -109,8 +111,17 @@ W0 暂无业务代码，仅文档与配置。
 
 ## 8. Git 数据
 
-- commit 数：（W0 末填）
-- 标签：`v0.0.1-env-ready`（待打）
+- Day 1 commit 数：6（`e4d1946` → `1efc2e0`）
+- 最终 commit 数：（W0 末填）
+- 标签：`v0.0.1-env-ready`（待打，**完成 PingActivity 后**）
+- Day 1 commit 列表：
+  - `e4d1946` docs: bootstrap project plan, roadmap, contributing and dev-log skeleton
+  - `c9e0a81` docs(week0): record rename of working dir to pocketPDF
+  - `e7fea30` docs: link real GitHub remote (stuid-maker/pocketpdf-android)
+  - `52e7bdb` docs(adr-002): switch LLM runtime from Ollama to LM Studio + OpenAI-compat protocol
+  - `b99cfc4` feat(skeleton): bootstrap android project via Android Studio New Project wizard
+  - `23f1375` chore(gradle): bump JVM target to 17, enable ViewBinding, sync PLAN/CONTRIBUTING
+  - `1efc2e0` feat(deps): bootstrap Hilt+Retrofit+Coroutines stack on AGP 8.7.3 golden combo
 
 ## 9. 自查问题
 
@@ -127,12 +138,42 @@ W0 暂无业务代码，仅文档与配置。
 - Room `DocumentEntity` + `PageEntity`
 - 文档库主页 + 阅读器基础 UI
 
-## 11. 时间分配（W0 完成后填）
+## 11. 时间分配
+
+### Day 1（2026-05-11）
+
+| 类型 | 小时（约） |
+|---|---|
+| 调研（市场对手 + 技术栈 + AGP 9 兼容性） | 0.8 |
+| 写方案文档（PLAN/ROADMAP/CONTRIBUTING/ARCH/dev-log） | 1.5 |
+| 环境核查与安装（AS、LM Studio、adb PATH、Git/GitHub） | 1.2 |
+| AS 工程骨架 + 4 轮 Gradle 构建排坑 + 主动降级到 AGP 8.7.3 | 1.8 |
+| 文档同步（ADR-002 修订 + ADR-004 新增 + 踩坑表） | 0.7 |
+| **Day 1 小计** | **≈ 6.0** |
+
+### Day 2（待写）
 
 | 类型 | 小时 |
 |---|---|
-| 调研（市场 + 技术） |   |
-| 写方案文档 |   |
-| 环境安装与验证 |   |
-| AS 工程骨架 |   |
-| LM Studio 联调 Demo |   |
+| PingActivity（LlmApi + NetworkModule + UI + adb reverse 验证） |   |
+| 真机/模拟器 smoke test |   |
+| 打 tag + week0.md 收尾 |   |
+| **Day 2 小计** |   |
+
+## 12. Day 1 收尾总结
+
+**今天做对了的**：
+1. 提前调研发现已装 LM Studio，省下装 Ollama 半小时
+2. 路径含中文/空格的隐患在动手前就改名规避
+3. 撞 AGP 9 生态适配期连锁兼容问题时，**没有死磕**，第三次失败后果断决策降级 → 节省了至少 2–3 小时反复排坑
+4. 把每个 Gradle 报错原因都写进踩坑表，面试时这些都是素材
+
+**今天做差了的**：
+1. AGP 9 配 Hilt 的兼容性应该**配之前先查**，而不是配之后撞错再回头查（教训：装"前沿组件 + 三方依赖"前先做一次兼容矩阵搜索）
+2. 误判"AGP 9 内置 Kotlin 不需要 apply"导致删了用户手加的正确代码 → 教训：**用户写的代码先 push 上去再质疑**，不要先删后想
+
+**明日优先级**：
+1. 写 PingActivity（LlmApi/NetworkModule/UI/Hilt 注入全链路打通）
+2. 在 AS 里跑到模拟器或真机
+3. 跑 `adb reverse tcp:1234 tcp:1234` + 点按钮验证拿到 `google/gemma-3-4b`
+4. 打 `v0.0.1-env-ready` tag，写 Day 2 总结，week0.md 定稿
