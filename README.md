@@ -37,7 +37,7 @@
 | PDF 解析 | PdfBox-Android（文本） |
 | PDF 渲染 | AndroidPdfViewer / PdfRenderer |
 | Embedding | Sentence-Embeddings-Android（MiniLM-L6-v2） |
-| LLM 后端 | **PC 端 Ollama**（`qwen2.5:3b-instruct`），通过 `adb reverse` 桥接 |
+| LLM 后端 | **PC 端 LM Studio**（默认 `Gemma 3 4B-IT Q4_K_M`），**OpenAI 兼容协议**，通过 `adb reverse` 桥接 |
 | 测试 | JUnit4 + MockK + Turbine + Espresso |
 | CI | GitHub Actions |
 
@@ -53,7 +53,7 @@
 └────────▲────────┘
          │ implements
 ┌────────┴────────┐
-│      data       │  ←  Room · Retrofit(Ollama) · PdfBox · Embedder
+│      data       │  ←  Room · Retrofit(OpenAI-compat) · PdfBox · Embedder
 └─────────────────┘
 ```
 
@@ -68,18 +68,18 @@
 PC 端准备：
 
 ```powershell
-# 1. 安装 Ollama: https://ollama.com/download/windows
-# 2. 拉取模型
-ollama pull qwen2.5:3b-instruct
-# 3. 验证服务
-curl http://localhost:11434/api/tags
+# 1. 安装 LM Studio: https://lmstudio.ai/
+# 2. 在 GUI 里下载/选择模型（默认 Gemma 3 4B-IT Q4_K_M）
+# 3. 进入 LM Studio → Developer / Local Server 页签 → Start Server（默认端口 1234）
+# 4. 验证服务（PowerShell）
+curl http://localhost:1234/v1/models
 ```
 
 手机端（Android Studio 跑起后）：
 
 ```powershell
-# 把手机的 localhost:11434 转发到 PC 的 Ollama
-adb reverse tcp:11434 tcp:11434
+# 把手机的 localhost:1234 转发到 PC 的 LM Studio
+adb reverse tcp:1234 tcp:1234
 ```
 
 ## 文档
@@ -97,7 +97,7 @@ adb reverse tcp:11434 tcp:11434
 | W0 | 环境就绪 + 文档骨架 | 🟡 In Progress | `v0.0.1-env-ready` |
 | W1 | PDF 阅读器 Demo | ⚪ Pending | `v0.1.0-pdf-reader` |
 | W2 | 切块 + 向量化 + 索引 | ⚪ Pending | `v0.2.0-indexed` |
-| W3 | 检索 + Ollama 桥接 + 总结 | ⚪ Pending | `v0.3.0-summary` |
+| W3 | 检索 + LLM 桥接 + 总结 | ⚪ Pending | `v0.3.0-summary` |
 | W4 | 问答 + 引用回溯 + 抛光 | ⚪ Pending | `v0.4.0-qa` |
 | W5 | 测试 + 文档 + Demo | ⚪ Pending | `v1.0.0-release` |
 

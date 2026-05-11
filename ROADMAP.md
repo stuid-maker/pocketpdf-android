@@ -20,14 +20,15 @@ DDL：2026-06-15（周日，第 5 周末）
 - [ ] 安装 / 验证 Android Studio（最新稳定版）
 - [ ] 用 AS 新建工程（**路径要无中文无空格**），配 Version Catalog
 - [ ] 加 Hilt 依赖，写 `PocketPdfApp.kt` 注解 `@HiltAndroidApp`，`./gradlew assembleDebug` 通过
-- [ ] 安装 Ollama Windows 版，`ollama pull qwen2.5:3b-instruct`
-- [ ] PowerShell 跑 `curl http://localhost:11434/api/tags` 列出模型
+- [x] 确认 LM Studio 已装（CLI `lms.exe` + 已下载 Gemma 3 4B-IT Q4_K_M）
+- [ ] LM Studio GUI → Developer / Local Server → Start Server（端口 1234）
+- [ ] PowerShell 跑 `curl http://localhost:1234/v1/models` 列出模型
 - [ ] 真机或模拟器跑通空 App
-- [ ] `adb reverse tcp:11434 tcp:11434` 设置
-- [ ] App 里写最小 Demo：按钮 → 调 `/api/tags` → Toast 显示模型名
+- [ ] `adb reverse tcp:1234 tcp:1234` 设置
+- [ ] App 里写最小 Demo：按钮 → 调 `/v1/models` → Toast 显示模型名
 - [ ] 打 tag `v0.0.1-env-ready`，写 `week0.md` 总结
 
-**验收**：模拟器或真机上点按钮，弹出 Toast `qwen2.5:3b-instruct`。
+**验收**：模拟器或真机上点按钮，Toast 显示当前 LM Studio 加载的模型 ID（如 `gemma-3-4b-it`）。
 
 ---
 
@@ -72,18 +73,18 @@ DDL：2026-06-15（周日，第 5 周末）
 
 ---
 
-## Week 3 · 检索 + Ollama 桥接 + 总结｜⚪
+## Week 3 · 检索 + LLM 桥接 + 总结｜⚪
 
 **目标**：能让 LLM 基于文档片段生成内容。
 
 - [ ] `RetrieveChunksUseCase`（余弦相似度 Top-K，K=5）
 - [ ] Retrofit + OkHttp 配置，超时 60s，日志拦截器
-- [ ] `OllamaApi`：`/api/embeddings`、`/api/chat`、`/api/tags`
+- [ ] `LlmApi`：`/v1/chat/completions`、`/v1/models`（embedding 走端侧 ONNX，不走 HTTP）
 - [ ] SSE / NDJSON 流式响应 → `Flow<String>`
 - [ ] `SummarizeDocumentUseCase`（MapReduce：每 chunk 出小结 → 合并）
 - [ ] 阅读器顶部按钮："总结本页" / "总结全文"
 - [ ] 总结结果浮层 + 流式打字效果 + 复制按钮
-- [ ] 设置页：Ollama 地址（默认 `http://localhost:11434`）、模型名
+- [ ] 设置页：LLM Base URL（默认 `http://localhost:1234/v1`）、模型名、可选 API Key（云端兼容）
 - [ ] 单元测试：检索排序、MapReduce 合并
 
 **验收**：阅读时点"总结本页" → 流式输出中文摘要，无明显卡顿。
@@ -102,7 +103,7 @@ DDL：2026-06-15（周日，第 5 周末）
 - [ ] 答案末尾解析引用，渲染为可点击 chip
 - [ ] 点引用 → 跳回阅读器 → 滚动到该页 → **高亮关键句**
 - [ ] 聊天历史持久化（Room `ChatMessageEntity`）
-- [ ] 错误处理：Ollama 离线 / 超时 / 解析失败 / PDF 损坏，统一 Snackbar
+- [ ] 错误处理：LLM 服务离线 / 超时 / 解析失败 / PDF 损坏，统一 Snackbar
 - [ ] 应用图标、启动页（Splash Screen API）
 - [ ] 主题：浅色 + 深色（systemDefault）
 - [ ] 重要 UX：长按问答消息 → 复制 / 分享 / 重新生成

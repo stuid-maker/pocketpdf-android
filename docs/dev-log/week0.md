@@ -13,11 +13,12 @@
 - [ ] 验证 Android Studio 安装情况
 - [ ] 用 AS 新建工程，配 Version Catalog + Hilt + Room + Retrofit 依赖
 - [ ] 验证 `./gradlew assembleDebug` 通过
-- [ ] 安装 Ollama，`ollama pull qwen2.5:3b-instruct`
-- [ ] PowerShell 跑通 `curl http://localhost:11434/api/tags`
+- [x] ~~安装 Ollama，`ollama pull qwen2.5:3b-instruct`~~ → 改为复用已装 LM Studio（详见 ADR-002 修订）
+- [ ] LM Studio GUI 启动 Local Server（端口 1234）
+- [ ] PowerShell 跑通 `curl http://localhost:1234/v1/models`
 - [ ] 模拟器或真机跑通空 App
-- [ ] `adb reverse tcp:11434 tcp:11434` 设置
-- [ ] App 内最小 Demo：按钮 → 调 `/api/tags` → Toast 模型名
+- [ ] `adb reverse tcp:1234 tcp:1234` 设置
+- [ ] App 内最小 Demo：按钮 → 调 `/v1/models` → Toast 模型名
 - [ ] 打 tag `v0.0.1-env-ready`
 
 ## 2. 实际完成
@@ -27,7 +28,7 @@
 - ✅ 项目方案落地：`PLAN.md` 完整版，含技术选型、目录结构、风险表、面试问答清单
 - ✅ 5 周路线图：`ROADMAP.md`，每周任务可勾选，"砍功能优先级"明确
 - ✅ 编码规范与 Git 规范：`CONTRIBUTING.md`，含 AI 辅助使用约定
-- ✅ 架构占位：`docs/ARCHITECTURE.md`，含 3 条初始 ADR（XML、Ollama 桥接、单 Module）
+- ✅ 架构占位：`docs/ARCHITECTURE.md`，含 3 条初始 ADR（XML、LLM 桥接策略、单 Module）
 - ✅ 日志模板：`docs/dev-log/TEMPLATE.md`
 - ✅ `.gitignore`（Android 标准 + 个人补充）
 - ✅ README 项目首页（带状态徽章、路线图状态表）
@@ -44,19 +45,22 @@
 - **理由**：XML 在 AI 训练数据中占比远高于 Compose；新手 + AI 辅助场景下，XML 出错率低、可参考代码多；ViewModel + LiveData/StateFlow 模式在两者之间通用
 - **代价**：与 2026 主流稍有距离 → 面试时主动解释选型权衡，反而成为加分项（体现工程思维）
 
-### ADR-002: 选 Ollama 桥接而非端侧推理
+### ADR-002（初稿 + 同日修订）: 选 PC 端 LLM 服务 + OpenAI 兼容协议，而非端侧推理
 
-- **背景**：原方案考虑端侧 LiteRT-LM + Gemma；调研发现 5 周内难稳定集成
+- **背景**：原方案考虑端侧 LiteRT-LM + Gemma；调研发现 5 周内难稳定集成；同日检测到开发机已装 LM Studio 且模型已下载
 - **候选方案**：
   - A. 端侧推理（LiteRT-LM + Gemma 3 1B/3n）
-  - B. PC 端 Ollama + adb reverse 桥接
-  - C. 云端 API（OpenAI / DeepSeek / 通义）
-- **最终决策**：B（开发期），C 列为 v2 选项
+  - B. PC 端 **Ollama** + Ollama 私有协议
+  - C. PC 端 **LM Studio** + **OpenAI 兼容协议**（最终）
+  - D. 直接对接云端（OpenAI / DeepSeek / 通义）
+- **最终决策**：C（开发期），D 因协议同构可零改动切换列为 v1 后期可选项，A 列为 v2
 - **理由**：
-  - B 开发效率最高，模型选择最灵活（PC 上可跑 3B/7B/13B 任意）
-  - 业务代码完全不耦合后端，未来切 A 或 C 只动 `data/remote/`
-  - 调用接口与云端 OpenAI 兼容（Ollama 提供 OpenAI-compat 端点）
-- **代价**：演示必须 PC 在线；不可脱机；面试时要解释为什么不上端侧
+  1. **零下载成本**：LM Studio 已装；本机已有 Gemma 3 4B-IT Q4_K_M (2.3 GB) 和 Gemma 3n E4B-IT Q8_0 (7.5 GB)
+  2. **协议通用**：OpenAI Chat Completions 是事实标准；DeepSeek / 通义 / Together AI / vLLM 全兼容；Ollama 私有协议只服务自家
+  3. **切换便宜**：从 LM Studio 切到云端只改 `BASE_URL` 和 API Key，业务代码零改动
+  4. **简历表述更通用**：写"对接 OpenAI 兼容 LLM 服务"比"对接 Ollama"通用性强
+- **代价**：演示必须 PC 在线；LM Studio Server 需在 GUI 点 Start（或 `lms server start`）；不可脱机；面试时要解释为什么不上端侧
+- **端口与命令**：`localhost:1234`；`adb reverse tcp:1234 tcp:1234`
 
 ### ADR-003: 单 Module 而非多 Module
 
@@ -78,6 +82,9 @@
 |---|---|---|---|
 | PowerShell `where ollama` 报错 | `where` 是 `Where-Object` 别名 | 用 `where.exe ollama` | 1 min |
 | 工作目录 `PDF小助手app` 含中文+空格 | 历史习惯 | 直接在原位改名为 `pocketPDF`（纯英文、无空格、非 OneDrive 路径） | 5 min |
+| Android Studio 未安装（SDK 单独存在于 `%LOCALAPPDATA%\Android\Sdk`） | 之前装过 AS 后卸载或单独装的 cmdline-tools | （待解决）下载装最新 Hedgehog/Iguana，会自动复用现有 SDK | TBD |
+| adb 不在 PATH | SDK 装了但没配 PATH | `platform-tools` 已加到 User PATH（新开终端生效） | 2 min |
+| 默认 LLM runtime 选型反复 | 初定 Ollama，后发现已装 LM Studio | 改用 LM Studio + OpenAI 兼容协议，避免重复下载、协议更通用，**详见 ADR-002 修订版** | 10 min |
 
 ## 5. 关键代码片段
 
@@ -99,7 +106,8 @@ W0 暂无业务代码，仅文档与配置。
 ## 9. 自查问题
 
 - [ ] 我能清楚说明 ui/domain/data 分层的意义吗？
-- [ ] 我能说出为什么开发期用 Ollama 而不是端侧推理吗？
+- [ ] 我能说出为什么开发期用 PC 端 LLM 服务（LM Studio）而不是端侧推理吗？
+- [ ] 我能解释为什么挑 OpenAI 兼容协议而不是 Ollama 私有协议吗？
 - [ ] 我能解释 Conventional Commits 的好处吗？
 
 ## 10. 下周计划（W1 · PDF 阅读器 Demo）
@@ -118,4 +126,4 @@ W0 暂无业务代码，仅文档与配置。
 | 写方案文档 |   |
 | 环境安装与验证 |   |
 | AS 工程骨架 |   |
-| Ollama 联调 Demo |   |
+| LM Studio 联调 Demo |   |

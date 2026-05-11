@@ -28,7 +28,7 @@
 | `style` | 格式化（不影响代码逻辑） |
 | `perf` | 性能优化 |
 
-**scope** 推荐用模块名：`reader` / `library` / `chat` / `embedding` / `pdf` / `ollama` / `di` / `core`。
+**scope** 推荐用模块名：`reader` / `library` / `chat` / `embedding` / `pdf` / `llm` / `di` / `core`。
 
 **示例**：
 
@@ -75,7 +75,7 @@ chore(deps): bump retrofit to 2.11.0
 | Repository 接口 | XxxRepository | `DocumentRepository` |
 | Repository 实现 | XxxRepositoryImpl | `DocumentRepositoryImpl` |
 | ViewModel | XxxViewModel | `ReaderViewModel` |
-| DTO | Xxx**Dto** | `OllamaChatRequestDto` |
+| DTO | Xxx**Dto** | `ChatCompletionRequestDto` |
 | Entity (Room) | Xxx**Entity** | `DocumentEntity` |
 | Domain Model | 纯名词 | `Document`, `Chunk` |
 | Resource ID | `{type}_{feature}_{name}` | `btn_library_import`, `rv_chat_messages` |
@@ -179,6 +179,8 @@ fun `chunk document with overlap keeps source page metadata`()
 - JDK：17.0.13 (Microsoft OpenJDK)
 - Android Studio：（W0 安装后填）
 - Gradle：（建工程后填）
-- Ollama：（W0 安装后填）
-- 默认模型：`qwen2.5:3b-instruct`
+- LLM Runtime：LM Studio（CLI `lms.exe`，commit `0b2a176`），监听 `http://localhost:1234/v1`
+- 默认 chat 模型：`lmstudio-community/gemma-3-4b-it` Q4_K_M
+- 备选 chat 模型：`lmstudio-community/gemma-3n-e4b-it` Q8_0
+- Embedding 模型：端侧 ONNX `all-MiniLM-L6-v2`（384 维，走 Sentence-Embeddings-Android，不走 LM Studio）
 - 测试设备：（填型号 + Android 版本）

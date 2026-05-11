@@ -11,7 +11,7 @@
 | 维度 | 决定 |
 |---|---|
 | 产品形态 | Android 原生应用，**本地 PDF 阅读器 + RAG 问答助手** |
-| LLM 路线 | **阶段 A（W0–W4）**：HTTP 调用 PC 上的 Ollama；**阶段 B（W5 或之后）**：可选切云端 API |
+| LLM 路线 | **阶段 A（W0–W4）**：HTTP 调用 PC 上的 LM Studio（OpenAI 兼容协议）；**阶段 B（W5 或之后）**：可选切云端 API（DeepSeek / OpenAI 等，同协议零改动） |
 | 差异化 | 暂不做；先实现标准 RAG 跑通，跑通后再考虑（已与用户确认） |
 | 目标用户 | 学生、自学者；典型场景：教辅、论文、电子书 |
 | 工期 | **5 周硬 DDL**（2026-05-11 起） |
@@ -22,7 +22,7 @@
 - ❌ 扫描件 OCR（PdfBox 拿不到文本时直接提示用户）
 - ❌ 多设备同步、云存储
 - ❌ 跨 PDF 知识库（先单文档问答）
-- ❌ 端侧 LiteRT-LM / Gemma 推理（开发期靠 Ollama 桥接，端侧推理列为 v2）
+- ❌ 端侧 LiteRT-LM / Gemma 推理（开发期靠 LM Studio 桥接，端侧推理列为 v2）
 - ❌ Kotlin Multiplatform、Compose（已选 XML 稳妥路线）
 
 ---
@@ -56,11 +56,14 @@
 | 项 | 决定 |
 |---|---|
 | OS | Windows |
-| LLM 服务 | **Ollama** |
-| 默认模型 | `qwen2.5:3b-instruct`（中文好、5GB 内存够、PC 上 30+ tokens/s） |
-| 备选模型 | `qwen2.5:7b-instruct`（PC 性能好可换）/ `deepseek-r1:1.5b`（速度优先） |
-| 端口 | `localhost:11434` |
-| 手机联调 | **`adb reverse tcp:11434 tcp:11434`**（不用同 WiFi、不用配 IP） |
+| LLM 服务 | **LM Studio**（已装，CLI `lms.exe`） |
+| 协议 | **OpenAI 兼容**（`/v1/chat/completions`、`/v1/embeddings`、`/v1/models`），事实标准 |
+| 默认模型 | `lmstudio-community/gemma-3-4b-it` Q4_K_M（2.3 GB，已下载） |
+| 备选模型 | `gemma-3n-e4b-it` Q8_0（已下载，质量更高但慢）/ 如中文不达预期再拉 `qwen2.5-3b-instruct` |
+| 端口 | `localhost:1234` |
+| 启动方式 | LM Studio GUI → Developer / Local Server → Start Server（或 `lms server start`） |
+| 手机联调 | **`adb reverse tcp:1234 tcp:1234`**（不用同 WiFi、不用配 IP） |
+| 未来切云端 | 同 OpenAI 兼容协议，只改 `BASE_URL` + API Key，**业务代码零改动** |
 
 ### 工程化
 
@@ -102,10 +105,10 @@ PocketPDF/
 │     │  │  │  │  └─ PdfPageRenderer.kt
 │     │  │  │  ├─ embedding/              # Sentence-Embeddings 封装
 │     │  │  │  │  └─ Embedder.kt
-│     │  │  │  ├─ remote/                 # Retrofit + Ollama
-│     │  │  │  │  ├─ OllamaApi.kt
-│     │  │  │  │  ├─ OllamaStreamClient.kt
-│     │  │  │  │  └─ dto/
+│     │  │  │  ├─ remote/                 # Retrofit + OpenAI-compat
+│     │  │  │  │  ├─ LlmApi.kt              # /v1/chat/completions, /v1/models, /v1/embeddings
+│     │  │  │  │  ├─ LlmStreamClient.kt     # SSE 流式解析
+│     │  │  │  │  └─ dto/                   # ChatCompletionRequestDto, ChoiceDto, …
 │     │  │  │  └─ repository/             # 仓库实现
 │     │  │  │
 │     │  │  ├─ domain/                    # 纯 Kotlin，无 Android 依赖
@@ -179,7 +182,7 @@ View ◀── state ── ViewModel ◀── result ── UseCase ◀── 
 
 - Use Case：`动词 + 名词 + UseCase`，如 `IndexDocumentUseCase`、`AskDocumentUseCase`
 - Repository 接口：`XxxRepository` 在 `domain`；实现：`XxxRepositoryImpl` 在 `data`
-- DTO 后缀：`Dto`（如 `OllamaChatRequestDto`），不和 domain model 混用
+- DTO 后缀：`Dto`（如 `ChatCompletionRequestDto`），不和 domain model 混用
 - Entity 后缀：`Entity`（Room）
 - ViewModel：`XxxViewModel`
 - 资源 ID：`{type}_{feature}_{name}`，如 `btn_library_import`
@@ -234,7 +237,7 @@ data class ChatMessage(
 | 1 | 工作目录中文 + 空格导致 Gradle 异常 | 中 | 高 | W0 创建 AS 工程时改放 `C:\dev\pocketpdf-android` |
 | 2 | PdfBox-Android 对扫描件无效 | 高 | 中 | v1 明确只支持文本型 PDF，扫描件友好提示 |
 | 3 | Sentence-Embeddings 模型下载慢 | 中 | 高 | 首次进入显示进度；备份方案：模型打包到 assets |
-| 4 | Ollama 调用慢（PC 3B 模型 ~30 tokens/s） | 低 | 中 | 一律走 SSE 流式；prompt 控制在 2k tokens |
+| 4 | LM Studio 调用慢（PC 上 Gemma 3 4B Q4 约 20–40 tokens/s） | 低 | 中 | 一律走 SSE 流式；prompt 控制在 2k tokens；必要时降级到 1.5B 模型 |
 | 5 | Hilt 配置坑（kapt/ksp 冲突） | 高 | 中 | W0 第一个 commit 就把 Hilt 跑通，不拖延 |
 | 6 | 5 周不够 | 中 | 高 | 每周末评估是否砍功能；砍序：深色模式 > 设置高级项 > 跳转高亮 |
 | 7 | AI 生成代码不一致 | 高 | 中 | `CONTRIBUTING.md` 列出规范，每次给 AI 上下文时附带 |
@@ -284,3 +287,4 @@ data class ChatMessage(
 | 日期 | 变更 | 原因 |
 |---|---|---|
 | 2026-05-11 | 初稿 | W0 启动 |
+| 2026-05-11 | LLM 后端从 Ollama 改为 LM Studio（OpenAI 兼容协议），端口 11434 → 1234，默认模型 `qwen2.5:3b-instruct` → `gemma-3-4b-it Q4_K_M` | 检测到开发机已装 LM Studio 且已有 Gemma 3 4B / 3n E4B 两个模型；OpenAI 兼容协议比 Ollama 私有协议更通用，未来切云端零改动；详见 ADR-002 修订版 |
