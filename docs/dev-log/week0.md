@@ -9,7 +9,7 @@
 - [x] 写 `docs/ARCHITECTURE.md` 占位 + ADR 模板
 - [ ] 创建本地 Git 仓库（在最终的工作目录），首次 commit
 - [ ] 创建 GitHub 远端仓库 `pocketpdf-android`，push
-- [ ] 决定工作目录是否迁出 `PDF小助手app`（中文+空格路径风险）
+- [x] 决定工作目录是否迁出 `PDF小助手app`（中文+空格路径风险）→ 已改名为 `pocketPDF`
 - [ ] 验证 Android Studio 安装情况
 - [ ] 用 AS 新建工程，配 Version Catalog + Hilt + Room + Retrofit 依赖
 - [ ] 验证 `./gradlew assembleDebug` 通过
@@ -36,7 +36,6 @@
 
 ### ADR-001: 选 XML 而非 Compose
 
-- **背景**：开发者 Android 新手，5 周硬 DDL，主要靠 AI 辅助编程
 - **候选方案**：
   - A. Jetpack Compose（2026 主流）
   - B. XML + ViewBinding + Material Components
@@ -77,7 +76,7 @@
 | 问题 | 原因 | 解决 | 用时 |
 |---|---|---|---|
 | PowerShell `where ollama` 报错 | `where` 是 `Where-Object` 别名 | 用 `where.exe ollama` | 1 min |
-| 工作目录 `PDF小助手app` 含中文+空格 | 历史习惯 | （待决定）迁到 `C:\dev\pocketpdf-android` 或保留 | TBD |
+| 工作目录 `PDF小助手app` 含中文+空格 | 历史习惯 | 直接在原位改名为 `pocketPDF`（纯英文、无空格、非 OneDrive 路径） | 5 min |
 
 ## 5. 关键代码片段
 
