@@ -7,8 +7,8 @@
 - [x] 写 `PLAN.md` / `ROADMAP.md` / `README.md` / `CONTRIBUTING.md` / `.gitignore`
 - [x] 写 `docs/dev-log/TEMPLATE.md` 和本日志
 - [x] 写 `docs/ARCHITECTURE.md` 占位 + ADR 模板
-- [ ] 创建本地 Git 仓库（在最终的工作目录），首次 commit
-- [ ] 创建 GitHub 远端仓库 `pocketpdf-android`，push
+- [x] 创建本地 Git 仓库（在最终的工作目录），首次 commit（`e4d1946`）
+- [x] 创建 GitHub 远端仓库 `pocketpdf-android`，push（<https://github.com/stuid-maker/pocketpdf-android>）
 - [x] 决定工作目录是否迁出 `PDF小助手app`（中文+空格路径风险）→ 已改名为 `pocketPDF`
 - [ ] 验证 Android Studio 安装情况
 - [ ] 用 AS 新建工程，配 Version Catalog + Hilt + Room + Retrofit 依赖
@@ -36,6 +36,7 @@
 
 ### ADR-001: 选 XML 而非 Compose
 
+- **背景**：开发者 Android 新手，5 周硬 DDL，主要靠 AI 辅助编程
 - **候选方案**：
   - A. Jetpack Compose（2026 主流）
   - B. XML + ViewBinding + Material Components

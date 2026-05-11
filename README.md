@@ -2,10 +2,12 @@
 
 > 一款让你在阅读 PDF 时**就近接入 AI** 的安卓应用：自动切块、向量检索、生成摘要并基于内容回答问题，全程可断网（仅依赖你 PC 上的本地 LLM 服务）。
 
-[![status](https://img.shields.io/badge/status-W0-blue)](#)
+[![status](https://img.shields.io/badge/status-W0-blue)](https://github.com/stuid-maker/pocketpdf-android)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](#)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin)](#)
 [![License](https://img.shields.io/badge/license-MIT-green)](#)
+
+仓库：<https://github.com/stuid-maker/pocketpdf-android>
 
 ## 项目目标
 
