@@ -33,10 +33,11 @@
 
 | 层 | 选型 | 版本 / 备注 |
 |---|---|---|
-| 平台 | Android | minSdk 26 (8.0)，targetSdk 36，compileSdk 36 |
-| 语言 | Kotlin | 2.2.20（Gradle 9.2.1 内嵌） |
-| 构建 | Gradle 9.2.1 + AGP 9.0.1 + Kotlin DSL + Version Catalog | `gradle/libs.versions.toml`；AGP 9 内置 Kotlin Android 支持，无需单独 apply Kotlin plugin |
-| JVM target | Java 17 | `compileOptions sourceCompatibility = VERSION_17` |
+| 平台 | Android | minSdk 26 (8.0)，targetSdk 35，compileSdk 35 |
+| 语言 | Kotlin | 2.0.21 |
+| 构建 | Gradle 8.10.2 + AGP 8.7.3 + Kotlin DSL + Version Catalog | `gradle/libs.versions.toml`；Kotlin Android plugin 显式 apply（AGP 8 必需） |
+| JVM target | Java 17 | `compileOptions` + `kotlinOptions.jvmTarget = "17"` |
+| DI | Hilt 2.52 + KSP 2.0.21-1.0.28 | 经过半年实战的稳定组合 |
 | UI | XML + Material Components + ViewBinding | 不用 Compose |
 | 架构 | Clean Architecture（单 Module 分层）+ MVVM | 详见 §4 |
 | DI | Hilt | 替代 Dagger 模板 |
@@ -290,3 +291,4 @@ data class ChatMessage(
 | 2026-05-11 | 初稿 | W0 启动 |
 | 2026-05-11 | LLM 后端从 Ollama 改为 LM Studio（OpenAI 兼容协议），端口 11434 → 1234，默认模型 `qwen2.5:3b-instruct` → `gemma-3-4b-it Q4_K_M` | 检测到开发机已装 LM Studio 且已有 Gemma 3 4B / 3n E4B 两个模型；OpenAI 兼容协议比 Ollama 私有协议更通用，未来切云端零改动；详见 ADR-002 修订版 |
 | 2026-05-11 | targetSdk/compileSdk 34 → 36；JVM target Java 11 → Java 17；启用 ViewBinding | AS New Project Wizard 默认生成 SDK 36 + Java 11 + AGP 9.0.1 + Gradle 9.2.1，比原计划更新；接受默认（API 36 = Android 16）；Hilt 与 AGP 9 都建议 Java 17+，提前对齐；ViewBinding 是 XML 路线下访问视图的现代写法，必启 |
+| 2026-05-11 | **主动降级到 AGP 8.7.3 黄金组合**（Gradle 8.10.2 + Kotlin 2.0.21 + KSP 2.0.21-1.0.28 + Hilt 2.52）；SDK 36 → 35 | 配 Hilt + KSP 时连续撞 AGP 9 生态适配期 3 类兼容性问题（KSP 与 built-in Kotlin 冲突、KGP ClassCastException、Hilt 2.59 早期 bug）。AGP 9 在 2026-01 才正式发布，三方还未追齐。改用 2024 末业界主流稳定组合，省下排坑时间投入业务逻辑。详见 ADR-004 |

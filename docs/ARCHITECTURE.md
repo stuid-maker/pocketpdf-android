@@ -90,6 +90,33 @@ View ◀── state ── ViewModel ◀── result ── UseCase ◀── 
 - **端口**：`localhost:1234`（adb reverse `tcp:1234 tcp:1234`）
 - **日期**：2026-05-11（初稿）/ 2026-05-11（修订：Ollama → LM Studio + OpenAI 兼容）
 
+### ADR-004: 主动降级到 AGP 8.7.3 黄金组合，放弃 AGP 9.0.1
+
+- **背景**：AS 默认生成 AGP 9.0.1 + Gradle 9.2.1 + Kotlin 2.2.20 工程；Week 0 配 Hilt + KSP 时连续撞 3 类兼容性问题：
+  1. KSP 2.2.20-2.0.x 与 AGP 9 built-in Kotlin 互不兼容（KSP 明确抛错）
+  2. KGP `kotlin("android")` 2.2.20 跟 AGP 9 ApplicationExtensionImpl 出现 ClassCastException
+  3. Hilt 2.59 在 AGP 9 上有 ComponentTreeDeps 缺失问题（2.59.2 才修），生态稳定性不足
+- **候选**：
+  - A. 继续在 AGP 9 上死磕（升 Kotlin 到 2.3.x + KSP 2.3.x + Hilt 2.59.2）
+  - B. 降到 AGP 8.13（2025 末），Kotlin 2.2.20 + Hilt 2.58
+  - C. 降到 **AGP 8.7.3 黄金组合**：Kotlin 2.0.21 + KSP 2.0.21-1.0.28 + Hilt 2.52 + Gradle 8.10.2
+- **决策**：C
+- **理由**：
+  1. **生态成熟**：2024 末 - 2025 中的事实主流组合，全网文档、AI 训练数据、Stack Overflow 答案密度最高
+  2. **零兼容性意外**：Hilt 2.52、KSP 2.0.21、AGP 8.7 三方半年以上的实战互验
+  3. **代价小**：仅放弃 API 36 预览（实际改用 API 35 = Android 15），项目层零影响
+  4. **节省 Week 0 预算**：撞兼容性坑会把 Week 0 拖到 W1，影响后续节奏
+- **代价**：
+  - targetSdk/compileSdk 35（不是 36）
+  - Gradle 8.10.2（不是 9.2.1）
+  - 简历无法标"AGP 9 早鸟"——但 AGP 9 在 2026 年还不是招聘要求
+- **可逆性**：v2 可升级到 AGP 9 稳定版（预计 2026 年中），仅需更新 `libs.versions.toml` 和处理 `BuildConfig`/built-in Kotlin 几个点
+- **关键避坑总结**：
+  - AGP 8 起 `BuildConfig` 默认禁用，需要 `buildFeatures { buildConfig = true }`
+  - KSP + AGP 9 built-in Kotlin 暂不兼容，必须 `android.builtInKotlin=false` 并显式 apply `kotlin("android")`
+  - `kotlin("android")` 是否 apply 取决于 AGP 版本：AGP 9 内置不要 apply，AGP 8 必须 apply
+- **日期**：2026-05-11
+
 ### ADR-003: 单 Module 而非多 Module
 
 - **背景**：Clean Architecture 通常多模块化

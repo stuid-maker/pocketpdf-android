@@ -28,7 +28,10 @@
 - ✅ 项目方案落地：`PLAN.md` 完整版，含技术选型、目录结构、风险表、面试问答清单
 - ✅ 5 周路线图：`ROADMAP.md`，每周任务可勾选，"砍功能优先级"明确
 - ✅ 编码规范与 Git 规范：`CONTRIBUTING.md`，含 AI 辅助使用约定
-- ✅ 架构占位：`docs/ARCHITECTURE.md`，含 3 条初始 ADR（XML、LLM 桥接策略、单 Module）
+- ✅ 架构占位：`docs/ARCHITECTURE.md`，含 4 条 ADR（XML、LLM 桥接、单 Module、AGP 8 黄金组合降级）
+- ✅ AS 新建 Gradle 工程骨架（包名 `com.asuka.pocketpdf`），首次 build 成功
+- ✅ 完整依赖到位：Hilt 2.52 + Retrofit 2.11 + Moshi + OkHttp + Coroutines + Timber + Test 套件
+- ✅ `PocketPdfApp.kt` 挂 `@HiltAndroidApp` + Timber.plant，Manifest 配 INTERNET + network_security_config（允许 localhost 明文）
 - ✅ 日志模板：`docs/dev-log/TEMPLATE.md`
 - ✅ `.gitignore`（Android 标准 + 个人补充）
 - ✅ README 项目首页（带状态徽章、路线图状态表）
@@ -82,9 +85,15 @@
 |---|---|---|---|
 | PowerShell `where ollama` 报错 | `where` 是 `Where-Object` 别名 | 用 `where.exe ollama` | 1 min |
 | 工作目录 `PDF小助手app` 含中文+空格 | 历史习惯 | 直接在原位改名为 `pocketPDF`（纯英文、无空格、非 OneDrive 路径） | 5 min |
-| Android Studio 未安装（SDK 单独存在于 `%LOCALAPPDATA%\Android\Sdk`） | 之前装过 AS 后卸载或单独装的 cmdline-tools | （待解决）下载装最新 Hedgehog/Iguana，会自动复用现有 SDK | TBD |
+| Android Studio 未安装（SDK 单独存在于 `%LOCALAPPDATA%\Android\Sdk`） | 之前装过 AS 后卸载或单独装的 cmdline-tools | 装 AS 到 `D:\AndroidStudio\`，自动复用现有 SDK，无需重下 1 GB | 15 min |
 | adb 不在 PATH | SDK 装了但没配 PATH | `platform-tools` 已加到 User PATH（新开终端生效） | 2 min |
-| 默认 LLM runtime 选型反复 | 初定 Ollama，后发现已装 LM Studio | 改用 LM Studio + OpenAI 兼容协议，避免重复下载、协议更通用，**详见 ADR-002 修订版** | 10 min |
+| 默认 LLM runtime 选型反复 | 初定 Ollama，后发现已装 LM Studio | 改用 LM Studio + OpenAI 兼容协议，详见 ADR-002 修订版 | 10 min |
+| **AGP 9.0.1 生态适配期连锁兼容性问题** | AS 默认生成 AGP 9 工程；2026 年 1 月才发布的 AGP 9，KSP/KGP/Hilt 三方未完全追齐 | 主动降级到 AGP 8.7.3 黄金组合（Kotlin 2.0.21 + KSP 2.0.21-1.0.28 + Hilt 2.52 + Gradle 8.10.2），**详见 ADR-004** | 45 min |
+| KSP 与 AGP 9 built-in Kotlin 不兼容 | AGP 9 引入 built-in Kotlin（不需要 apply kotlin("android")），但 KSP 2.2.20-2.0.x 仍依赖旧 sourceSets DSL | （仅 AGP 9 下需要）`android.builtInKotlin=false` + 显式 apply `kotlin("android")` | 包含在上一项 |
+| `kotlin("android") "必须添加这一行"` 教程是 AGP 8 时代的 | AGP 9 内置 Kotlin → AGP 8 必须显式 apply → 不同 AGP 版本写法相反 | 跟着当前选定的 AGP 版本走（AGP 8.7.3 ✓ 显式 apply） | 经验积累 |
+| AGP 8 起 `BuildConfig` 默认禁用 | AGP 7→8 的 breaking change，多数老教程没提 | `buildFeatures { buildConfig = true }` | 1 min |
+| 阿里云 Maven 镜像未同步 KSP plugin marker | 镜像同步覆盖率有限 | 撤回，仅用 google() + mavenCentral() + VPN | 5 min |
+| 误判"AGP 9 内置 Kotlin 不需要 apply"导致删除用户手加的 `kotlin("android")` | 我未先验证 KSP 与 built-in Kotlin 的兼容性就下结论 | 总结教训：**AI 给的"AGP 9 不需要 apply Kotlin plugin"在配 KSP 时是错的** | 10 min |
 
 ## 5. 关键代码片段
 
