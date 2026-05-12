@@ -280,7 +280,7 @@ W1 起 domain 单测必须先于 UI 落地。
 
 | 类型 | 小时（约） |
 |---|---|
-| 调研（市场对手 + 技术栈 + AGP 9 兼容性） | 0.8 |
+| 调研（市场成果案例 + 技术栈 + AGP 9 兼容性） | 0.8 |
 | 写方案文档（PLAN/ROADMAP/CONTRIBUTING/ARCH/dev-log） | 1.5 |
 | 环境核查与安装（AS、LM Studio、adb PATH、Git/GitHub） | 1.2 |
 | AS 工程骨架 + 4 轮 Gradle 构建排坑 + 主动降级到 AGP 8.7.3 | 1.8 |
