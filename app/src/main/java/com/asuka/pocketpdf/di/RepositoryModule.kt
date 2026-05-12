@@ -3,6 +3,10 @@ package com.asuka.pocketpdf.di
 import com.asuka.pocketpdf.core.DefaultDispatcherProvider
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
+import com.asuka.pocketpdf.data.repository.DocumentRepositoryImpl
+import com.asuka.pocketpdf.data.storage.FileStorage
+import com.asuka.pocketpdf.data.storage.InternalFileStorage
+import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import dagger.Binds
 import dagger.Module
@@ -28,6 +32,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindLlmRepository(impl: LlmRepositoryImpl): LlmRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDocumentRepository(impl: DocumentRepositoryImpl): DocumentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFileStorage(impl: InternalFileStorage): FileStorage
 
     companion object Providers {
 
