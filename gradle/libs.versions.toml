@@ -1,5 +1,5 @@
 [versions]
-# Build tools - 2024 末稳定黄金组合
+# Build tools
 agp = "8.7.3"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
@@ -17,6 +17,9 @@ hilt = "2.52"
 
 # Async
 coroutines = "1.9.0"
+
+# Persistence
+room = "2.6.1"
 
 # Network
 retrofit = "2.11.0"
@@ -51,6 +54,12 @@ hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.r
 # Async
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# Persistence
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 # Network
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
