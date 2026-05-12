@@ -16,9 +16,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PocketPDF">
+        <!--
+          Week 0 启动页：环境自检。Week 1 起将切换到 LibraryActivity（文档库）。
+        -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".ui.ping.PingActivity"
+            android:exported="true"
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
