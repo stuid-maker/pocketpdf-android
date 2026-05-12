@@ -21,6 +21,11 @@ coroutines = "1.9.0"
 # Persistence
 room = "2.6.1"
 
+# PDF
+# pdfbox-android 是 Apache PDFBox 的安卓移植版（去掉 java.awt 依赖），唯一稳定的方案。
+# 2.0.27.0 = upstream PDFBox 2.0.27（最后一个 2.0.x 稳定版）+ Android 适配 0
+pdfboxAndroid = "2.0.27.0"
+
 # Network
 retrofit = "2.11.0"
 okhttp = "4.12.0"
@@ -35,6 +40,7 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 mockk = "1.13.13"
 turbine = "1.2.0"
+robolectric = "4.13"
 
 [libraries]
 # AndroidX
@@ -61,6 +67,9 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
+# PDF
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+
 # Network
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-converter-moshi = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
@@ -81,6 +90,7 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
