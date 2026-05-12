@@ -2,16 +2,16 @@
 
 > 一款让你在阅读 PDF 时**就近接入 AI** 的安卓应用：自动切块、向量检索、生成摘要并基于内容回答问题，全程可断网（仅依赖你 PC 上的本地 LLM 服务）。
 
-[![status](https://img.shields.io/badge/status-W0-blue)](https://github.com/stuid-maker/pocketpdf-android)
+[![status](https://img.shields.io/badge/status-W0%20done-brightgreen)](https://github.com/stuid-maker/pocketpdf-android)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](#)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin)](#)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](#)
 [![License](https://img.shields.io/badge/license-MIT-green)](#)
 
 仓库：<https://github.com/stuid-maker/pocketpdf-android>
 
 ## 项目目标
 
-5 周内交付一个**架构清晰、功能闭环、有完整开发日志**的 Android RAG 应用，作为 2026 暑期实习作品集核心项目。
+一个**架构清晰、功能闭环、有完整开发日志**的 Android RAG 应用
 
 ## 核心功能（v1.0 范围）
 
@@ -94,7 +94,7 @@ adb reverse tcp:1234 tcp:1234
 
 | 周 | 主题 | 状态 | Tag |
 |---|---|---|---|
-| W0 | 环境就绪 + 文档骨架 | 🟡 In Progress | `v0.0.1-env-ready` |
+| W0 | 环境就绪 + 文档骨架 | ✅ Done | `v0.0.1-env-ready` |
 | W1 | PDF 阅读器 Demo | ⚪ Pending | `v0.1.0-pdf-reader` |
 | W2 | 切块 + 向量化 + 索引 | ⚪ Pending | `v0.2.0-indexed` |
 | W3 | 检索 + LLM 桥接 + 总结 | ⚪ Pending | `v0.3.0-summary` |

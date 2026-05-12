@@ -189,5 +189,5 @@ fun `chunk document with overlap keeps source page metadata`()
 - LLM Runtime：LM Studio（CLI `lms.exe`，commit `0b2a176`），监听 `http://localhost:1234/v1`
 - 默认 chat 模型 ID：`google/gemma-3-4b`（API 返回 ID，磁盘命名 `lmstudio-community/gemma-3-4b-it` Q4_K_M）
 - 备选 chat 模型 ID：`google/gemma-4-e4b`（磁盘命名 `lmstudio-community/gemma-3n-e4b-it` Q8_0）
-- Embedding 模型：端侧 ONNX `all-MiniLM-L6-v2`（384 维，走 Sentence-Embeddings-Android，不走 LM Studio）
-- 测试设备：（填型号 + Android 版本）
+- Embedding 模型：端侧 ONNX `all-MiniLM-L6-v2`（384 维，走 Sentence-Embeddings-Android，不走 LM Studio）；W0 已确认 LM Studio 同时挂载了 `text-embedding-nomic-embed-text-v1.5`，云端切换时作为 HTTP embed 备选
+- 测试设备：Android 模拟器 `Medium_Phone_API_36.1`（Android 16 / SDK 36 / 1080×2400），W0 PingActivity smoke test 通过；W1 起接入真机时在此追加型号
