@@ -1,0 +1,38 @@
+package com.asuka.pocketpdf.di
+
+import com.asuka.pocketpdf.core.DefaultDispatcherProvider
+import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
+import com.asuka.pocketpdf.domain.repository.LlmRepository
+import dagger.Binds
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+/**
+ * domain 接口 → data 实现 的 Hilt 绑定。
+ *
+ * 用 `@Binds` 而非 `@Provides` 的原因：
+ * 1. 字节码层 `@Binds` 更省（Dagger 不生成 Provider 包装类）
+ * 2. 语义清晰：这里只是"接口对应哪个实现"，没有任何构造逻辑
+ *
+ * 注意：本 Module 是 `abstract class` 而非 `object`，因为 `@Binds` 必须用 abstract fun。
+ * 同时还需要 `@Provides` 暴露 [DispatcherProvider]，所以加一个嵌套 object [Providers]。
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindLlmRepository(impl: LlmRepositoryImpl): LlmRepository
+
+    companion object Providers {
+
+        @Provides
+        @Singleton
+        fun provideDispatcherProvider(): DispatcherProvider = DefaultDispatcherProvider()
+    }
+}
