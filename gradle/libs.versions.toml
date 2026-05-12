@@ -11,6 +11,9 @@ activity = "1.9.3"
 constraintlayout = "2.2.0"
 material = "1.12.0"
 lifecycle = "2.8.7"
+# RecyclerView 显式声明：material:1.12 只传递 1.1.0，缺 bindingAdapterPosition（1.2.0+）。
+# 1.3.2 是当前稳定版，修复了嵌套 adapter / 动画期间 adapterPosition 错乱的 bug。
+recyclerview = "1.3.2"
 
 # DI
 hilt = "2.52"
@@ -52,6 +55,7 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 
 # DI
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
