@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">PocketPDF</string>
+
+    <!-- Ping 自检界面（Week 0） -->
+    <string name="ping_title">PocketPDF · 环境自检</string>
+    <string name="ping_subtitle">点击下方按钮调用 PC 端 LM Studio 的 /v1/models</string>
+    <string name="ping_button">Ping LM Studio</string>
+    <string name="ping_status_idle">Idle. 等待点击按钮…</string>
+    <string name="ping_status_loading">请求中…</string>
+    <string name="ping_status_error">失败：%1$s</string>
 </resources>
