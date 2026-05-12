@@ -1,18 +1,18 @@
-# Week 1 · 2026-05-12 至 -
+﻿# Week 1 · 2026-05-12 至 -
 
-> Day 1 收尾时间：2026-05-12 11:??（UTC+8）。Day 2 收尾时间：2026-05-12 12:??（UTC+8）。
-> 第 1 周：PDF 阅读器 Demo。**当前进度：Day 2 完成（PdfBox 集成 + importDocument 真实现 + Robolectric PdfBox 测 + 18 业务测全绿）**；Day 3 起接 UI（SAF 选择器 + RecyclerView 列表），UI 接完后整个 `feat/library-document-import` 分支一次性 review 合 `dev`。
+> Day 1 收尾时间：2026-05-12 11:??（UTC+8）。Day 2 收尾时间：2026-05-12 12:??（UTC+8）。Day 3 收尾时间：2026-05-12 14:??（UTC+8）。
+> 第 1 周：PDF 阅读器 Demo。**当前进度：Day 3 完成（SAF 选择器 + LibraryActivity 接管 LAUNCHER + RecyclerView 列表 + 空状态 + 左滑删除带 UNDO + 30 业务测全绿）**；Day 4 起接 AndroidPdfViewer 阅读器。`feat/library-document-import` 仍不合 `dev`——等 Day 4 阅读器进来，W1 验收线"导入 → 列表 → 阅读 → 重启仍在"全闭环再一次性 review 合。
 
 ## 1. 本周目标（来自 ROADMAP）
 
-- [ ] 文件选择器（SAF · `ACTION_OPEN_DOCUMENT`）
+- [x] 文件选择器（SAF · `ACTION_OPEN_DOCUMENT`）（**Day 3 完成**；`LibraryActivity` 调 `ActivityResultContracts.OpenDocument` 限 `application/pdf` + `OpenableColumns.DISPLAY_NAME` 查询 + fallback）
 - [x] 把选中 PDF 复制到 App 内部存储（`filesDir/documents/`）（**Day 2 完成**；`InternalFileStorage.copyToInternal` 真实现 + 失败回滚）
 - [x] PdfBox-Android 集成，封装 `PdfTextExtractor`，按页提取文本（**Day 2 完成**；`PdfBoxTextExtractor` 实现 + 3 个 Robolectric 测）
 - [ ] AndroidPdfViewer 集成，阅读器界面（翻页、双指缩放）
 - [x] Room 表：`DocumentEntity` + DAO（**Day 1 完成**；`PageEntity` 推迟到 W1 末或 W2，PDF 文本切块时再加，避免空表）
 - [x] 仓库 `DocumentRepository` 接口 + UseCase 四件套（observe/get/import/delete）（**Day 1 完成**；`ImportDocumentUseCase` Day 2 真实现 + 失败回滚测）
-- [ ] 文档库主页（RecyclerView 列表 + 空状态）
-- [ ] 文档卡片：标题、页数、导入时间、索引状态徽章
+- [x] 文档库主页（RecyclerView 列表 + 空状态）（**Day 3 完成**；`LibraryActivity` + `DocumentListAdapter` + `view_empty_library.xml`）
+- [x] 文档卡片：标题、页数、导入时间、索引状态徽章（**Day 3 完成**；`item_document.xml` + `DateUtils.getRelativeTimeSpanString` + `bg_badge_index_status` shape；W1 阶段所有徽章都是"未索引"，W2 切多态）
 - [ ] 阅读器底部页码条
 - [x] 单元测试：`PdfTextExtractor`（用合成 PDF）（**Day 2 完成**；Robolectric + Standard 14 字体路径走通 → 3 case）
 
@@ -94,6 +94,40 @@
 - 开工对齐时，我曾把"项目是面试/学习导向"作为论据来推一个 androidx.startup.Initializer 的中等模块化方案（其实只有 1 个 init 点）。用户**当场打回**："别把本项目是学习和面试导向作为功能决策的因素"
 - 已写入 `CONTRIBUTING.md §3` "决策原则：技术评估只用工程论据"：技术选型只接受真实功能/性能/测试/维护需求驱动；YAGNI 优先；**AI 助手若端出"面试/简历"论据，用户应直接打回**
 - 修正后决策 2 改回 A（onCreate 直接调 init）——纯工程论据下 1 个 init 点不值得引一个库
+
+### Day 3（2026-05-12）
+
+- ✅ **Phase 0 · 开工自检**：`./gradlew :app:testDebugUnitTest --tests "...domain.*" "...data.local.*"` 跳过 Robolectric PdfBox 测快验 16 PASSED——"我接的代码是 Day 2 留下的版本"防线生效；RecyclerView 显式升级见 commit `b8fe907`
+- ✅ **Phase 1 · `ui/library` 状态机 + ViewModel**（commit `98b6f32`）：
+  - `LibraryUiState`：4 态 sealed（Empty / Loading / Loaded(documents, isImporting) / Error），与 `PingUiState` 风格对齐（决策 12）
+  - `LibraryEvent`：3 种一次性事件 sealed（ShowImportError / ShowDeleteUndo / ShowDeleteError），走 `Channel(BUFFERED)` + `receiveAsFlow()` 模板（与 `PingViewModel.oneShotEvents` 一致）
+  - `LibraryViewModel`：`combine(observeDocuments(), pendingDeleteIds, isImporting)` 拼装 uiState；`stateIn(WhileSubscribed(5_000), Loading)`；catch 兜底转 Error 态
+  - **UNDO 双轨触发**：swipe 时 launch 一个 Job 在 `pendingDeleteJobs[id]`，5s `delay` 后调 `commitDelete`；同时 Snackbar dismiss callback 也调 `onSnackbarDismissedWithoutUndo` → `commitDelete`。两路通过 `pendingDeleteIds` 集合的 idempotent 检查协调，旋屏/Activity 重建场景 timer 兜底（决策 13）
+- ✅ **Phase 2 · 布局 + 资源 + Adapter**（commit `8b7bebb` 资源 / `34b0a4b` Activity+Adapter）：
+  - `activity_library.xml`：CoordinatorLayout（让 Snackbar 推 FAB 上移） + RecyclerView + include EmptyView + LinearProgressIndicator + ExtendedFloatingActionButton
+  - `item_document.xml`：MaterialCardView + ConstraintLayout（PDF icon / 标题 / `pageCount 页 · 相对时间` / 索引徽章）
+  - `view_empty_library.xml`：图标 + 标题 + 副文 + outlined button（复用 FAB 点击行为）
+  - 4 个 vector drawable（ic_pdf_doc / ic_library_empty / ic_library_add / bg_badge_index_status）+ 14 个 string 资源
+  - `DocumentListAdapter`：`ListAdapter<Document, _>` + DiffUtil（id 比对）；`DateUtils.getRelativeTimeSpanString(importedAt, now, MINUTE_IN_MILLIS, FORMAT_ABBREV_RELATIVE)` 出"3 分钟前 / 昨天 / 上周三"自适应字串（决策 15）
+- ✅ **Phase 3 · SAF 接线 + DisplayName 兜底**（合并进 Activity commit `34b0a4b`）：
+  - `registerForActivityResult(ActivityResultContracts.OpenDocument())` 注册；FAB / empty-state 副按钮共用 launcher
+  - `contentResolver.query(uri, [OpenableColumns.DISPLAY_NAME], …)` 拿原始文件名；`null/blank` 时 fallback `"未命名 PDF · ${相对时间}"`（决策 8）；**绝不从 URI 末段解析**（不同 Provider 格式不一致，决策 8 否决项 B）
+- ✅ **Phase 4 · 左滑删除 + UNDO**（同 Activity commit `34b0a4b`）：
+  - `ItemTouchHelper.SimpleCallback(0, LEFT or RIGHT)` 挂到 RecyclerView；`onSwiped` 用 `adapter.documentAt(bindingAdapterPosition)` 拿领域对象（`bindingAdapterPosition` 是 recyclerview 1.2.0+ 的 API，比废弃的 `adapterPosition` 在嵌套 adapter 场景安全）
+  - Snackbar `addCallback`：`onDismissed(event)` 不是 `DISMISS_EVENT_ACTION`（即非 UNDO 点击触发的 dismiss）时调 `onSnackbarDismissedWithoutUndo`——超时 / 滑掉 / 手动 dismiss 三种情况都视为"确认删除"
+- ✅ **Phase 5 · Manifest 切 LAUNCHER**（commit `9fc6a47`）：
+  - `LibraryActivity` 拿走 `android.intent.action.MAIN + LAUNCHER` intent-filter
+  - `PingActivity` 改 `android:exported="false"` 留代码不留入口（W3 接 LLM 桥接时复用其"按钮 → ViewModel → UseCase → UiState" 模板，决策 1）
+- ✅ **Phase 6 · LibraryViewModelTest**（commit `a1d09ef`）：
+  - **测试基础设施**：`StandardTestDispatcher` + `Dispatchers.setMain/resetMain` 让 viewModelScope 走 test dispatcher → `advanceTimeBy(5_001)` 精确触发 5s UNDO timer
+  - **Mock 选择**：不 mock UseCase（final class，需要 byte-buddy）而 mock 底层 `DocumentRepository` interface——既绕开 mockk final 限制，又多覆盖一层 UseCase + Repository 组合（决策 16）
+  - **12 case 覆盖矩阵**：empty → Loading→Empty / 推送 → Loaded / 上游异常 → Error / 成功切换 isImporting / 进行中再点击被忽略 / 失败发 ShowImportError / swipe 立即过滤 + 发 ShowDeleteUndo / 撤销恢复并取消 timer / timer 到点自动 commit / Snackbar dismiss 立即 commit / delete 失败发 ShowDeleteError / 同 id 重复 swipe 幂等
+  - 全跑 `:app:testDebugUnitTest` **30 业务测 PASSED**（Day 1 + 2 的 18 + Day 3 新增 12）
+- ✅ **Phase 7 · 模拟器最小 smoke**：
+  - `adb install -r app-debug.apk` → `am start ...LibraryActivity` → logcat 命中 `PocketPdfApp: PocketPdfApp onCreate · build=debug` + `ActivityManager: Start proc ...` → **App.onCreate 通 + LibraryActivity 启动成功 + 无 FATAL / AndroidRuntime**
+  - 空状态截图入库：`docs/screenshots/w1d3-library-empty.png`（59 KB，1080×2400）
+  - **SAF + import 完整闭环 / 重启 App 仍在 / 左滑 UNDO 等 GUI 交互**留给开发者在 IDE 上手动验证（自动化只能验装 + 启动，SAF 选 PDF 必须 GUI 点）——同 Day 2 决策 11 精神
+- ✅ **Phase 8 · 文档收尾**：本日志 Day 3 节 + 7 个细粒度 commit + push
 
 ## 3. 关键决策与权衡
 
@@ -245,6 +279,73 @@
   2. **风险已可控**：Day 2 提交里 happy path + 3 个失败回滚单测 + assembleDebug 通过 + 模拟器装 APK 不崩，**核心风险面已覆盖**；缺失部分（SAF UI → ContentResolver.openInputStream 真路径）Day 3 自然走通
   3. C 完全跳过演示是另一极——但 assembleDebug 不能验证 Application init 的 runtime 行为（init 如果崩 → app 启动闪退），最小 smoke 收益不为零
 
+### 决策 12（Day 3）：`LibraryUiState` 用 4 态 sealed（与 `PingUiState` 对齐）而非 2 字段 data class
+
+- **候选**：
+  - A. **4 态 sealed**：`Empty / Loading / Loaded(documents, isImporting) / Error(message)`，与 `PingUiState` 同模板
+  - B. **2 字段 data class**：`LibraryUiState(documents: List<Document>, isImporting: Boolean)`，Empty 用 `isEmpty()` 推导，Error 走 one-shot 事件
+  - C. **3 态 sealed**：Loading / Content / Error，砍掉 Empty（让 View 自己判 isEmpty）
+- **决策**：A
+- **理由（纯工程论据）**：
+  1. **模板一致性**：W0 写 `PingUiState` 时已经确立 4 态 sealed 模式，W3 LLM 桥接和 W4 聊天窗口都将复用——一致模板降低跨 ViewModel 阅读成本
+  2. **when 强制穷尽**：View 的 `render(state)` 是 `when (state)` 形态，sealed class 让编译器在未来加新态时**强制**所有 render 点更新；data class 没有这个保证
+  3. **`Loaded(isImporting=true)` 解决了"导入中要不要清空列表"的细分**：Loading 是首次订阅前的空态，isImporting 是叠加在 Loaded 上的瞬态——两套语义不混
+- **代价**：`Error` 态在 W1 实际触发不了（Room Flow `observeDocuments` 不抛），但作为 catch 上游异常的兜底必须有——不是死代码，是按 Murphy's Law 的防御代码
+
+### 决策 13（Day 3）：删除 UNDO 用"5s ViewModel timer + Snackbar dismiss callback"**双轨**触发
+
+- **背景**：Snackbar UNDO 是 Material 标准设计，但 Snackbar 寿命在 View 范围——旋屏 / Activity 重建后 Snackbar 没了，仅靠 callback 触发会留 dangling state
+- **候选**：
+  - A. **仅靠 Snackbar dismiss callback 触发 commit**：实现简单；缺点：旋屏后 callback 不触发 → `pendingDeleteIds` 永久含该 id → UI 永远看不到该 doc 但 DB 还在
+  - B. **仅靠 ViewModel 5s timer 触发 commit**：旋屏无问题；缺点：用户主动 dismiss Snackbar 后还要等 5s 真删，体验拖沓
+  - C. **双轨触发**：swipe 时 launch 一个 `pendingDeleteJobs[id]` 5s timer + Snackbar `addCallback` 在 non-ACTION dismiss 时调 `commitDelete`。两路通过 `commitDelete` 内部 `if (id !in pendingDeleteIds) return` 的 idempotent 检查协调
+- **决策**：C
+- **理由**：
+  1. **W1 验收线"重启 App 仍在"间接要求**："列表里看不到但 DB 还在"会让重启 App 后被删的 doc 又复现——直接破坏验收线
+  2. **Idempotent 设计成本极低**：`pendingDeleteIds` 是 `MutableStateFlow<Set<Long>>`，`update { it - id }` 是 atomic CAS；`commitDelete` 第一行检查后才调 DAO，第二次调进入直接 return
+  3. **测试可锁住**：`auto-commit fires after timeout` + `snackbar dismiss commits immediately` + `repeated swipe is idempotent` 三个 case 把双轨行为锁进 CI
+- **代价**：ViewModel 多 `pendingDeleteJobs: MutableMap<Long, Job>` 一字段；Snackbar callback / ViewModel timer 在 idempotent 设计下都是"互相兜底"，代码看起来冗余但语义上不可省
+
+### 决策 14（Day 3）：RecyclerView 1.3.2 显式声明，而非吃 material:1.12 的传递依赖
+
+- **背景**：material 1.12.0 传递依赖 `androidx.recyclerview:recyclerview:1.0.0 → 1.1.0`；项目此前没显式声明
+- **撞坑信号**：`viewHolder.bindingAdapterPosition` 在 1.1.0 不存在（1.2.0+ 才有），Kotlin 编译期报 `Unresolved reference`
+- **候选**：
+  - A. **改用废弃的 `adapterPosition`（1.0.0 起就有）**：1 行代码改完。但 `adapterPosition` 在 RecyclerView 2018+ 已标 `@Deprecated`，原因是"嵌套 adapter 时返回错乱"——是真实 bug
+  - B. **显式声明 `androidx.recyclerview:recyclerview:1.3.2`**：稳定版（2022 末发布），含 bindingAdapterPosition 修复
+- **决策**：B
+- **理由（纯工程论据）**：
+  1. **`bindingAdapterPosition` 修了真实 bug**：嵌套 adapter / 列表动画期间 `adapterPosition` 返回 -1 或错位的问题，对左滑删除场景是直接相关风险
+  2. **传递依赖锁在 1.1.0 是 material:1.12 的不一致**：material 自身在 1.10+ 已用 RecyclerView 1.2.x API，但 POM 里写的下界还是 1.0.0——这是 material 维护历史包袱，不是我们项目的设计选择；显式锁版本反而对齐了"实际编码用到什么 API、声明里就显式声明"
+  3. **YAGNI 检查通过**：不是"未来可能用到 1.3 新功能" → "现在引一下"，是"现在编译失败 → 必须升 → 升当前稳定版" 的最小修
+- **代价**：依赖图多一行；包大小没变化（material 已经把 recyclerview 拖进来过了，只是版本号变高）
+
+### 决策 15（Day 3）：列表元数据时间用 `DateUtils.getRelativeTimeSpanString`（相对时间）
+
+- **候选**：
+  - A. **`DateUtils.getRelativeTimeSpanString` 相对时间**：Android 系统 API，自适应 "3 分钟前 / 昨天 / 上周三 / 2024-05-12"
+  - B. **`SimpleDateFormat("yyyy-MM-dd HH:mm")` 绝对时间到分钟**
+  - C. **手写"1 天内显示相对，1 天外显示日期"混合策略**
+- **决策**：A
+- **理由**：
+  1. **本质上 A 已经实现了 C**：`getRelativeTimeSpanString` 内部按 minute/hour/day/week 自适应——`FORMAT_ABBREV_RELATIVE` flag 让格式简短
+  2. **零依赖 / 零自写逻辑**：避免 `SimpleDateFormat` 的时区 / locale 陷阱（系统切日语 / 阿拉伯文时 A 自动出对应语言文案）
+  3. **文档库高频看"最近导入哪份"** → 相对时间语义匹配
+- **代价**：Adapter 持有 `Context`（DateUtils 静态方法吃 Context）——但 ViewHolder 本来就有 `binding.root.context`，没引入额外注入
+
+### 决策 16（Day 3）：`LibraryViewModelTest` 不 mock UseCase，而 mock 底层 `DocumentRepository`
+
+- **背景**：ViewModel 构造函数吃 3 个 UseCase（observe / import / delete），都是 final class（不是 interface）
+- **候选**：
+  - A. **mock 3 个 UseCase**：每个 final class mock 需要 mockk 的 byte-buddy agent；语法 `mockk<ImportDocumentUseCase>()` 在 mockk 1.13.13 + JVM 17 可工作但偶发 ClassLoader 问题
+  - B. **mock `DocumentRepository`**（interface，零黑魔法），用真 UseCase 包装：`ObserveDocumentsUseCase(repository) / ImportDocumentUseCase(repository) / DeleteDocumentUseCase(repository)`
+- **决策**：B
+- **理由**：
+  1. **绕开 mockk final 限制**：mockk interface mocking 是稳态特性，final class mocking 依赖 JVM agent 注入——在不同 JDK / IDE 环境下偶发失败
+  2. **多覆盖一层组合**：ViewModel + 3 个真 UseCase + mock Repository 比 ViewModel + 3 个 mock UseCase 更接近线上行为
+  3. UseCase 本身已被各自的 *UseCaseTest 单独测过（Day 1 - 2 共 4 + 2 + 2 = 8 case），Day 3 重复 mock 无新增覆盖
+- **代价**：测试 `@Before` 多写 3 行 `XxxUseCase(repository)`——可以接受
+
 ## 4. 踩坑记录
 
 | 问题 | 原因 | 解决 | 用时 |
@@ -257,6 +358,7 @@
 | **Day 2**：sentinel `ImportDocumentUseCaseTest` 不是按"message 字符串断言失败"翻红，而是**构造函数签名变了直接编译失败** | `DocumentRepositoryImpl` 加了 `pdfTextExtractor` 参数从 3 参变 4 参；sentinel 测试的旧 3 参构造调用编译都不过 | 这恰恰是 Day 1 设计沉降的**最强信号**——不是 runtime assert，是 compile-time 失败。重写为 4 case（happy + 3 个失败回滚） | 0 min（识别成本） |
 | **Day 2**：第一次 PdfBox sync 慢到 5m 31s | `com.tom-roush:pdfbox-android:2.0.27.0` ~10MB，Maven Central 拉取 + AGP 缓存预热 | Day 1 计划留话 #2 已预判，单独 sync 一次再写业务；第二次 build 1m 8s 回到正常 | 0 min（预案命中） |
 | **Day 2**：dependencies 任务 PowerShell pipe 卡死 17 min 后被中断 | Gradle dependencies + PowerShell `Select-String` pipe 输出量大，pipe 阻塞 | 中断后直接走 assembleDebug 验证依赖可解析——本来 Phase 1 末就要跑的步骤合并了 | 0 min（中断后改步骤无延迟） |
+| **Day 3**：`viewHolder.bindingAdapterPosition` 编译报 `Unresolved reference` | material:1.12.0 传递依赖 `androidx.recyclerview:recyclerview` 锁在 **1.1.0**，缺 1.2.0+ 引入的 `bindingAdapterPosition` API | 显式声明 `recyclerview = "1.3.2"`（决策 14，工程论据成立：修了嵌套 adapter / 动画期间 position 错乱的真实 bug） | 3 min（dependencies 查版本 + libs.versions.toml / build.gradle.kts 改两处 + 重新 compile） |
 
 ## 5. 关键代码片段
 
@@ -417,6 +519,46 @@ buildList(total) {
 1. `RuntimeEnvironment.getApplication()` 是 Robolectric 自带的拿 shadow Application 方式，不需要 `androidx.test:core` 依赖
 2. PDFTextStripper 页码 1-based，写 0..n-1 会丢第一页且最后一页越界——不在这里写出来下次会再踩
 
+### Day 3 · `LibraryViewModel` combine 三源拼 uiState + UNDO 双轨
+
+```kotlin
+val uiState: StateFlow<LibraryUiState> = combine(
+    observeDocuments(),
+    pendingDeleteIds,
+    isImporting,
+) { documents, pending, importing ->
+    val visible = if (pending.isEmpty()) documents else documents.filterNot { it.id in pending }
+    when {
+        visible.isEmpty() && !importing -> LibraryUiState.Empty
+        else -> LibraryUiState.Loaded(visible, isImporting = importing)
+    }
+}.catch { t -> emit(LibraryUiState.Error(t.message ?: t.javaClass.simpleName)) }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState.Loading)
+```
+
+**设计要点**：
+- `pendingDeleteIds` 让 swipe 后列表**立刻**看不到该 doc，不等 Snackbar dismiss 或 DAO delete
+- `isImporting` 叠加在 Loaded 上，不把整页切 Loading——已有列表时导入中仍可见旧项
+- `catch` 转 Error 态是 Room Flow 几乎不会触发的兜底；import/delete 失败走 `LibraryEvent` one-shot，不污染 uiState
+
+### Day 3 · SAF DISPLAY_NAME 查询 + fallback（不从 URI 末段解析）
+
+```kotlin
+private fun resolveDisplayName(uri: Uri): String {
+    val resolved = contentResolver.query(
+        uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null,
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0) cursor.getString(idx) else null
+        } else null
+    }
+    return resolved?.takeIf { it.isNotBlank() } ?: fallbackDisplayName()
+}
+```
+
+**易踩坑**：`Uri.lastPathSegment` 在 SAF 上经常是编码 docId（`primary%3ADownload%2Ffoo.pdf`），不同 Provider 格式不一致——W1 用 OpenableColumns + 时间戳 fallback。
+
 ## 6. 性能数据
 
 | 指标 | 值 | 备注 |
@@ -429,6 +571,10 @@ buildList(total) {
 | **Day 2**：单测全跑 `:app:testDebugUnitTest`（含 Robolectric 第一次） | ~6 min 43 s | Robolectric 第一次跑 Android 26 framework jar 下载 + classloader 预热；`PdfBoxTextExtractorTest` 第一个 case 152.6 s |
 | **Day 2**：单测全跑（Robolectric 已缓存） | 预期 ~30-40 s | 含 ImportDocumentUseCaseTest 4 个新 case + PdfBoxTextExtractorTest 3 个；Robolectric 启动 +3-5 s |
 | **Day 2** 净增代码行 | +263 行 / 9 文件改 + 2 新目录（`data/pdf/` 主 2 文件 + 测 1 文件） | 含注释比 ~25%；CONTRIBUTING.md +16 行（决策原则补丁） |
+| **Day 3**：`compileDebugKotlin`（RecyclerView 1.3.2 首次显式声明后） | ~11 s | 撞 `bindingAdapterPosition` 后升 recyclerview 1.3.2，重编 Kotlin 回到秒级 |
+| **Day 3**：`assembleDebug`（依赖已缓存） | ~1 min 55 s | 含 ViewBinding 生成 4 个 layout + Hilt LibraryViewModel 聚合 |
+| **Day 3**：单测全跑 `:app:testDebugUnitTest`（Robolectric 已缓存） | ~13 s | 31 PASSED（业务 30 + 模板 1）；`LibraryViewModelTest` 12 case ~1.0 s |
+| **Day 3** 净增代码行 | +约 1.1k 行 / 4 个 Kotlin 主文件 + 3 layout + 4 drawable + 14 string + 1 测 | 含注释比 ~28%；截图 `w1d3-library-empty.png` 59 KB |
 
 ## 7. 测试
 
@@ -472,6 +618,33 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
   - `dao insert failure deletes copied file` —— `assertFalse(copied.exists())`
 - domain 层覆盖率（粗估）≈ 92%（Repository.importDocument 编排 + 3 个失败路径全覆盖）；data/pdf 路径 ~100%（3 个 case 覆盖正常 / 边界 / 异常）
 
+### Day 3 单测变化（净增 12）
+
+| 测试类 | Day 2 | Day 3 | 变化 |
+|---|---|---|---|
+| `LibraryViewModelTest`（新增，纯 JVM + mockk + Turbine） | — | **12**（Empty/Loaded/importing/import fail/swipe/undo/timer/dismiss/delete fail/idempotent） | +12 |
+| 其他 Day 1–2 测试类 | 18 | 18 | 不变 |
+| **业务测试合计（不含 ExampleUnitTest）** | **18** | **30** | **+12** |
+
+### Day 3 全跑结果（含模板 `ExampleUnitTest` 1 个）
+
+```
+DocumentMappersTest                5 PASSED
+ObserveDocumentsUseCaseTest        2 PASSED
+GetDocumentUseCaseTest             2 PASSED
+DeleteDocumentUseCaseTest          2 PASSED
+ImportDocumentUseCaseTest          4 PASSED
+PdfBoxTextExtractorTest            3 PASSED
+LibraryViewModelTest              12 PASSED  ← Day 3 新增
+ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
+─────────────────────────────────
+合计                              31 PASSED  / 0 failures / 0 errors / 0 skipped
+```
+
+- 测试命令：`./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL in ~13s（Robolectric 已缓存）
+- `LibraryViewModelTest` 用 `StandardTestDispatcher` + `advanceTimeBy(5_001)` 锁住 UNDO 5s timer 与 Snackbar dismiss 双轨删除
+- ui ViewModel 层（粗估）状态机主路径 + import/delete 失败 one-shot 已覆盖；**未**测 Activity/SAF（留给 Day 4 前手动 smoke + 未来 Espresso）
+
 ## 8. Git 数据
 
 ### Day 1 commit 列表（5 业务 + 1 docs = 6）
@@ -492,11 +665,21 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
 - `de144fd` test(library): rewrite import sentinel to happy-path and add robolectric pdf extractor tests
 - `<docs commit hash · 见 git log，本日志无法自指自身 hash>` docs(week1,contributing): day 2 dev log and decision-rule guardrail
 
+### Day 3 commit 列表（6 业务 + 1 docs = 7）
+
+- `b8fe907` chore(deps): bump recyclerview to 1.3.2 explicit dependency
+- `98b6f32` feat(library): add library view model and ui state
+- `8b7bebb` feat(library): add library layouts drawables and strings
+- `34b0a4b` feat(library): add library activity with saf import and swipe delete
+- `9fc6a47` chore(app): make library activity the launcher entry
+- `a1d09ef` test(library): add library view model unit tests
+- `<docs commit hash · 见 git log，本日志无法自指自身 hash>` docs(week1): day 3 dev log and library empty screenshot
+
 ### 分支策略未变
 
 - 全部挂在 `feat/library-document-import` 分支
-- **Day 2 末仍不 push 到 dev**——约束已升级：Day 3 接 UI（SAF + RecyclerView）走通后整个分支 review 合 dev（W1 验收线"导入 → 列表显示 → 阅读 → 重启仍在"要求 UI 路径，缺哪都不算 W1 完）
-- `origin/feat/library-document-import` Day 2 末 push 验证 CI 能拉到所有依赖（PdfBox + Robolectric）
+- **Day 3 末仍不合 `dev`**——W1 验收线还差阅读器（Day 4–5 AndroidPdfViewer）；导入 + 列表 UI 已闭环，等阅读器接上后整分支 review 合 `dev`
+- `origin/feat/library-document-import` Day 3 末 push 携带 Library UI + 30 业务测
 
 ## 9. 合 feat 分支前自查 3 问（CONTRIBUTING §7）
 
@@ -545,32 +728,50 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
 
 **面试讲法**：「导入和删除看着对称，其实回滚策略不对称——因为前者用户不知情，后者用户主动。Day 2 的 ImportDocumentUseCaseTest 4 个 case 把这件事写进了测试。」**60 秒讲完**。
 
-## 10. Day 3 计划
+### Day 3 自查
 
-### 主线任务（W1 ROADMAP §"文档库主页" + "文件选择器"）
+#### Q1. domain 仍然 0 依赖 android.*？
 
-- [ ] **SAF 选择器**：`LibraryActivity` 加一个 FAB；点击 `registerForActivityResult(ActivityResultContracts.OpenDocument())` 限 `application/pdf`；选完 URI → 触发 `ImportDocumentUseCase(uri.toString(), displayName)`
-- [ ] **拿 SAF DISPLAY_NAME**：`contentResolver.query(uri, [OpenableColumns.DISPLAY_NAME], ...)` 拿到原始文件名作为初始 title
-- [ ] **LibraryViewModel** + 状态机：`uiState: StateFlow<LibraryUiState>` 覆盖 Empty / Loading / Loaded(List<Document>) / Error
-- [ ] **RecyclerView 列表**：`item_document.xml`（标题、页数、导入时间格式化、索引徽章占位）；ListAdapter + DiffUtil
-- [ ] **空状态**：列表空时显示"还没有 PDF，点 + 选一份"插画 / 文案
-- [ ] **删除滑动**：ItemTouchHelper.SimpleCallback 左滑 → 调 `DeleteDocumentUseCase`
+- 命令：`rg "^import android" app/src/main/java/com/asuka/pocketpdf/domain/`
+- **结果**：0 命中 ✅
+- **意义**：Day 3 新增 UI 全在 `ui/library/`，SAF 的 `Uri` / `OpenableColumns` 只在 Activity；ViewModel 只调 UseCase，不碰 Framework 类型。
+
+#### Q2. ui 层有没有直接 import data？
+
+- 命令：`rg "^import com\.asuka\.pocketpdf\.data" app/src/main/java/com/asuka/pocketpdf/ui/`
+- **结果**：0 命中 ✅
+- **意义**：列表数据经 `ObserveDocumentsUseCase` → Room Flow；导入/删除经对应 UseCase，依赖方向 `ui → domain ← data` 未破。
+
+#### Q3. 删除 UNDO 双轨（Snackbar + 5s timer）能不能 1 分钟讲清楚？
+
+**动机**：Snackbar 在旋屏/Activity 重建后会消失，若只靠 dismiss callback，可能出现「列表已隐藏、DB 仍在」的 dangling state，破坏 W1「重启仍在」验收。
+
+**机制**：swipe → `pendingDeleteIds` 立刻过滤 UI + 发 `ShowDeleteUndo` + 启动 5s Job；UNDO 取消 Job 并恢复 id；非 ACTION dismiss 或 timer 到点 → `commitDelete`（`id !in pendingDeleteIds` 则幂等 return）。
+
+**测试**：`LibraryViewModelTest` 12 case 锁住 undo / timer / dismiss / 重复 swipe。
+
+## 10. Day 4 计划
+
+### 主线任务（W1 ROADMAP §"AndroidPdfViewer 集成" + "阅读器底部页码条"）
+
+- [ ] 引入 AndroidPdfViewer（barteksc）依赖，锁定版本与 AGP 8.7.3 兼容组合
+- [ ] `ReaderActivity` + `ReaderViewModel`：从列表点击传入 `documentId`，加载内部存储绝对路径
+- [ ] 阅读器：翻页、双指缩放；底部页码条显示当前页 / 总页数
+- [ ] `LibraryActivity` 列表项点击从 Toast 占位改为跳转 `ReaderActivity`
+- [ ] 模拟器 smoke：导入 PDF → 列表 → 进入阅读 → 翻页 → 杀进程重启 → 列表与阅读路径仍在
 
 ### 子任务
 
-- [ ] `LibraryViewModelTest`（Robolectric 或 mock）覆盖 4 个状态 + import 成功后列表自动追加
-- [ ] 模拟器手动 smoke：FAB 选 PDF → 看 logcat 看到 `importDocument: id=... pages=...` + RecyclerView 列表项闪现
-- [ ] 重启 App 验证：杀进程 → 重启 → 列表仍在（W1 验收线之一）
-- [ ] **Day 3 末整体 review** `feat/library-document-import` diff → 合 `dev`，打开始 W1 阅读器 Demo 的下一段（W1 Day 4-5 接 AndroidPdfViewer）
+- [ ] `GetDocumentUseCase` 在阅读器启动路径上的错误态（文档不存在 / 文件缺失）UI 反馈
+- [ ] 阅读器相关单测（ViewModel 页码状态机，能 mock 则纯 JVM）
+- [ ] **仍不合 `dev`**：阅读器接上后再整分支 review 合 `dev`，打 `v0.1.0-pdf-reader` 前最后一轮 W1 验收
 
-### 给 Day 3 的 Asuka 留话
+### 给 Day 4 的 Asuka 留话
 
-1. **SAF 在 Android 14 (API 34) 起 `persistableUriPermission` 有限制**，但我们用 SAF **只读一次**（读完立刻 copyToInternal），**不需要** `takePersistableUriPermission`——别被旧教程带偏
-2. **ImportDocumentUseCase 已经走通了 happy path 测试**，Day 3 ui 层只用 `useCase(uri.toString(), displayName)` 接 ViewModel 即可，**不需要重新理解整个编排链**
-3. **DisplayName 在 SAF 里要查 `OpenableColumns.DISPLAY_NAME`**，不是直接从 URI 字符串解析——URI 那串编码后的内容不可靠
-4. **RecyclerView 套餐沿用 W0 模板**（ConstraintLayout + ListAdapter + DiffUtil 是模板里有的，不要二开造轮子）
-5. **导入失败的 UI 反馈**：W1 用 Snackbar 弹"导入失败：{Throwable.message}" 即可；不需要复杂的错误分类——Result.Failure 拿到的 Throwable 已经包了 IOException / 损坏 PDF 等情况
-6. **Day 3 不接 AndroidPdfViewer**——那是 Day 4-5 任务；Day 3 让 RecyclerView 点击先空跳转或 toast，验证整个导入 + 列表闭环
+1. **Day 4 开工先跑 `:app:testDebugUnitTest` 确认 30 业务测仍绿**——接阅读器前确认 Day 3 基线未漂
+2. **列表点击已预留 `document.id`**，`ReaderActivity` 用 `GetDocumentUseCase` 拿 `Document.uri`（内部绝对路径），不要重新走 SAF
+3. **PdfBox init 已在 Application**，阅读器渲染与文本提取是两条链路——渲染走 AndroidPdfViewer，不要混用 `PdfTextExtractor` 做页图
+4. **底部页码条先只做「当前页 / 总页数」**，缩略图 / 书签 W1 不扩
 
 ## 11. 时间分配
 
@@ -602,6 +803,22 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
 | Phase 7 Day 2 日志 + commit 6 + push | 0.5 |
 | **Day 2 小计** | **≈ 3.6** |
 | **W1 累计（Day 1 + Day 2）** | **≈ 7.1** |
+
+### Day 3 时间分配
+
+| 类型 | 小时（约） |
+|---|---|
+| Day 3 计划对齐 + 8 条微决策跟用户确认 | 0.3 |
+| Phase 0 开工自检（跳过 Robolectric 快验 16） | 0.1 |
+| Phase 1 ViewModel + UiState + Event | 0.4 |
+| Phase 2 布局 / drawable / string + Adapter | 0.5 |
+| Phase 3–4 Activity + SAF + ItemTouchHelper UNDO | 0.5 |
+| Phase 5 Manifest 切 LAUNCHER | 0.1 |
+| Phase 6 LibraryViewModelTest 12 case | 0.5 |
+| Phase 7 模拟器 boot + install + 空状态截图 | 0.3 |
+| Phase 8 日志 + commit 7 + push | 0.5 |
+| **Day 3 小计** | **≈ 3.2** |
+| **W1 累计（Day 1 + Day 2 + Day 3）** | **≈ 10.3** |
 
 ## 12. 收尾总结
 
@@ -649,3 +866,24 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
 2. **SAF + ImportDocumentUseCase 接 ViewModel 的代码模板**：见 Day 3 计划 §"主线任务"，关键是用 `OpenableColumns.DISPLAY_NAME` 查 SAF 元数据而不是从 URI 字符串解析
 3. **不要 take persistable URI permission**（W1 验收用复制到内部存储绕过 SAF 失效问题，决策 3）
 4. **Day 3 的回滚测试要继承 Day 2 套路**：ViewModel 状态机里 import 失败时弹 Snackbar 的逻辑——写测试时 mock UseCase 返回 Result.Failure，断言 uiState 切到 Error 而不是 Loaded
+
+### Day 3 收尾总结
+
+**今天做对了的**：
+
+1. **开工 8 条微决策一次性对齐**：Ping 留代码去 LAUNCHER、4 态 UiState、左滑 UNDO 双轨、RecyclerView 显式 1.3.2 等，避免边写边改
+2. **ViewModel 测用 mock Repository + 真 UseCase**：绕开 mockk final，多覆盖一层组合；12 case 锁住 UNDO timer 与 dismiss
+3. **SAF 只读一次 + DISPLAY_NAME 查询**：不 take persistable；fallback 用相对时间，不从 URI 末段猜文件名
+4. **模拟器最小 smoke + 空状态截图**：装 APK、LibraryActivity 启动、无 FATAL；GUI 级 SAF/导入/重启留给 IDE 手验
+
+**今天做差了的**：
+
+1. **RecyclerView 传递依赖版本未在加 ItemTouchHelper 前查**：撞 `bindingAdapterPosition` 才升 1.3.2——下次接新 AndroidX UI 组件先 `dependencyInsight` 看传递版本
+2. **Day 3 计划 §10 仍写「Day 3 末合 dev」**：实际 W1 验收还差阅读器，Day 3 末已改为 Day 4 再接 AndroidPdfViewer 后再合 dev
+3. **自动化未覆盖 SAF 选文件**：与 Day 2 一致，手验项要在 Day 4 前自己点一遍 FAB → 导入 → 重启
+
+**给 Day 4 的 Asuka 留话**：
+
+1. **列表点击 Toast 占位 → ReaderActivity**，参数用 `documentId`，内部路径走 `GetDocumentUseCase`
+2. **AndroidPdfViewer 与 PdfBox 分工**：渲染用 viewer，文本提取已在 import 链路，阅读器不要重复 PdfBox open
+3. **合 dev 仍等阅读器闭环**，不要 Day 4 半途 merge
