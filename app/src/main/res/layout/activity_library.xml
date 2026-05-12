@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Library 主界面（W1 Day 3 起作为 LAUNCHER）。
+  视图层次：根 CoordinatorLayout 容纳 RecyclerView + 空状态 include + 顶部进度条 + FAB。
+
+  CoordinatorLayout 而非 ConstraintLayout 的工程论据：Snackbar 默认锚定 CoordinatorLayout
+  会自动让 FAB 上移避让；用 ConstraintLayout 时 Snackbar 会盖住 FAB。
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/library_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.library.LibraryActivity">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_library_documents"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="96dp"
+        android:scrollbars="vertical"
+        tools:listitem="@layout/item_document" />
+
+    <include
+        android:id="@+id/empty_library"
+        layout="@layout/view_empty_library"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progress_library_import"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fab_library_import"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/library_fab_import"
+        android:text="@string/library_fab_import"
+        app:icon="@drawable/ic_library_add" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

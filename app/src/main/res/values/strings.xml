@@ -8,4 +8,22 @@
     <string name="ping_status_idle">Idle. 等待点击按钮…</string>
     <string name="ping_status_loading">请求中…</string>
     <string name="ping_status_error">失败：%1$s</string>
+
+    <!-- 文档库主页（Week 1 Day 3 起） -->
+    <string name="library_fab_import">导入 PDF</string>
+    <string name="library_empty_title">还没有文档</string>
+    <string name="library_empty_subtitle">点击右下角 + 选一份 PDF 开始</string>
+    <string name="library_empty_button">选择 PDF</string>
+    <string name="library_item_meta">%1$d 页 · %2$s</string>
+    <string name="library_badge_not_indexed">未索引</string>
+    <string name="library_badge_indexing">索引中</string>
+    <string name="library_badge_indexed">已索引</string>
+    <string name="library_badge_failed">索引失败</string>
+    <string name="library_display_name_fallback">未命名 PDF · %1$s</string>
+    <string name="library_import_failed">导入失败：%1$s</string>
+    <string name="library_delete_failed">删除失败：%1$s</string>
+    <string name="library_load_failed">加载失败：%1$s</string>
+    <string name="library_delete_undo_message">已删除「%1$s」</string>
+    <string name="library_delete_undo_action">撤销</string>
+    <string name="library_reader_placeholder">%1$s · 阅读器待 W1 Day 4 接入</string>
 </resources>
