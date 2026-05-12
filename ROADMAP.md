@@ -32,20 +32,20 @@ DDL：2026-06-15（周日，第 5 周末）
 
 ---
 
-## Week 1 · PDF 阅读器 Demo｜⚪
+## Week 1 · PDF 阅读器 Demo｜🟡
 
 **目标**：导入本地 PDF、阅读、文本提取入库。
 
-- [ ] 文件选择器（SAF · `ACTION_OPEN_DOCUMENT`）
-- [ ] 把选中 PDF 复制到 App 内部存储（`filesDir/documents/`）
-- [ ] PdfBox-Android 集成，封装 `PdfTextExtractor`，按页提取文本
+- [x] 文件选择器（SAF · `ACTION_OPEN_DOCUMENT`）
+- [x] 把选中 PDF 复制到 App 内部存储（`filesDir/documents/`）
+- [x] PdfBox-Android 集成，封装 `PdfTextExtractor`，按页提取文本
 - [ ] AndroidPdfViewer 集成，阅读器界面（翻页、双指缩放）
-- [ ] Room 表：`DocumentEntity` + `PageEntity` + DAO
-- [ ] 仓库 `DocumentRepository` + UseCase `ImportDocumentUseCase`
-- [ ] 文档库主页（RecyclerView 列表 + 空状态）
-- [ ] 文档卡片：标题、页数、导入时间、索引状态徽章
+- [x] Room 表：`DocumentEntity` + DAO（`PageEntity` 推迟至 W2 切块前，见 week1 决策）
+- [x] 仓库 `DocumentRepository` + UseCase 四件套（含 `ImportDocumentUseCase`）
+- [x] 文档库主页（RecyclerView 列表 + 空状态）
+- [x] 文档卡片：标题、页数、导入时间、索引状态徽章
 - [ ] 阅读器底部页码条
-- [ ] 单元测试：`PdfTextExtractor`（用 assets 里小 PDF）
+- [x] 单元测试：`PdfTextExtractor`（合成 PDF，Robolectric）
 
 **验收**：导入一个 30 页 PDF → 在列表显示 → 点击进入阅读 → 翻页正常 → 重启 App 仍在。
 
