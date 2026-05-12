@@ -18,11 +18,14 @@ interface FileStorage {
      * 把 SAF 选中的源（content://...）的字节流复制到内部存储 documents/ 目录，
      * 文件名用 UUID 防同名碰撞，扩展名固定 `.pdf`。
      *
-     * Day 1 范围：本方法暂抛 [NotImplementedError]，Day 2 接入 PdfBox + ContentResolver 后真实现。
+     * 失败语义：openInputStream 拿不到流 / 写入中途 IO 异常 → 删掉半成品文件并 rethrow，
+     * 调用方用 [com.asuka.pocketpdf.core.resultOf] 包成 [com.asuka.pocketpdf.core.Result.Failure]。
      *
      * @param sourceUri SAF 返回 URI 的字符串形式
      * @param displayName SAF DISPLAY_NAME，仅做诊断日志用
      * @return 目标文件（已落盘）
+     * @throws java.io.FileNotFoundException sourceUri 不可读 / 已失效
+     * @throws java.io.IOException 写入中途 IO 异常
      */
     suspend fun copyToInternal(sourceUri: String, displayName: String): File
 

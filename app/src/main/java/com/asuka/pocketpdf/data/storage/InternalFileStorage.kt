@@ -1,8 +1,14 @@
 package com.asuka.pocketpdf.data.storage
 
 import android.content.Context
+import android.net.Uri
+import com.asuka.pocketpdf.core.DispatcherProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
+import java.io.FileNotFoundException
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,28 +26,53 @@ import javax.inject.Singleton
 @Singleton
 class InternalFileStorage @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val dispatchers: DispatcherProvider,
 ) : FileStorage {
 
     private val documentsDir: File by lazy {
         File(context.filesDir, DOCUMENTS_DIR_NAME).apply { mkdirs() }
     }
 
-    override suspend fun copyToInternal(sourceUri: String, displayName: String): File {
-        // TODO(asuka): W1 Day 2 接入：ContentResolver.openInputStream(Uri.parse(sourceUri))
-        //  → File(documentsDir, "${UUID.randomUUID()}.pdf").outputStream() → use { copyTo }
-        //  + PdfBox 解析 pageCount 在上层完成。当前 stub 让 Repository 测试可以验证
-        //  "importDocument 现在是 NotImplementedError 路径"。
-        throw NotImplementedError(
-            "InternalFileStorage.copyToInternal: deferred to W1 Day 2 " +
-                "(SAF ContentResolver stream copy)",
-        )
-    }
+    /**
+     * SAF 选中的 `content://...` URI 在 data 层反解：domain 不能引 [Uri] 类，
+     * 所以契约用 String 装，反解放这里。
+     *
+     * 失败回滚：openInputStream 拿不到流 / copyTo 中途 IO 异常 → 删掉半成品文件，
+     * 让 [com.asuka.pocketpdf.data.repository.DocumentRepositoryImpl.importDocument]
+     * 的 try/catch 接住异常包成 Result.Failure。**绝不留半截 .pdf**。
+     */
+    override suspend fun copyToInternal(sourceUri: String, displayName: String): File =
+        withContext(dispatchers.io) {
+            val target = File(documentsDir, "${UUID.randomUUID()}.pdf")
+            try {
+                val input = context.contentResolver.openInputStream(Uri.parse(sourceUri))
+                    ?: throw FileNotFoundException(
+                        "ContentResolver returned null InputStream for $sourceUri",
+                    )
+                input.use { source ->
+                    target.outputStream().use { sink ->
+                        source.copyTo(sink)
+                    }
+                }
+                Timber.tag(TAG).i(
+                    "copyToInternal: %s (%d bytes) → %s",
+                    displayName,
+                    target.length(),
+                    target.absolutePath,
+                )
+                target
+            } catch (t: Throwable) {
+                target.delete()
+                throw t
+            }
+        }
 
     override fun delete(absolutePath: String): Boolean = runCatching {
         File(absolutePath).delete()
     }.getOrElse { false }
 
-    companion object {
-        private const val DOCUMENTS_DIR_NAME = "documents"
+    private companion object {
+        const val DOCUMENTS_DIR_NAME = "documents"
+        const val TAG = "InternalFileStorage"
     }
 }
