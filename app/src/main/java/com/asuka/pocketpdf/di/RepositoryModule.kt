@@ -2,6 +2,8 @@ package com.asuka.pocketpdf.di
 
 import com.asuka.pocketpdf.core.DefaultDispatcherProvider
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
+import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
 import com.asuka.pocketpdf.data.repository.DocumentRepositoryImpl
 import com.asuka.pocketpdf.data.storage.FileStorage
@@ -40,6 +42,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindFileStorage(impl: InternalFileStorage): FileStorage
+
+    @Binds
+    @Singleton
+    abstract fun bindPdfTextExtractor(impl: PdfBoxTextExtractor): PdfTextExtractor
 
     companion object Providers {
 
