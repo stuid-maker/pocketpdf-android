@@ -4,6 +4,7 @@
   独立 layout 文件方便 include 进 activity_library.xml，也方便未来其他列表（聊天 / 历史）复用同款空态。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -19,7 +20,7 @@
         android:alpha="0.4"
         android:contentDescription="@null"
         android:src="@drawable/ic_library_empty"
-        android:tint="?android:attr/textColorSecondary" />
+        app:tint="?android:attr/textColorSecondary" />
 
     <TextView
         android:id="@+id/tv_empty_library_title"

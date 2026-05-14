@@ -129,6 +129,13 @@
   - **SAF + import 完整闭环 / 重启 App 仍在 / 左滑 UNDO 等 GUI 交互**留给开发者在 IDE 上手动验证（自动化只能验装 + 启动，SAF 选 PDF 必须 GUI 点）——同 Day 2 决策 11 精神
 - ✅ **Phase 8 · 文档收尾**：本日志 Day 3 节 + 7 个细粒度 commit + push
 
+### Day 3 Code Review 修补（2026-05-14）
+
+- ✅ **Lint 阻断修复**：`view_empty_library.xml` 的空状态图标 tint 从 `android:tint` 改为 `app:tint`，并补 `xmlns:app`，`./gradlew :app:lintDebug` 已重新变绿。
+- ✅ **滑动删除防御**：`DocumentListAdapter.documentAt(position)` 增加 `position in 0 until itemCount` 边界保护，覆盖 `RecyclerView.NO_POSITION` / 越界场景，避免 ItemTouchHelper 动画结算期崩溃。
+- ✅ **协程取消语义修复**：`resultOf` 显式 rethrow `CancellationException`，普通异常仍包装为 `Result.Failure`，避免把结构化并发取消当作业务失败。
+- ✅ **回归测试**：新增 `ResultTest` 2 case + `DocumentListAdapterTest` 2 case；Adapter 测试使用 Robolectric，因为 `ListAdapter` / `AsyncListDiffer` 需要 Android main looper。
+
 ## 3. 关键决策与权衡
 
 ### 决策 1：W1 Day 1 范围内 `importDocument` 故意留 `NotImplementedError`，而不是先把 PdfBox 也一起接

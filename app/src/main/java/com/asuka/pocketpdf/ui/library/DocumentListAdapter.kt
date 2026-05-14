@@ -43,7 +43,10 @@ internal class DocumentListAdapter(
      * 取一个位置上的 Document（供 ItemTouchHelper 拿到滑动条目的领域数据）。
      * 仅在 ItemTouchHelper.onSwiped 里被 Activity 调用，故 internal 可见性即可。
      */
-    fun documentAt(position: Int): Document? = getItem(position)
+    fun documentAt(position: Int): Document? {
+        // ItemTouchHelper can report NO_POSITION while RecyclerView is settling animations.
+        return if (position in 0 until itemCount) getItem(position) else null
+    }
 
     internal class DocumentViewHolder(
         private val binding: ItemDocumentBinding,

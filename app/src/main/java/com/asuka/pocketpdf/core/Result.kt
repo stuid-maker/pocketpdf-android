@@ -1,5 +1,7 @@
 package com.asuka.pocketpdf.core
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * 全工程统一的结果包装器。
  *
@@ -18,6 +20,9 @@ sealed class Result<out T> {
 /** 把一段可能抛异常的代码块包成 [Result]。常用于 Repository 实现里包网络/磁盘调用。 */
 inline fun <T> resultOf(block: () -> T): Result<T> = try {
     Result.Success(block())
+} catch (t: CancellationException) {
+    // Cancellation is coroutine control flow; callers upstream must see it.
+    throw t
 } catch (t: Throwable) {
     Result.Failure(t)
 }
