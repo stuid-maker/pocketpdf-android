@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.text.format.DateUtils
 import android.view.View
-import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -21,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.asuka.pocketpdf.R
 import com.asuka.pocketpdf.databinding.ActivityLibraryBinding
+import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,12 +67,7 @@ class LibraryActivity : AppCompatActivity() {
 
     private val adapter = DocumentListAdapter(
         onClick = { document ->
-            // W1 Day 4 才接 Reader；当前点击给个 toast 表明跳转链路已挂上
-            Toast.makeText(
-                this,
-                getString(R.string.library_reader_placeholder, document.title),
-                Toast.LENGTH_SHORT,
-            ).show()
+            startActivity(ReaderActivity.newIntent(this, document.id))
         },
     )
 

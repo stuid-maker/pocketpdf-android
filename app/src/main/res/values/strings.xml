@@ -26,4 +26,14 @@
     <string name="library_delete_undo_message">已删除「%1$s」</string>
     <string name="library_delete_undo_action">撤销</string>
     <string name="library_reader_placeholder">%1$s · 阅读器待 W1 Day 4 接入</string>
+    <!-- PDF reader -->
+    <string name="reader_title_loading">Loading PDF</string>
+    <string name="reader_back">Back</string>
+    <string name="reader_page_content_description">PDF page</string>
+    <string name="reader_previous_page">Previous page</string>
+    <string name="reader_next_page">Next page</string>
+    <string name="reader_page_indicator">%1$d / %2$d</string>
+    <string name="reader_error_empty_pdf">This PDF has no pages.</string>
+    <string name="reader_error_open_failed">Could not open PDF: %1$s</string>
+    <string name="reader_error_render_failed">Could not render page: %1$s</string>
 </resources>

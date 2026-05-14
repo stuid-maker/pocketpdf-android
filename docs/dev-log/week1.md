@@ -1,19 +1,19 @@
 ﻿# Week 1 · 2026-05-12 至 -
 
-> Day 1 收尾时间：2026-05-12 11:??（UTC+8）。Day 2 收尾时间：2026-05-12 12:??（UTC+8）。Day 3 收尾时间：2026-05-12 14:??（UTC+8）。
-> 第 1 周：PDF 阅读器 Demo。**当前进度：Day 3 完成（SAF 选择器 + LibraryActivity 接管 LAUNCHER + RecyclerView 列表 + 空状态 + 左滑删除带 UNDO + 30 业务测全绿）**；Day 4 起接 AndroidPdfViewer 阅读器。`feat/library-document-import` 仍不合 `dev`——等 Day 4 阅读器进来，W1 验收线"导入 → 列表 → 阅读 → 重启仍在"全闭环再一次性 review 合。
+> Day 1 收尾时间：2026-05-12 11:??（UTC+8）。Day 2 收尾时间：2026-05-12 12:??（UTC+8）。Day 3 收尾时间：2026-05-12 14:??（UTC+8）。Day 4 收尾时间：2026-05-14 15:??（UTC+8）。
+> 第 1 周：PDF 阅读器 Demo。**当前进度：Day 4 完成（导入 → 文档库 → 原生 PdfRenderer 阅读器 → 翻页 / 双指缩放 / 页码条 + 40 业务测全绿）**；`feat/library-document-import` 仍不合 `dev`——等真机/模拟器 GUI 手验 SAF 导入 + 阅读 + 重启闭环后再合。
 
 ## 1. 本周目标（来自 ROADMAP）
 
 - [x] 文件选择器（SAF · `ACTION_OPEN_DOCUMENT`）（**Day 3 完成**；`LibraryActivity` 调 `ActivityResultContracts.OpenDocument` 限 `application/pdf` + `OpenableColumns.DISPLAY_NAME` 查询 + fallback）
 - [x] 把选中 PDF 复制到 App 内部存储（`filesDir/documents/`）（**Day 2 完成**；`InternalFileStorage.copyToInternal` 真实现 + 失败回滚）
 - [x] PdfBox-Android 集成，封装 `PdfTextExtractor`，按页提取文本（**Day 2 完成**；`PdfBoxTextExtractor` 实现 + 3 个 Robolectric 测）
-- [ ] AndroidPdfViewer 集成，阅读器界面（翻页、双指缩放）
+- [x] PDF 阅读器界面（**Day 4 完成**；使用 Android 原生 `PdfRenderer`，避免引入老旧 viewer 依赖；支持翻页、双指缩放、页码条）
 - [x] Room 表：`DocumentEntity` + DAO（**Day 1 完成**；`PageEntity` 推迟到 W1 末或 W2，PDF 文本切块时再加，避免空表）
 - [x] 仓库 `DocumentRepository` 接口 + UseCase 四件套（observe/get/import/delete）（**Day 1 完成**；`ImportDocumentUseCase` Day 2 真实现 + 失败回滚测）
 - [x] 文档库主页（RecyclerView 列表 + 空状态）（**Day 3 完成**；`LibraryActivity` + `DocumentListAdapter` + `view_empty_library.xml`）
 - [x] 文档卡片：标题、页数、导入时间、索引状态徽章（**Day 3 完成**；`item_document.xml` + `DateUtils.getRelativeTimeSpanString` + `bg_badge_index_status` shape；W1 阶段所有徽章都是"未索引"，W2 切多态）
-- [ ] 阅读器底部页码条
+- [x] 阅读器底部页码条（**Day 4 完成**；`当前页 / 总页数`）
 - [x] 单元测试：`PdfTextExtractor`（用合成 PDF）（**Day 2 完成**；Robolectric + Standard 14 字体路径走通 → 3 case）
 
 ## 2. 实际完成
@@ -135,6 +135,35 @@
 - ✅ **滑动删除防御**：`DocumentListAdapter.documentAt(position)` 增加 `position in 0 until itemCount` 边界保护，覆盖 `RecyclerView.NO_POSITION` / 越界场景，避免 ItemTouchHelper 动画结算期崩溃。
 - ✅ **协程取消语义修复**：`resultOf` 显式 rethrow `CancellationException`，普通异常仍包装为 `Result.Failure`，避免把结构化并发取消当作业务失败。
 - ✅ **回归测试**：新增 `ResultTest` 2 case + `DocumentListAdapterTest` 2 case；Adapter 测试使用 Robolectric，因为 `ListAdapter` / `AsyncListDiffer` 需要 Android main looper。
+
+### Day 4（2026-05-14）
+
+- ✅ **Phase 0 · 开工自检**：`./gradlew :app:testDebugUnitTest` 基线绿；工作区只剩 `.vscode/` 未跟踪，不纳入本次改动。
+- ✅ **Phase 1 · 阅读器方案收敛**：本日没有引入 AndroidPdfViewer；选择 Android Framework 自带 `PdfRenderer`。理由是 W1 目标只需要内部 PDF 的最小阅读闭环，`PdfRenderer` 覆盖 minSdk 26，免新增仓库/ABI/维护风险；第三方 viewer 依赖留到确有分页性能、手势、缩略图需求时再评估。
+- ✅ **Phase 2 · `ui/reader` 状态机**：
+  - `ReaderUiState`：Loading / Loaded(document) / Error(message)
+  - `ReaderViewModel`：通过 `GetDocumentUseCase(documentId)` 读取文档；在 IO dispatcher 校验 `Document.uri` 指向的内部 PDF 文件仍存在；捕获普通异常转 Error，保留 `CancellationException` 向上取消
+  - 错误覆盖：非法 id、文档不存在、文件缺失、Repository 抛错
+- ✅ **Phase 3 · `ReaderActivity` + 原生渲染**：
+  - `ReaderActivity.newIntent(context, documentId)` 作为唯一入口；`LibraryActivity` 列表点击从 Toast 占位改为跳转 Reader
+  - `ParcelFileDescriptor.open(file, MODE_READ_ONLY)` + `PdfRenderer` 打开内部 PDF；页面渲染放到 `Dispatchers.IO`，用 `rendererLock` 保证同一时间只操作一个 renderer/page
+  - 当前页渲染为白底 ARGB bitmap，宽度按设备宽度 2x、上限 2400 控制内存；页面切换时回收上一张 bitmap
+  - 双指缩放使用 `ScaleGestureDetector`，缩放范围 1x–4x；切页后重置缩放
+- ✅ **Phase 4 · 阅读器布局资源**：
+  - `activity_reader.xml`：MaterialToolbar + 深色阅读 surface + `ImageView` 页面 + loading indicator + error view + 底部 64dp 页码条
+  - 新增 `ic_arrow_back` / `ic_chevron_left` / `ic_chevron_right` 三个 vector drawable
+  - Manifest 注册 `ReaderActivity(exported=false)`
+- ✅ **Phase 5 · ReaderViewModelTest（新增 5 case）**：
+  - document exists + file exists → Loaded
+  - invalid id → Error
+  - repository returns null → Error
+  - PDF file missing → Error
+  - repository throws → Error
+- ✅ **Phase 6 · 验证**：
+  - `./gradlew :app:testDebugUnitTest` BUILD SUCCESSFUL（40 tests / 0 failures）
+  - `./gradlew :app:lintDebug` BUILD SUCCESSFUL
+  - `./gradlew :app:assembleDebug` BUILD SUCCESSFUL
+  - GUI 手验项仍需人工执行：SAF 选 PDF → 进入阅读器 → 翻页 / 双指缩放 → 杀进程重启后仍可打开
 
 ## 3. 关键决策与权衡
 
@@ -757,28 +786,27 @@ ExampleUnitTest                    1 PASSED  （模板自带，不算业务）
 
 **测试**：`LibraryViewModelTest` 12 case 锁住 undo / timer / dismiss / 重复 swipe。
 
-## 10. Day 4 计划
+## 10. Day 4 计划回收
 
-### 主线任务（W1 ROADMAP §"AndroidPdfViewer 集成" + "阅读器底部页码条"）
+### 主线任务（已完成）
 
-- [ ] 引入 AndroidPdfViewer（barteksc）依赖，锁定版本与 AGP 8.7.3 兼容组合
-- [ ] `ReaderActivity` + `ReaderViewModel`：从列表点击传入 `documentId`，加载内部存储绝对路径
-- [ ] 阅读器：翻页、双指缩放；底部页码条显示当前页 / 总页数
-- [ ] `LibraryActivity` 列表项点击从 Toast 占位改为跳转 `ReaderActivity`
-- [ ] 模拟器 smoke：导入 PDF → 列表 → 进入阅读 → 翻页 → 杀进程重启 → 列表与阅读路径仍在
+- [x] 评估阅读器渲染方案：未引 AndroidPdfViewer，改用原生 `PdfRenderer` 先闭环
+- [x] `ReaderActivity` + `ReaderViewModel`：从列表点击传入 `documentId`，加载内部存储绝对路径
+- [x] 阅读器：翻页、双指缩放；底部页码条显示当前页 / 总页数
+- [x] `LibraryActivity` 列表项点击从 Toast 占位改为跳转 `ReaderActivity`
+- [ ] GUI smoke：导入 PDF → 列表 → 进入阅读 → 翻页 / 缩放 → 杀进程重启 → 列表与阅读路径仍在
 
 ### 子任务
 
-- [ ] `GetDocumentUseCase` 在阅读器启动路径上的错误态（文档不存在 / 文件缺失）UI 反馈
-- [ ] 阅读器相关单测（ViewModel 页码状态机，能 mock 则纯 JVM）
+- [x] `GetDocumentUseCase` 在阅读器启动路径上的错误态（文档不存在 / 文件缺失）UI 反馈
+- [x] 阅读器相关单测（ReaderViewModel 5 case）
 - [ ] **仍不合 `dev`**：阅读器接上后再整分支 review 合 `dev`，打 `v0.1.0-pdf-reader` 前最后一轮 W1 验收
 
-### 给 Day 4 的 Asuka 留话
+### 给收尾验收的 Asuka 留话
 
-1. **Day 4 开工先跑 `:app:testDebugUnitTest` 确认 30 业务测仍绿**——接阅读器前确认 Day 3 基线未漂
-2. **列表点击已预留 `document.id`**，`ReaderActivity` 用 `GetDocumentUseCase` 拿 `Document.uri`（内部绝对路径），不要重新走 SAF
-3. **PdfBox init 已在 Application**，阅读器渲染与文本提取是两条链路——渲染走 AndroidPdfViewer，不要混用 `PdfTextExtractor` 做页图
-4. **底部页码条先只做「当前页 / 总页数」**，缩略图 / 书签 W1 不扩
+1. **先手验 SAF 导入 → Reader 打开**：自动化已经覆盖 ViewModel 启动路径，但 SAF 选文件和真实手势仍要人工点一次。
+2. **PdfBox 与 PdfRenderer 分工保持清楚**：导入时 PdfBox 提文本 / 页数，阅读时 PdfRenderer 渲染页面。
+3. **底部页码条已完成「当前页 / 总页数」**，缩略图 / 书签 / 搜索留 W2+，不要在 W1 收尾时扩。
 
 ## 11. 时间分配
 
