@@ -3,12 +3,15 @@ package com.asuka.pocketpdf.data.repository
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.core.resultOf
+import com.asuka.pocketpdf.data.local.dao.ChunkDao
 import com.asuka.pocketpdf.data.local.dao.DocumentDao
 import com.asuka.pocketpdf.data.local.entity.DocumentEntity
 import com.asuka.pocketpdf.data.local.mapper.toDomain
+import com.asuka.pocketpdf.data.local.mapper.toEntity
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.storage.FileStorage
 import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +39,7 @@ import javax.inject.Inject
  */
 class DocumentRepositoryImpl @Inject constructor(
     private val dao: DocumentDao,
+    private val chunkDao: ChunkDao,
     private val fileStorage: FileStorage,
     private val pdfTextExtractor: PdfTextExtractor,
     private val dispatchers: DispatcherProvider,
@@ -46,6 +50,13 @@ class DocumentRepositoryImpl @Inject constructor(
 
     override suspend fun getDocument(id: Long): Document? = withContext(dispatchers.io) {
         dao.getById(id)?.toDomain()
+    }
+    
+    override suspend fun updateDocument(document: Document): Result<Unit> = withContext(dispatchers.io) {
+        resultOf {
+            dao.update(document.toEntity())
+            Unit
+        }
     }
 
     override suspend fun importDocument(
@@ -94,6 +105,17 @@ class DocumentRepositoryImpl @Inject constructor(
             fileStorage.delete(entity.uri)
             Unit
         }
+    }
+    
+    override suspend fun saveChunks(chunks: List<DocumentChunk>): Result<Unit> = withContext(dispatchers.io) {
+        resultOf {
+            chunkDao.insertAll(chunks.map { it.toEntity() })
+            Unit
+        }
+    }
+
+    override suspend fun getChunks(documentId: Long): List<DocumentChunk> = withContext(dispatchers.io) {
+        chunkDao.getChunksByDocumentId(documentId).map { it.toDomain() }
     }
 
     private companion object {

@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.domain.repository
 
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.domain.model.DocumentChunk
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -24,6 +25,9 @@ interface DocumentRepository {
 
     /** 按主键拉单条；不存在返回 `null`。 */
     suspend fun getDocument(id: Long): Document?
+    
+    /** 更新文档的状态，如修改索引状态 */
+    suspend fun updateDocument(document: Document): Result<Unit>
 
     /**
      * 把 SAF 选中的 PDF 复制到内部存储并落库。
@@ -36,4 +40,10 @@ interface DocumentRepository {
 
     /** 同步删除：DB 行 + 内部存储 PDF 文件。任一环节失败回 [Result.Failure]。 */
     suspend fun deleteDocument(id: Long): Result<Unit>
+    
+    /** 批量保存文档切片 */
+    suspend fun saveChunks(chunks: List<DocumentChunk>): Result<Unit>
+    
+    /** 获取某文档的所有切片 */
+    suspend fun getChunks(documentId: Long): List<DocumentChunk>
 }

@@ -1,7 +1,9 @@
 package com.asuka.pocketpdf.data.local.mapper
 
+import com.asuka.pocketpdf.data.local.entity.ChunkEntity
 import com.asuka.pocketpdf.data.local.entity.DocumentEntity
 import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.IndexStatus
 
 /**
@@ -34,4 +36,22 @@ internal fun Document.toEntity(): DocumentEntity = DocumentEntity(
     pageCount = pageCount,
     indexStatus = indexStatus.name,
     importedAt = importedAt,
+)
+
+internal fun ChunkEntity.toDomain(): DocumentChunk = DocumentChunk(
+    id = id,
+    documentId = documentId,
+    pageIndex = pageIndex,
+    chunkIndex = chunkIndex,
+    text = text,
+    embedding = embedding,
+)
+
+internal fun DocumentChunk.toEntity(): ChunkEntity = ChunkEntity(
+    id = id,
+    documentId = documentId,
+    pageIndex = pageIndex,
+    chunkIndex = chunkIndex,
+    text = text,
+    embedding = embedding,
 )

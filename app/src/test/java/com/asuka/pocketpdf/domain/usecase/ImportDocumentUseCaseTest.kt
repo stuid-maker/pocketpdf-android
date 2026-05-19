@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.domain.usecase
 
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.core.TestDispatcherProvider
+import com.asuka.pocketpdf.data.local.dao.ChunkDao
 import com.asuka.pocketpdf.data.local.dao.DocumentDao
 import com.asuka.pocketpdf.data.local.entity.DocumentEntity
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
@@ -36,10 +37,12 @@ import java.io.IOException
 class ImportDocumentUseCaseTest {
 
     private val dao = mockk<DocumentDao>()
+    private val chunkDao = mockk<ChunkDao>()
     private val fileStorage = mockk<FileStorage>()
     private val extractor = mockk<PdfTextExtractor>()
     private val impl = DocumentRepositoryImpl(
         dao = dao,
+        chunkDao = chunkDao,
         fileStorage = fileStorage,
         pdfTextExtractor = extractor,
         dispatchers = TestDispatcherProvider(),

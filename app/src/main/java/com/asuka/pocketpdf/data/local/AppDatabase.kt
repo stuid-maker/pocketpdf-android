@@ -1,8 +1,13 @@
 package com.asuka.pocketpdf.data.local
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.asuka.pocketpdf.data.local.converter.VectorTypeConverter
+import com.asuka.pocketpdf.data.local.dao.ChunkDao
 import com.asuka.pocketpdf.data.local.dao.DocumentDao
+import com.asuka.pocketpdf.data.local.entity.ChunkEntity
 import com.asuka.pocketpdf.data.local.entity.DocumentEntity
 
 /**
@@ -17,13 +22,21 @@ import com.asuka.pocketpdf.data.local.entity.DocumentEntity
  * 这些 json 进 Git 后续 Code Review 能直观看到表结构 diff。
  */
 @Database(
-    entities = [DocumentEntity::class],
-    version = 1,
+    entities = [
+        DocumentEntity::class,
+        ChunkEntity::class
+    ],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2)
+    ]
 )
+@TypeConverters(VectorTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun documentDao(): DocumentDao
+    abstract fun chunkDao(): ChunkDao
 
     companion object {
         const val DATABASE_NAME = "pocketpdf.db"

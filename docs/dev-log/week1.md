@@ -164,6 +164,7 @@
   - `./gradlew :app:lintDebug` BUILD SUCCESSFUL
   - `./gradlew :app:assembleDebug` BUILD SUCCESSFUL
   - GUI 手验项仍需人工执行：SAF 选 PDF → 进入阅读器 → 翻页 / 双指缩放 → 杀进程重启后仍可打开
+  - **App 图标更新**：根目录 `icon.png` 已转为项目 launcher icon，生成 `mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}` 下的 `ic_launcher.png` 与 `ic_launcher_round.png`，旧 adaptive/icon 资源已清理。
 
 ## 3. 关键决策与权衡
 
