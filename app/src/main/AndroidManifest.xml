@@ -16,6 +16,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PocketPDF">
+
+        <!--
+          W2 Day 4: 禁用默认 WorkManager initializer，改用 HiltWorkerFactory。
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <!--
           Week 1 Day 3 起：LibraryActivity 接管 LAUNCHER。
           PingActivity 代码保留，未来 W3 接 LLM 桥接时复用其"按钮 → ViewModel → UseCase → UiState"
