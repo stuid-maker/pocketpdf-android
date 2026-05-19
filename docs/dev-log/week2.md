@@ -1,6 +1,6 @@
 # Week 2 · 2026-05-15 至 -
 
-> 第 2 周：本地 RAG 数据管线（文本切块与本地向量化）。**当前进度：Day 4 已完成**。
+> 第 2 周：本地 RAG 数据管线（文本切块与本地向量化）。**当前进度：W2 全部完成**。
 
 ## 1. 本周目标（来自 ROADMAP）
 
@@ -10,7 +10,7 @@
 - [x] 文本切块（Chunking）算法封装，支持基础规则与滑动窗口，编写边界单测
 - [x] 引入本地 Embedding 引擎（MediaPipe Text Embedder），完成模型初始化与推理调用（**Day 3 目标**）
 - [x] WorkManager 编排：后台提取文本 -> 切块 -> 批量向量化 -> 落库持久化（**Day 4 目标**）
-- [ ] UI 状态流转闭环：观察并映射后台任务状态到列表文档徽章（INDEXING -> INDEXED）
+- [x] UI 状态流转闭环：观察并映射后台任务状态到列表文档徽章（INDEXING -> INDEXED）
 
 ## 2. 实际完成
 
@@ -74,3 +74,32 @@
 ---
 
 **Day 5 预告**：UI 状态流转闭环——通过 `observeDocuments()` 的 Flow 自动映射 `IndexStatus` 到列表文档卡片的索引徽章（NOT_INDEXED / INDEXING / INDEXED / FAILED），无需手动刷新。
+
+---
+
+### Day 5 计划（2026-05-19）- 已完成
+
+- [x] **Phase 1 · 徽章视觉设计**：在 `colors.xml` 添加 4 组状态色板（灰/橙/绿/红），`item_document.xml` 徽章区新增 `ProgressBar`（INDEXING 态可见）+ 外层 `LinearLayout` 用作圆角背景容器。
+- [x] **Phase 2 · Adapter 绑定**：`DocumentListAdapter.bindBadge()` 根据 `IndexStatus` 动态切换背景色、文字色、ProgressBar 可见性；FAILED 态徽章设为可点击。
+- [x] **Phase 3 · 重试机制**：
+  - `LibraryViewModel.onRetryIndexing(documentId)` 调用 `indexingScheduler.schedule()`
+  - `LibraryActivity` 通过 `onRetryIndex` lambda 连接 ViewModel
+  - Adapter 仅 FAILED 态响应点击；其他状态 `isClickable = false`
+- [x] **Phase 4 · 编译与测试**：编译通过，42 个单元测试通过。
+
+#### 决策 19：徽章状态由 Room Flow 自动驱动
+
+**背景**：IndexWorker 写入 `Document.indexStatus` 到 DB 后，UI 需要感知变更。两种方案：1) 手动观察 `WorkInfo` 并轮询刷新；2) 依赖现有 `observeDocuments()` Flow（Room 自动推送 UPDATE）。
+
+**决策**：选方案 2。Room DAO 的 `observeAll()` 返回 `Flow<List<Document>>`，任何 `UPDATE` 语句都会自动重发。IndexWorker 写 `INDEXING` → `INDEXED` 时，UI 自动收到新列表并调用 `adapter.submitList()`，DiffUtil 按 `Document.equals()` 比对发现 `indexStatus` 变化，局部刷新对应卡片。**零额外代码**。
+
+#### W2 总结
+
+| Day | 内容 | 状态 |
+|-----|------|------|
+| D1-D2 | 分支合并、ChunkEntity Schema、DocumentChunk 领域模型 | Done |
+| D3 | MediaPipe Embedding 引擎集成 | Done |
+| D4 | IndexWorker 后台索引编排 | Done |
+| D5 | UI 索引状态徽章 + 失败重试 | Done |
+
+**W2 成果**：完整的本地 RAG 数据管线——PDF 导入 → 后台文本提取 → 滑动窗口切块 → MediaPipe 向量化 → Room 持久化 → UI 自动感知索引状态。**W3 进入 LLM 检索与对话阶段**。

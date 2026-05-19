@@ -119,6 +119,10 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { commitDelete(documentId) }
     }
 
+    fun onRetryIndexing(documentId: Long) {
+        enqueueIndexing(documentId)
+    }
+
     private fun enqueueIndexing(documentId: Long) {
         indexingScheduler.schedule(documentId)
         Timber.tag(TAG).d("IndexWorker enqueued for document #%d", documentId)
