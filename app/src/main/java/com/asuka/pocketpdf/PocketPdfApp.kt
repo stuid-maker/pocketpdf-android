@@ -1,9 +1,12 @@
 package com.asuka.pocketpdf
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Application 入口，挂 Hilt 注解作为依赖图根容器。
@@ -14,12 +17,19 @@ import timber.log.Timber
  * 资源指向 Android assets。**没有这步**调用，PDFDocument.load 会因找不到默认资源在第一次
  * 解析时抛 `NullPointerException`（PdfBox 内部 Standard14Fonts 加载失败）。
  *
- * 放 [onCreate]（而非 androidx.startup.Initializer）的工程理由：
- * 当前只有 1 个初始化点，"为 1 行代码引一个库 + 加 manifest"投入产出比为负（YAGNI）。
- * W2 真要加 SentenceEmbeddings init 等多于 1 个 init 点时再迁 Startup。
+ * W2 Day 4: 实现 [Configuration.Provider] 以接入 HiltWorkerFactory，
+ * 让 [androidx.work.WorkManager] 能通过 Hilt 注入 [androidx.hilt.work.HiltWorker]。
  */
 @HiltAndroidApp
-class PocketPdfApp : Application() {
+class PocketPdfApp : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()

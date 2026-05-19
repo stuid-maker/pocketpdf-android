@@ -69,6 +69,11 @@ dependencies {
     // DI
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 
     // Async
     implementation(libs.kotlinx.coroutines.core)
@@ -81,6 +86,9 @@ dependencies {
 
     // PDF
     implementation(libs.pdfbox.android)
+
+    // AI / Embedding (MediaPipe)
+    implementation(libs.mediapipe.tasks.text)
 
     // Network
     implementation(libs.retrofit)

@@ -8,10 +8,13 @@ import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
+import com.asuka.pocketpdf.data.indexing.IndexingScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,6 +55,7 @@ class LibraryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val repository: DocumentRepository = mockk()
     private val documentsFlow = MutableStateFlow<List<Document>>(emptyList())
+    private val indexingScheduler: IndexingScheduler = mockk(relaxed = true)
 
     private lateinit var viewModel: LibraryViewModel
 
@@ -63,6 +67,7 @@ class LibraryViewModelTest {
             observeDocuments = ObserveDocumentsUseCase(repository),
             importDocument = ImportDocumentUseCase(repository),
             deleteDocument = DeleteDocumentUseCase(repository),
+            indexingScheduler = indexingScheduler,
         )
     }
 

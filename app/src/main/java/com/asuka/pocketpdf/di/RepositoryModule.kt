@@ -2,6 +2,8 @@ package com.asuka.pocketpdf.di
 
 import com.asuka.pocketpdf.core.DefaultDispatcherProvider
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.data.indexing.IndexingScheduler
+import com.asuka.pocketpdf.data.indexing.WorkManagerIndexingScheduler
 import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
@@ -46,6 +48,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPdfTextExtractor(impl: PdfBoxTextExtractor): PdfTextExtractor
+
+    @Binds
+    @Singleton
+    abstract fun bindIndexingScheduler(impl: WorkManagerIndexingScheduler): IndexingScheduler
 
     companion object Providers {
 

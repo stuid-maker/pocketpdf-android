@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.Result
+import com.asuka.pocketpdf.data.indexing.IndexingScheduler
 import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
@@ -46,6 +47,7 @@ class LibraryViewModel @Inject constructor(
     observeDocuments: ObserveDocumentsUseCase,
     private val importDocument: ImportDocumentUseCase,
     private val deleteDocument: DeleteDocumentUseCase,
+    private val indexingScheduler: IndexingScheduler,
 ) : ViewModel() {
 
     private val pendingDeleteIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -78,12 +80,16 @@ class LibraryViewModel @Inject constructor(
             val result = importDocument(sourceUri, displayName)
             isImporting.value = false
             when (result) {
-                is Result.Success -> Timber.tag(TAG).i(
-                    "import success: id=%d title=%s pages=%d",
-                    result.data.id,
-                    result.data.title,
-                    result.data.pageCount,
-                )
+                is Result.Success -> {
+                    Timber.tag(TAG).i(
+                        "import success: id=%d title=%s pages=%d",
+                        result.data.id,
+                        result.data.title,
+                        result.data.pageCount,
+                    )
+                    // W2 Day 4: 导入成功后自动触发后台索引
+                    enqueueIndexing(result.data.id)
+                }
                 is Result.Failure -> {
                     val msg = result.error.message ?: result.error.javaClass.simpleName
                     Timber.tag(TAG).e(result.error, "import failed: %s", msg)
@@ -111,6 +117,11 @@ class LibraryViewModel @Inject constructor(
     fun onSnackbarDismissedWithoutUndo(documentId: Long) {
         pendingDeleteJobs.remove(documentId)?.cancel()
         viewModelScope.launch { commitDelete(documentId) }
+    }
+
+    private fun enqueueIndexing(documentId: Long) {
+        indexingScheduler.schedule(documentId)
+        Timber.tag(TAG).d("IndexWorker enqueued for document #%d", documentId)
     }
 
     private suspend fun commitDelete(documentId: Long) {
