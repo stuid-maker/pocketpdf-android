@@ -18,7 +18,7 @@
         app:navigationContentDescription="@string/reader_back"
         app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/reader_title_loading"
-        app:titleCentered="false" />
+        app:titleCentered="true" />
 
     <FrameLayout
         android:id="@+id/reader_surface"

@@ -7,6 +7,8 @@ import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.activity.enableEdgeToEdge
@@ -50,6 +52,7 @@ class ReaderActivity : AppCompatActivity() {
     private var scaleFactor: Float = 1f
 
     private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private lateinit var gestureDetector: GestureDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,9 +62,14 @@ class ReaderActivity : AppCompatActivity() {
         applyWindowInsets()
 
         scaleGestureDetector = ScaleGestureDetector(this, PageScaleListener())
+        gestureDetector = GestureDetector(this, TapListener())
         binding.ivReaderPage.setOnTouchListener { _, event ->
-            scaleGestureDetector.onTouchEvent(event)
-            true
+            // 双指缩放优先：ScaleGestureDetector 先处理
+            val inScale = scaleGestureDetector.onTouchEvent(event)
+            // 单指/双击交给 GestureDetector
+            val inGesture = gestureDetector.onTouchEvent(event)
+            // 如果是双指缩放中，消费事件；否则让 GestureDetector 决定
+            inScale || inGesture || event.pointerCount > 1
         }
 
         binding.toolbarReader.setNavigationOnClickListener { finish() }
@@ -215,6 +223,13 @@ class ReaderActivity : AppCompatActivity() {
             scaleFactor = (scaleFactor * detector.scaleFactor).coerceIn(MIN_ZOOM, MAX_ZOOM)
             binding.ivReaderPage.scaleX = scaleFactor
             binding.ivReaderPage.scaleY = scaleFactor
+            return true
+        }
+    }
+
+    private inner class TapListener : GestureDetector.SimpleOnGestureListener() {
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            resetZoom()
             return true
         }
     }
