@@ -30,14 +30,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar_reader">
 
-        <ImageView
-            android:id="@+id/iv_reader_page"
+        <com.asuka.pocketpdf.ui.reader.PdfPageView
+            android:id="@+id/pdf_page_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:contentDescription="@string/reader_page_content_description"
-            android:scaleType="fitCenter"
+            android:background="#202124"
             android:visibility="gone"
-            tools:src="@drawable/ic_pdf_doc"
             tools:visibility="visible" />
 
         <com.google.android.material.progressindicator.CircularProgressIndicator
