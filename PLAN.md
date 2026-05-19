@@ -2,7 +2,7 @@
 
 > 本文是 5 周开发的**唯一参考方案**。所有技术选型、目录结构、模块边界、风险预案以此为准。每周日志若发现方案需要调整，**必须同步更新本文**并在日志里记录原因。
 
-最近更新：Week 0 · 2026-05-11
+最近更新：Week 1 Day 3 · 2026-05-12
 
 ---
 
@@ -291,4 +291,4 @@ data class ChatMessage(
 | 2026-05-11 | 初稿 | W0 启动 |
 | 2026-05-11 | LLM 后端从 Ollama 改为 LM Studio（OpenAI 兼容协议），端口 11434 → 1234，默认模型 `qwen2.5:3b-instruct` → `gemma-3-4b-it Q4_K_M` | 检测到开发机已装 LM Studio 且已有 Gemma 3 4B / 3n E4B 两个模型；OpenAI 兼容协议比 Ollama 私有协议更通用，未来切云端零改动；详见 ADR-002 修订版 |
 | 2026-05-11 | targetSdk/compileSdk 34 → 36；JVM target Java 11 → Java 17；启用 ViewBinding | AS New Project Wizard 默认生成 SDK 36 + Java 11 + AGP 9.0.1 + Gradle 9.2.1，比原计划更新；接受默认（API 36 = Android 16）；Hilt 与 AGP 9 都建议 Java 17+，提前对齐；ViewBinding 是 XML 路线下访问视图的现代写法，必启 |
-| 2026-05-11 | **主动降级到 AGP 8.7.3 黄金组合**（Gradle 8.10.2 + Kotlin 2.0.21 + KSP 2.0.21-1.0.28 + Hilt 2.52）；SDK 36 → 35 | 配 Hilt + KSP 时连续撞 AGP 9 生态适配期 3 类兼容性问题（KSP 与 built-in Kotlin 冲突、KGP ClassCastException、Hilt 2.59 早期 bug）。AGP 9 在 2026-01 才正式发布，三方还未追齐。改用 2024 末业界主流稳定组合，省下排坑时间投入业务逻辑。详见 ADR-004 |
+| 2026-05-12 | ROADMAP Week 1 勾选与 `PageEntity` 表述对齐仓库：`DocumentEntity`+DAO 已交付；`PageEntity` 推迟 W2；已勾选 SAF、内部复制、PdfBox、四 UseCase、文档库 UI、卡片字段、PdfTextExtractor 单测；阅读器与页码条仍待 Day 4+ | 与 `docs/dev-log/week1.md` 及 `feat/library-document-import` 实际进度一致，避免 ROADMAP 与代码双源漂移 |
