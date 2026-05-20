@@ -69,6 +69,9 @@ class LibraryActivity : AppCompatActivity() {
         onClick = { document ->
             startActivity(ReaderActivity.newIntent(this, document.id))
         },
+        onRetryIndex = { documentId ->
+            viewModel.onRetryIndexing(documentId)
+        },
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

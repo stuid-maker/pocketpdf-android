@@ -4,32 +4,113 @@ import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.core.resultOf
 import com.asuka.pocketpdf.data.remote.LlmApi
+import com.asuka.pocketpdf.data.remote.SseStreamParser
+import com.asuka.pocketpdf.data.remote.dto.ChatCompletionRequestDto
+import com.asuka.pocketpdf.data.remote.dto.MessageDto
 import com.asuka.pocketpdf.data.remote.dto.ModelDto
+import com.asuka.pocketpdf.domain.model.ChatMessage
 import com.asuka.pocketpdf.domain.model.LlmModel
 import com.asuka.pocketpdf.domain.repository.LlmRepository
+import com.squareup.moshi.Moshi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import timber.log.Timber
+import java.io.IOException
 import javax.inject.Inject
 
 /**
- * [LlmRepository] 的 Retrofit 实现。
+ * [LlmRepository] 的 Retrofit + OkHttp 实现。
  *
  * 职责：
- * 1. 通过 [LlmApi] 发起 HTTP 调用
- * 2. 把 DTO 映射为 domain model
- * 3. 把异常包成 [Result.Failure]，向 UseCase 屏蔽底层细节
+ * 1. 通过 [LlmApi] 发起非流式 HTTP 调用（listModels）
+ * 2. 通过原生 [OkHttpClient] 发起流式 chat completions
+ * 3. 把 DTO 映射为 domain model
+ * 4. 把异常包成 [Result.Failure] 或通过 Flow emit exception
  *
- * 调度：Retrofit suspend 自身已在 OkHttp 线程池跑，这里仍显式 [withContext]
- * 为后续可能的 IO 工作（DTO → domain 大映射、磁盘缓存）预留正确线程。
+ * 流式调用绕过 Retrofit 的原因：Retrofit 的 suspend 函数会把整个 response body
+ * 读进内存再返回，对大流式响应不适用。原生 OkHttp 直接拿到 [ResponseBody.source]。
  */
 class LlmRepositoryImpl @Inject constructor(
     private val api: LlmApi,
+    private val okHttpClient: OkHttpClient,
+    private val moshi: Moshi,
     private val dispatchers: DispatcherProvider,
 ) : LlmRepository {
+
+    private val sseParser = SseStreamParser(moshi)
+    private val requestAdapter = moshi.adapter(ChatCompletionRequestDto::class.java)
 
     override suspend fun listModels(): Result<List<LlmModel>> =
         withContext(dispatchers.io) {
             resultOf { api.listModels().data.map(ModelDto::toDomain) }
         }
+
+    override fun chatCompletionStream(
+        model: String,
+        messages: List<ChatMessage>,
+        temperature: Float?,
+    ): Flow<String> = callbackFlow {
+        val requestDto = ChatCompletionRequestDto(
+            model = model,
+            messages = messages.map { MessageDto(role = it.role, content = it.content) },
+            stream = true,
+            temperature = temperature,
+        )
+
+        val requestBody = requestAdapter.toJson(requestDto)
+            .toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("$BASE_URL/v1/chat/completions")
+            .header("Content-Type", "application/json")
+            .post(requestBody)
+            .build()
+
+        try {
+            val response = withContext(Dispatchers.IO) {
+                okHttpClient.newCall(request).execute()
+            }
+
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "HTTP ${response.code}"
+                response.close()
+                throw IOException("Chat completion failed: $errorBody")
+            }
+
+            val body = response.body
+            if (body == null) {
+                response.close()
+                throw IOException("Chat completion returned empty body")
+            }
+
+            val source = body.source()
+            sseParser.parse(source).collect { token ->
+                trySend(token)
+            }
+            response.close()
+            channel.close()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "chatCompletionStream failed")
+            channel.close(e)
+        }
+
+        awaitClose {
+            Timber.tag(TAG).d("chatCompletionStream Flow cancelled")
+        }
+    }
+
+    companion object {
+        private const val TAG = "LlmRepositoryImpl"
+        // Day 5 设置页做成后可配置；当前硬编码与 NetworkModule.BASE_URL 一致
+        private const val BASE_URL = "http://localhost:1234"
+    }
 }
 
 private fun ModelDto.toDomain(): LlmModel = LlmModel(

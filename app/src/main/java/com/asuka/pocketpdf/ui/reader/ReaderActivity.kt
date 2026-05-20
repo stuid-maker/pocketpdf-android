@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
-import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -39,17 +38,12 @@ class ReaderActivity : AppCompatActivity() {
     private lateinit var binding: ActivityReaderBinding
     private val viewModel: ReaderViewModel by viewModels()
 
-    // PdfRenderer is not thread-safe; page render and close must not overlap.
     private val rendererLock = Any()
     private var parcelFileDescriptor: ParcelFileDescriptor? = null
     private var pdfRenderer: PdfRenderer? = null
     private var renderJob: Job? = null
-    private var currentBitmap: Bitmap? = null
     private var currentDocumentId: Long = -1L
     private var currentPageIndex: Int = 0
-    private var scaleFactor: Float = 1f
-
-    private lateinit var scaleGestureDetector: ScaleGestureDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,12 +51,6 @@ class ReaderActivity : AppCompatActivity() {
         binding = ActivityReaderBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyWindowInsets()
-
-        scaleGestureDetector = ScaleGestureDetector(this, PageScaleListener())
-        binding.ivReaderPage.setOnTouchListener { _, event ->
-            scaleGestureDetector.onTouchEvent(event)
-            true
-        }
 
         binding.toolbarReader.setNavigationOnClickListener { finish() }
         binding.btnReaderPrevious.setOnClickListener { renderPage(currentPageIndex - 1) }
@@ -87,7 +75,7 @@ class ReaderActivity : AppCompatActivity() {
             ReaderUiState.Loading -> {
                 binding.progressReaderLoad.isVisible = true
                 binding.groupReaderError.isVisible = false
-                binding.ivReaderPage.isVisible = false
+                binding.pdfPageView.isVisible = false
                 binding.readerControls.isVisible = false
             }
             is ReaderUiState.Error -> showError(state.message)
@@ -101,7 +89,7 @@ class ReaderActivity : AppCompatActivity() {
         binding.toolbarReader.title = document.title
         binding.progressReaderLoad.isVisible = false
         binding.groupReaderError.isVisible = false
-        binding.ivReaderPage.isVisible = true
+        binding.pdfPageView.isVisible = true
         binding.readerControls.isVisible = true
         try {
             val file = File(document.uri)
@@ -141,12 +129,9 @@ class ReaderActivity : AppCompatActivity() {
                 val bitmap = withContext(Dispatchers.IO) {
                     renderBitmap(targetIndex, renderWidth)
                 }
-                val oldBitmap = currentBitmap
-                currentBitmap = bitmap
-                binding.ivReaderPage.setImageBitmap(bitmap)
-                oldBitmap?.recycle()
+                binding.pdfPageView.setBitmap(bitmap)
                 currentPageIndex = targetIndex
-                resetZoom()
+                bitmap.recycle()
             } catch (t: CancellationException) {
                 throw t
             } catch (t: Throwable) {
@@ -173,26 +158,18 @@ class ReaderActivity : AppCompatActivity() {
     private fun showError(message: String) {
         closeRenderer()
         binding.progressReaderLoad.isVisible = false
-        binding.ivReaderPage.isVisible = false
+        binding.pdfPageView.isVisible = false
         binding.readerControls.isVisible = false
         binding.groupReaderError.isVisible = true
         binding.tvReaderError.text = message
-    }
-
-    private fun resetZoom() {
-        scaleFactor = 1f
-        binding.ivReaderPage.scaleX = scaleFactor
-        binding.ivReaderPage.scaleY = scaleFactor
     }
 
     private fun closeRenderer() {
         renderJob?.cancel()
         renderJob = null
         if (::binding.isInitialized) {
-            binding.ivReaderPage.setImageDrawable(null)
+            binding.pdfPageView.setBitmap(null)
         }
-        currentBitmap?.recycle()
-        currentBitmap = null
         synchronized(rendererLock) {
             pdfRenderer?.close()
             pdfRenderer = null
@@ -210,22 +187,11 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    private inner class PageScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
-            scaleFactor = (scaleFactor * detector.scaleFactor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-            binding.ivReaderPage.scaleX = scaleFactor
-            binding.ivReaderPage.scaleY = scaleFactor
-            return true
-        }
-    }
-
     companion object {
         private const val EXTRA_DOCUMENT_ID = "com.asuka.pocketpdf.extra.DOCUMENT_ID"
         private const val TAG = "ReaderActivity"
         private const val MIN_RENDER_WIDTH = 1200
         private const val MAX_RENDER_WIDTH = 2400
-        private const val MIN_ZOOM = 1f
-        private const val MAX_ZOOM = 4f
 
         fun newIntent(context: Context, documentId: Long): Intent =
             Intent(context, ReaderActivity::class.java).putExtra(EXTRA_DOCUMENT_ID, documentId)

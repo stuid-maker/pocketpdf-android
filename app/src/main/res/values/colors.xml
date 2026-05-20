@@ -2,4 +2,14 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- 索引状态徽章颜色 -->
+    <color name="badge_not_indexed_bg">#E0E0E0</color>
+    <color name="badge_not_indexed_text">#616161</color>
+    <color name="badge_indexing_bg">#FFF3E0</color>
+    <color name="badge_indexing_text">#E65100</color>
+    <color name="badge_indexed_bg">#E8F5E9</color>
+    <color name="badge_indexed_text">#2E7D32</color>
+    <color name="badge_failed_bg">#FFEBEE</color>
+    <color name="badge_failed_text">#C62828</color>
 </resources>

@@ -1,8 +1,11 @@
 package com.asuka.pocketpdf.ui.library
 
+import android.graphics.drawable.GradientDrawable
 import android.text.format.DateUtils
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -20,10 +23,15 @@ import com.asuka.pocketpdf.domain.model.IndexStatus
  *
  * Item 视图（item_document.xml）：左 PDF icon + 右上 title / 右下 pages·time / 最右索引徽章。
  *
- * 索引徽章 W1 阶段恒为 NOT_INDEXED；W2 切 INDEXING（带进度）/ INDEXED / FAILED。
+ * 索引徽章按 [IndexStatus] 切 4 种颜色+文案：
+ * - NOT_INDEXED：灰色底 · "未索引"
+ * - INDEXING：橙色底 + ProgressBar · "索引中"
+ * - INDEXED：绿色底 · "已索引"
+ * - FAILED：红色底 · "索引失败"（可点击重试）
  */
 internal class DocumentListAdapter(
     private val onClick: (Document) -> Unit,
+    private val onRetryIndex: ((Long) -> Unit)? = null,
 ) : ListAdapter<Document, DocumentListAdapter.DocumentViewHolder>(DIFF) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DocumentViewHolder {
@@ -32,7 +40,7 @@ internal class DocumentListAdapter(
             parent,
             false,
         )
-        return DocumentViewHolder(binding, onClick)
+        return DocumentViewHolder(binding, onClick, onRetryIndex)
     }
 
     override fun onBindViewHolder(holder: DocumentViewHolder, position: Int) {
@@ -44,13 +52,13 @@ internal class DocumentListAdapter(
      * 仅在 ItemTouchHelper.onSwiped 里被 Activity 调用，故 internal 可见性即可。
      */
     fun documentAt(position: Int): Document? {
-        // ItemTouchHelper can report NO_POSITION while RecyclerView is settling animations.
         return if (position in 0 until itemCount) getItem(position) else null
     }
 
     internal class DocumentViewHolder(
         private val binding: ItemDocumentBinding,
         private val onClick: (Document) -> Unit,
+        private val onRetryIndex: ((Long) -> Unit)?,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(document: Document) {
@@ -65,17 +73,63 @@ internal class DocumentListAdapter(
                     DateUtils.FORMAT_ABBREV_RELATIVE,
                 ),
             )
-            binding.tvDocumentIndexBadge.text = renderBadge(document.indexStatus)
+            bindBadge(document)
             binding.root.setOnClickListener { onClick(document) }
         }
 
-        private fun renderBadge(status: IndexStatus): String {
+        private fun bindBadge(document: Document) {
+            val status = document.indexStatus
             val context = binding.root.context
-            return when (status) {
+            val badge = binding.tvDocumentIndexBadge
+            val progress = binding.progressBadgeIndexing
+            val layout = binding.layoutIndexBadge
+
+            badge.text = when (status) {
                 IndexStatus.NOT_INDEXED -> context.getString(R.string.library_badge_not_indexed)
                 IndexStatus.INDEXING -> context.getString(R.string.library_badge_indexing)
                 IndexStatus.INDEXED -> context.getString(R.string.library_badge_indexed)
                 IndexStatus.FAILED -> context.getString(R.string.library_badge_failed)
+            }
+
+            val (bgColor, textColor) = statusColors(context, status)
+            val bg = layout.background.mutate() as? GradientDrawable
+            if (bg != null) {
+                bg.setColor(bgColor)
+            } else {
+                val drawable = GradientDrawable().apply {
+                    cornerRadius = 8f * context.resources.displayMetrics.density
+                    setColor(bgColor)
+                }
+                layout.background = drawable
+            }
+            badge.setTextColor(textColor)
+            progress.visibility = if (status == IndexStatus.INDEXING) View.VISIBLE else View.GONE
+
+            // FAILED 态可点击重试
+            if (status == IndexStatus.FAILED && onRetryIndex != null) {
+                layout.isClickable = true
+                layout.isFocusable = true
+                layout.setOnClickListener { onRetryIndex(document.id) }
+            } else {
+                layout.isClickable = false
+                layout.setOnClickListener(null)
+            }
+        }
+
+        private fun statusColors(context: android.content.Context, status: IndexStatus): Pair<Int, Int> {
+            return when (status) {
+                IndexStatus.NOT_INDEXED ->
+                    ContextCompat.getColor(context, R.color.badge_not_indexed_bg) to
+                    ContextCompat.getColor(context, R.color.badge_not_indexed_text)
+                IndexStatus.INDEXING ->
+                    ContextCompat.getColor(context, R.color.badge_indexing_bg) to
+                    ContextCompat.getColor(context, R.color.badge_indexing_text)
+                IndexStatus.INDEXED ->
+                    ContextCompat.getColor(context, R.color.badge_indexed_bg) to
+                    ContextCompat.getColor(context, R.color.badge_indexed_text)
+                IndexStatus.FAILED ->
+                    ContextCompat.getColor(context, R.color.badge_failed_bg) to
+                    ContextCompat.getColor(context, R.color.badge_failed_text)
             }
         }
     }
