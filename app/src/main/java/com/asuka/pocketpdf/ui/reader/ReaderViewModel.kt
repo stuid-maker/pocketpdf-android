@@ -3,11 +3,16 @@ package com.asuka.pocketpdf.ui.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.domain.model.SummaryScope
 import com.asuka.pocketpdf.domain.usecase.GetDocumentUseCase
+import com.asuka.pocketpdf.domain.usecase.NoChunksException
+import com.asuka.pocketpdf.domain.usecase.NoChunksForPageException
+import com.asuka.pocketpdf.domain.usecase.SummarizeDocumentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,11 +23,15 @@ import timber.log.Timber
 @HiltViewModel
 class ReaderViewModel @Inject constructor(
     private val getDocument: GetDocumentUseCase,
+    private val summarizeDocument: SummarizeDocumentUseCase,
     private val dispatchers: DispatcherProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ReaderUiState>(ReaderUiState.Loading)
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
+
+    private var summaryJob: Job? = null
+    private var currentDocument: com.asuka.pocketpdf.domain.model.Document? = null
 
     fun load(documentId: Long) {
         if (documentId <= 0L) {
@@ -41,18 +50,4 @@ class ReaderViewModel @Inject constructor(
                     }
                     ReaderUiState.Loaded(document)
                 }
-                _uiState.value = state
-            } catch (t: CancellationException) {
-                throw t
-            } catch (t: Throwable) {
-                val msg = t.message ?: t.javaClass.simpleName
-                Timber.tag(TAG).e(t, "reader load failed: id=%d %s", documentId, msg)
-                _uiState.value = ReaderUiState.Error(msg)
-            }
-        }
-    }
-
-    private companion object {
-        const val TAG = "ReaderViewModel"
-    }
-}
+                currentDocument = (state as? ReaderUiState.Load

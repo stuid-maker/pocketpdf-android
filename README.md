@@ -2,7 +2,7 @@
 
 > 一款让你在阅读 PDF 时**就近接入 AI** 的安卓应用：自动切块、向量检索、生成摘要并基于内容回答问题，全程可断网（仅依赖你 PC 上的本地 LLM 服务）。
 
-[![status](https://img.shields.io/badge/status-W1%20done-brightgreen)](https://github.com/stuid-maker/pocketpdf-android)
+[![status](https://img.shields.io/badge/status-W3%20in%20progress-yellow)](https://github.com/stuid-maker/pocketpdf-android)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](#)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](#)
 [![License](https://img.shields.io/badge/license-MIT-green)](#)
@@ -17,8 +17,8 @@
 
 - [x] 项目骨架与文档（W0）
 - [x] 本地 PDF 导入、阅读、翻页（W1）
-- [ ] 文本切块 + 向量化 + 索引入库（W2 · **进行中**）
-- [ ] 检索 + 调用本地 LLM 生成摘要（流式输出）（W3）
+- [x] 文本切块 + 向量化 + 索引入库（W2）
+- [x] 检索 + 调用本地 LLM 生成摘要（流式输出）（W3 · **进行中**）
 - [ ] 基于文档内容的问答 + 引用回溯到原文页码（W4）
 - [ ] 单元测试、集成测试、CI、Demo 视频（W5）
 
@@ -96,8 +96,8 @@ adb reverse tcp:1234 tcp:1234
 |---|---|---|---|
 | W0 | 环境就绪 + 文档骨架 | ✅ Done | `v0.0.1-env-ready` |
 | W1 | PDF 阅读器 Demo | ✅ Done | `v0.1.0-pdf-reader` |
-| W2 | 切块 + 向量化 + 索引 | ⏳ In Progress | `v0.2.0-indexed` |
-| W3 | 检索 + LLM 桥接 + 总结 | ⚪ Pending | `v0.3.0-summary` |
+| W2 | 切块 + 向量化 + 索引 | ✅ Done | `v0.2.0-indexed` |
+| W3 | 检索 + LLM 桥接 + 总结 | 🟡 In Progress | `v0.3.0-summary` |
 | W4 | 问答 + 引用回溯 + 抛光 | ⚪ Pending | `v0.4.0-qa` |
 | W5 | 测试 + 文档 + Demo | ⚪ Pending | `v1.0.0-release` |
 
