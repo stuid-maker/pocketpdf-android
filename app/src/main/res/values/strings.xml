@@ -37,4 +37,14 @@
     <string name="reader_error_open_failed">Could not open PDF: %1$s</string>
     <string name="reader_error_render_failed">Could not render page: %1$s</string>
 
-    <!-- Rea
+    <!-- Reader summary (W3) -->
+    <string name="reader_summarize_page">总结本页</string>
+    <string name="reader_summarize_full">总结全文</string>
+    <string name="reader_summary_indexing">请等待文档索引完成</string>
+    <string name="reader_summary_title_page">页面摘要</string>
+    <string name="reader_summary_title_full">全文摘要</string>
+    <string name="reader_summary_stop">停止</string>
+    <string name="reader_summary_close">关闭</string>
+    <string name="reader_summary_copy">复制摘要</string>
+    <string name="reader_summary_copied">已复制</string>
+</resources>

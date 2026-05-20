@@ -56,6 +56,11 @@
             android:name=".ui.ping.PingActivity"
             android:exported="false"
             android:label="@string/app_name" />
+
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"
+            android:label="设置" />
     </application>
 
 </manifest>

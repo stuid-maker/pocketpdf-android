@@ -84,6 +84,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
     // PDF
     implementation(libs.pdfbox.android)
 
