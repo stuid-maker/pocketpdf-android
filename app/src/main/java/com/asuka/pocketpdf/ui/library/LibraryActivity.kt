@@ -4,7 +4,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.text.format.DateUtils
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
+import android.content.Intent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -80,6 +83,8 @@ class LibraryActivity : AppCompatActivity() {
         binding = ActivityLibraryBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyWindowInsets()
+
+        setSupportActionBar(binding.toolbarLibrary)
 
         binding.rvLibraryDocuments.layoutManager = LinearLayoutManager(this)
         binding.rvLibraryDocuments.adapter = adapter
@@ -219,6 +224,21 @@ class LibraryActivity : AppCompatActivity() {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.updatePadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_library, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                startActivity(Intent(this, com.asuka.pocketpdf.ui.settings.SettingsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 

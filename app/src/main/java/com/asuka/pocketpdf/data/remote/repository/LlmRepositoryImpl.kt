@@ -3,19 +3,23 @@ package com.asuka.pocketpdf.data.remote.repository
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.core.resultOf
+import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.data.remote.LlmApi
 import com.asuka.pocketpdf.data.remote.SseStreamParser
 import com.asuka.pocketpdf.data.remote.dto.ChatCompletionRequestDto
 import com.asuka.pocketpdf.data.remote.dto.MessageDto
 import com.asuka.pocketpdf.data.remote.dto.ModelDto
+import com.asuka.pocketpdf.data.remote.dto.ModelsResponseDto
 import com.asuka.pocketpdf.domain.model.ChatMessage
 import com.asuka.pocketpdf.domain.model.LlmModel
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -41,6 +45,7 @@ class LlmRepositoryImpl @Inject constructor(
     private val api: LlmApi,
     private val okHttpClient: OkHttpClient,
     private val moshi: Moshi,
+    private val settingsDataStore: SettingsDataStore,
     private val dispatchers: DispatcherProvider,
 ) : LlmRepository {
 
@@ -67,14 +72,16 @@ class LlmRepositoryImpl @Inject constructor(
         val requestBody = requestAdapter.toJson(requestDto)
             .toRequestBody("application/json".toMediaType())
 
+        val baseUrl = settingsDataStore.baseUrl.first()
         val request = Request.Builder()
-            .url("$BASE_URL/v1/chat/completions")
+            .url("$baseUrl/chat/completions")
             .header("Content-Type", "application/json")
             .post(requestBody)
             .build()
 
+        var response: okhttp3.Response? = null
         try {
-            val response = withContext(Dispatchers.IO) {
+            response = withContext(Dispatchers.IO) {
                 okHttpClient.newCall(request).execute()
             }
 
@@ -96,9 +103,13 @@ class LlmRepositoryImpl @Inject constructor(
             }
             response.close()
             channel.close()
+        } catch (e: CancellationException) {
+            response?.close()
+            throw e
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "chatCompletionStream failed")
-            channel.close(e)
+            response?.close()
+            throw e
         }
 
         awaitClose {
@@ -106,10 +117,30 @@ class LlmRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun testConnection(baseUrl: String): Result<List<LlmModel>> =
+        withContext(dispatchers.io) {
+            resultOf {
+                val request = Request.Builder()
+                    .url("$baseUrl/models")
+                    .header("Content-Type", "application/json")
+                    .get()
+                    .build()
+                val response = okHttpClient.newCall(request).execute()
+                response.use { resp ->
+                    if (!resp.isSuccessful) {
+                        throw IOException("HTTP ${resp.code}: ${resp.body?.string()}")
+                    }
+                    val body = resp.body?.string()
+                        ?: throw IOException("Empty response body")
+                    val modelsResponse = moshi.adapter(ModelsResponseDto::class.java).fromJson(body)
+                        ?: throw IOException("Failed to parse models response")
+                    modelsResponse.data.map(ModelDto::toDomain)
+                }
+            }
+        }
+
     companion object {
         private const val TAG = "LlmRepositoryImpl"
-        // Day 5 设置页做成后可配置；当前硬编码与 NetworkModule.BASE_URL 一致
-        private const val BASE_URL = "http://localhost:1234"
     }
 }
 

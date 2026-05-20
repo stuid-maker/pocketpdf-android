@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Library 主界面（W1 Day 3 起作为 LAUNCHER）。
-  视图层次：根 CoordinatorLayout 容纳 RecyclerView + 空状态 include + 顶部进度条 + FAB。
-
-  CoordinatorLayout 而非 ConstraintLayout 的工程论据：Snackbar 默认锚定 CoordinatorLayout
-  会自动让 FAB 上移避让；用 ConstraintLayout 时 Snackbar 会盖住 FAB。
+  Day 5 加 Toolbar 承载溢出菜单（设置入口）。
 -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -14,21 +11,42 @@
     android:layout_height="match_parent"
     tools:context=".ui.library.LibraryActivity">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_library_documents"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingTop="8dp"
-        android:paddingBottom="96dp"
-        android:scrollbars="vertical"
-        tools:listitem="@layout/item_document" />
+        android:orientation="vertical">
 
-    <include
-        android:id="@+id/empty_library"
-        layout="@layout/view_empty_library"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_library"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorSurface"
+            app:title="@string/app_name"
+            app:titleCentered="true" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_library_documents"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="8dp"
+                android:paddingBottom="96dp"
+                android:scrollbars="vertical"
+                tools:listitem="@layout/item_document" />
+
+            <include
+                android:id="@+id/empty_library"
+                layout="@layout/view_empty_library"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </FrameLayout>
+
+    </LinearLayout>
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progress_library_import"

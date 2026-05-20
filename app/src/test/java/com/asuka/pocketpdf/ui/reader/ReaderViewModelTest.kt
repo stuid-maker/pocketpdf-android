@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.reader
 
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
@@ -30,6 +31,7 @@ class ReaderViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val repository: DocumentRepository = mockk()
     private val summarizeDocument: SummarizeDocumentUseCase = mockk(relaxed = true)
+    private val settingsDataStore: SettingsDataStore = mockk(relaxed = true)
     private lateinit var viewModel: ReaderViewModel
 
     @Before
@@ -38,6 +40,7 @@ class ReaderViewModelTest {
         viewModel = ReaderViewModel(
             getDocument = GetDocumentUseCase(repository),
             summarizeDocument = summarizeDocument,
+            settingsDataStore = settingsDataStore,
             dispatchers = object : DispatcherProvider {
                 override val main: CoroutineDispatcher = dispatcher
                 override val io: CoroutineDispatcher = dispatcher
@@ -112,4 +115,10 @@ class ReaderViewModelTest {
         val STUB = Document(
             id = 0L,
             title = "stub.pdf",
-            uri = "/
+            uri = "/data/data/com.asuka.pocketpdf/files/documents/stub.pdf",
+            pageCount = 3,
+            indexStatus = IndexStatus.NOT_INDEXED,
+            importedAt = 1_700_000_000_000L,
+        )
+    }
+}

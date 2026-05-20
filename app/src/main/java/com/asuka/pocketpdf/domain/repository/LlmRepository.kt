@@ -30,4 +30,9 @@ interface LlmRepository {
         messages: List<ChatMessage>,
         temperature: Float? = null,
     ): Flow<String>
+
+    /**
+     * 测试到指定 baseUrl 的连接，调用 `/v1/models`。
+     */
+    suspend fun testConnection(baseUrl: String): Result<List<LlmModel>>
 }
