@@ -2,7 +2,7 @@
 
 > 第 4 周：问答 + 引用回溯 + 抛光。**完整问答闭环，能拿出去演示。**
 >
-> **D0 完成**（2026-05-20）：Prompt 模板迁移 + ProGuard 规则 + Compose 环境搭建，编译通过。
+> **D0–D1 完成**（2026-05-20）：Prompt 迁移 + ProGuard + Compose 环境 + `AskDocumentUseCase` + 3 测试全绿。
 
 ## 1. 本周目标（来自 ROADMAP）
 
@@ -31,12 +31,21 @@
 ### Compose 依赖 ✅
 - `composeBom = "2024.09.00"` + UI/Material3/Activity + `kotlin-compose` 插件
 - `compose = true` + BOM，编译通过（2m47s）
+---
+
+### Day 1 · AskDocumentUseCase ✅
+
+**新增文件**：
+- `domain/usecase/AskDocumentUseCase.kt` — 检索 Top-K → 拼上下文 + 页码 → RAG prompt → 流式生成
+- `test/.../AskDocumentUseCaseTest.kt` — 3 case（正常流 / 空检索 fallback / LLM 异常）
+
+**修改文件**：
+- `domain/prompt/PromptTemplates.kt` — `ragQuery()` 加引用格式指令
+
+**测试**：3/3 全绿，全量约 85 tests
 
 ---
 
-## 3. Day 1 计划（2026-05-21）— AskDocumentUseCase
-
-**目标**：embed query → retrieve → 构造 RAG prompt → 流式生成。
 
 - `AskDocumentUseCase`（`domain/usecase/`）：RetrieveChunksUseCase + RAG prompt + LLM stream → `Flow<String>`
 - `PromptTemplates.ragQuery(context, question)` 填实：要求中文回答、引用 `[第N页]` 格式、不知道就说不知道
@@ -127,4 +136,4 @@ D0 (快修+Compose) ──▶ D1 (AskUseCase) ──▶ D2 (聊天UI) ──▶ 
 - [x] ProGuard 规则就绪
 - [ ] 截图归档
 
-**Tag**：`v0.4.0-qa`
+**Tag**：`
