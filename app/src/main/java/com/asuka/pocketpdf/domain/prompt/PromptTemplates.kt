@@ -44,4 +44,29 @@ object PromptTemplates {
         appendLine("---")
         appendLine("问题：$question")
     }
+
+    /**
+     * 文档摘要 prompt（W3 简化版）。
+     *
+     * 将 chunk 列表拼成上下文，要求 LLM 生成中文全文总结。
+     *
+     * @param chunks 文档片段列表，每项 Pair(pageLabel, text)
+     */
+    fun documentSummary(chunks: List<Pair<String, String>>): String {
+        val context = buildString {
+            chunks.forEachIndexed { index, (label, text) ->
+                appendLine("--- 片段 ${index + 1}（$label）---")
+                appendLine(text)
+                appendLine()
+            }
+        }
+        return buildString {
+            appendLine("请用中文对以下文档片段进行全文总结（2-3 段），提取核心观点并按原文逻辑组织：")
+            appendLine()
+            append(context)
+            append("---")
+            appendLine()
+            append("总结：")
+        }
+    }
 }
