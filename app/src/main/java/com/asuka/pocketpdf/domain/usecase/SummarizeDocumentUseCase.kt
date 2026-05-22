@@ -21,6 +21,7 @@ class SummarizeDocumentUseCase @Inject constructor(
         model: String,
         scope: SummaryScope,
         topK: Int = 5,
+        systemPrompt: String = "",
     ): Flow<String> = flow {
         val chunks = when (scope) {
             is SummaryScope.Full -> {
@@ -28,7 +29,6 @@ class SummarizeDocumentUseCase @Inject constructor(
                 retrieveChunks(documentId, query, topK).map { it.chunk }
             }
             is SummaryScope.Page -> {
-                // 页面总结：直接取该页所有 chunk，不做语义检索
                 documentRepository.getChunks(documentId)
                     .filter { it.embedding != null && it.embedding.isNotEmpty() }
                     .filter { it.pageIndex == scope.pageIndex }
@@ -48,10 +48,17 @@ class SummarizeDocumentUseCase @Inject constructor(
         val pairs = chunks.map { "第 ${it.pageIndex + 1} 页" to it.text }
         val prompt = PromptTemplates.documentSummary(pairs)
 
+        val messages = buildList {
+            if (systemPrompt.isNotBlank()) {
+                add(ChatMessage(ChatMessage.ROLE_SYSTEM, systemPrompt))
+            }
+            add(ChatMessage(ChatMessage.ROLE_USER, prompt))
+        }
+
         try {
             llmRepository.chatCompletionStream(
                 model = model,
-                messages = listOf(ChatMessage(ChatMessage.ROLE_USER, prompt)),
+                messages = messages,
             ).collect { token -> emit(token) }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "summary failed")
@@ -68,4 +75,4 @@ class NoChunksForPageException(pageIndex: Int) :
     Exception("第 ${pageIndex + 1} 页无文本内容")
 
 class NoChunksException :
-    Exception("文档未索引或无文本内容，请在索引完成时重试")
+    Exception("文档未索引或无文本内容，请等待索引完成后重试")

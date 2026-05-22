@@ -8,38 +8,21 @@ import kotlinx.coroutines.flow.flow
 import timber.log.Timber
 import javax.inject.Inject
 
-/**
- * 基于 RAG 的文档问答。
- *
- * 流程：
- * 1. [RetrieveChunksUseCase] 根据问题语义检索 Top-K 最相关 chunk
- * 2. 拼接上下文 + 页码标注 + 问题 → RAG prompt
- * 3. [LlmRepository] 流式生成回答
- *
- * 引用格式要求模型输出 `[第N页]`（见 [PromptTemplates.ragQuery]）。
- */
 class AskDocumentUseCase @Inject constructor(
     private val retrieveChunks: RetrieveChunksUseCase,
     private val llmRepository: LlmRepository,
 ) {
 
-    /**
-     * @param documentId 目标文档 ID
-     * @param question 用户问题
-     * @param model LLM 模型名
-     * @param topK 检索 chunk 数量，默认 5
-     * @return 流式 token
-     */
     operator fun invoke(
         documentId: Long,
         question: String,
         model: String,
         topK: Int = 5,
+        systemPrompt: String = "",
     ): Flow<String> = flow {
         val results = retrieveChunks(documentId, question, topK)
         if (results.isEmpty()) {
             Timber.tag(TAG).d("No chunks retrieved for question: %s", question)
-            // 无上下文也尝试回答（让模型自己说不知道）
             emit("未在文档中找到与「$question」相关的内容。")
             return@flow
         }
@@ -57,10 +40,17 @@ class AskDocumentUseCase @Inject constructor(
 
         val prompt = PromptTemplates.ragQuery(context, question)
 
+        val messages = buildList {
+            if (systemPrompt.isNotBlank()) {
+                add(ChatMessage(ChatMessage.ROLE_SYSTEM, systemPrompt))
+            }
+            add(ChatMessage(ChatMessage.ROLE_USER, prompt))
+        }
+
         try {
             llmRepository.chatCompletionStream(
                 model = model,
-                messages = listOf(ChatMessage(ChatMessage.ROLE_USER, prompt)),
+                messages = messages,
             ).collect { token -> emit(token) }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Q&A stream failed")

@@ -10,12 +10,10 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.asuka.pocketpdf.R
 import com.asuka.pocketpdf.databinding.ActivitySettingsBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -25,6 +23,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
     private val viewModel: SettingsViewModel by viewModels()
+    private var fieldsPopulated = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,21 +37,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnResetDefaults.setOnClickListener { viewModel.resetDefaults() }
         binding.btnTestConnection.setOnClickListener { viewModel.testConnection() }
 
-        binding.etBaseUrl.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { viewModel.onBaseUrlChanged(s?.toString() ?: "") }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-        binding.etModelName.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { viewModel.onModelNameChanged(s?.toString() ?: "") }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-        binding.etApiKey.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { viewModel.onApiKeyChanged(s?.toString() ?: "") }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
+        addTextWatchers()
+        setupPresetDropdown()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -61,39 +47,44 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private var fieldsPopulated = false
+    private fun addTextWatchers() {
+        binding.etBaseUrl.addTextChangedListener(SimpleWatcher { viewModel.onBaseUrlChanged(it) })
+        binding.etModelName.addTextChangedListener(SimpleWatcher { viewModel.onModelNameChanged(it) })
+        binding.etApiKey.addTextChangedListener(SimpleWatcher { viewModel.onApiKeyChanged(it) })
+        binding.etSystemPrompt.addTextChangedListener(SimpleWatcher { viewModel.onSystemPromptChanged(it) })
+    }
+
+    private fun setupPresetDropdown() {
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, MODEL_PRESETS.map { it.label })
+        (binding.etPreset as? android.widget.AutoCompleteTextView)?.apply {
+            setAdapter(adapter)
+            setOnItemClickListener { _, _, pos, _ ->
+                viewModel.onPresetSelected(MODEL_PRESETS[pos].id)
+            }
+        }
+    }
 
     private fun render(state: SettingsUiState) {
-        // Populate fields once on first load
         if (!fieldsPopulated && state.baseUrl.isNotEmpty()) {
             binding.etBaseUrl.setText(state.baseUrl)
             binding.etModelName.setText(state.modelName)
             binding.etApiKey.setText(state.apiKey)
+            binding.etSystemPrompt.setText(state.systemPrompt)
+            val p = MODEL_PRESETS.find { it.baseUrl == state.baseUrl && it.modelName == state.modelName }
+            binding.etPreset.setText(p?.label ?: "自定义")
             fieldsPopulated = true
         }
-
-        binding.btnSettingsSave.isEnabled = !state.isSaving
-
-        state.error?.let {
-            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
-        }
-
-        if (state.saveSuccess) {
-            Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
-        }
-
         binding.btnTestConnection.isEnabled = !state.connectionTesting
-        binding.btnTestConnection.text = if (state.connectionTesting) "测试中…" else "测试连接"
-
-        state.connectionTestResult?.let { result ->
-            Toast.makeText(this, result, Toast.LENGTH_LONG).show()
-            binding.btnTestConnection.text = if (result.startsWith("✅")) "✅ 已连接" else "❌ 失败"
+        binding.btnSettingsSave.isEnabled = !state.isSaving
+        state.error?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+        if (state.saveSuccess) Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
+        state.connectionTestResult?.let {
+            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            binding.btnTestConnection.text = if (it.startsWith("✅")) "✅ 已连接" else "❌ 失败"
         }
-
-        // 可用模型列表更新后设置下拉
         if (state.availableModels.isNotEmpty()) {
-            val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, state.availableModels)
-            (binding.etModelName as? android.widget.AutoCompleteTextView)?.setAdapter(adapter)
+            val a = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, state.availableModels)
+            (binding.etModelName as? android.widget.AutoCompleteTextView)?.setAdapter(a)
         }
     }
 
@@ -103,5 +94,11 @@ class SettingsActivity : AppCompatActivity() {
             v.updatePadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
+    }
+
+    private class SimpleWatcher(private val onChanged: (String) -> Unit) : TextWatcher {
+        override fun afterTextChanged(s: Editable?) { onChanged(s?.toString() ?: "") }
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
     }
 }
