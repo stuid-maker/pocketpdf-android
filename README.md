@@ -98,7 +98,7 @@ adb reverse tcp:1234 tcp:1234
 | W1 | PDF 阅读器 Demo | ✅ Done | `v0.1.0-pdf-reader` |
 | W2 | 切块 + 向量化 + 索引 | ✅ Done | `v0.2.0-indexed` |
 | W3 | 检索 + LLM 桥接 + 总结 | ✅ Done | `v0.3.0-summary` |
-| W4 | 问答 + 引用回溯 + 抛光 | ⚪ Pending | `v0.4.0-qa` |
+| W4 | 问答 + 引用回溯 + 抛光 | 🟡 In Progress | `v0.4.0-qa` |
 | W5 | 测试 + 文档 + Demo | ⚪ Pending | `v1.0.0-release` |
 
 ## License

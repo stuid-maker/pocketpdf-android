@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.domain.usecase
 
 import com.asuka.pocketpdf.domain.model.ChatMessage
 import com.asuka.pocketpdf.domain.model.SummaryScope
+import com.asuka.pocketpdf.domain.prompt.PromptTemplates
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import kotlinx.coroutines.flow.Flow
@@ -44,22 +45,8 @@ class SummarizeDocumentUseCase @Inject constructor(
 
         Timber.tag(TAG).d("Summarizing %d chunks for scope=%s", chunks.size, scope)
 
-        val context = buildString {
-            chunks.forEachIndexed { index, chunk ->
-                appendLine("--- 片段 ${index + 1}（第 ${chunk.pageIndex + 1} 页）---")
-                appendLine(chunk.text)
-                appendLine()
-            }
-        }
-
-        val prompt = buildString {
-            appendLine("请用中文对以下文档片段进行全文总结（2-3 段），提取核心观点并按原文逻辑组织：")
-            appendLine()
-            append(context)
-            append("---")
-            appendLine()
-            append("总结：")
-        }
+        val pairs = chunks.map { "第 ${it.pageIndex + 1} 页" to it.text }
+        val prompt = PromptTemplates.documentSummary(pairs)
 
         try {
             llmRepository.chatCompletionStream(
@@ -81,4 +68,4 @@ class NoChunksForPageException(pageIndex: Int) :
     Exception("第 ${pageIndex + 1} 页无文本内容")
 
 class NoChunksException :
-    Exception("文档未索引或无文本内容，请等待索引完成后重试")
+    Exception("文档未索引或无文本内容，请在索引完成时重试")

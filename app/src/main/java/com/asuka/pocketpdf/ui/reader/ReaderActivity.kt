@@ -10,6 +10,8 @@ import android.graphics.pdf.PdfRenderer
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.ScrollView
@@ -30,6 +32,7 @@ import com.asuka.pocketpdf.databinding.ActivityReaderBinding
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.model.SummaryScope
+import com.asuka.pocketpdf.ui.chat.ChatActivity
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
@@ -66,6 +69,8 @@ class ReaderActivity : AppCompatActivity() {
         binding = ActivityReaderBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyWindowInsets()
+
+        setSupportActionBar(binding.toolbarReader)
 
         binding.toolbarReader.setNavigationOnClickListener { finish() }
         binding.btnReaderPrevious.setOnClickListener { renderPage(currentPageIndex - 1) }
@@ -316,6 +321,21 @@ class ReaderActivity : AppCompatActivity() {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.updatePadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_reader, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_chat -> {
+                startActivity(ChatActivity.newIntent(this, currentDocumentId))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 

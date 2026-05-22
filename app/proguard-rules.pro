@@ -1,21 +1,33 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard/R8 rules for PocketPDF
+# W4: Added rules for PdfBox, MediaPipe, Moshi, Room to prevent obfuscation breakage.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── PdfBox-Android ──────────────────────────────────────
+-keep class com.tom_roush.pdfbox.** { *; }
+-dontwarn com.tom_roush.pdfbox.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── MediaPipe Text Embedder ──────────────────────────────
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── Moshi (KSP codegen) ─────────────────────────────────
+-keep class com.asuka.pocketpdf.data.remote.dto.** { *; }
+-keep class * extends com.squareup.moshi.JsonAdapter { *; }
+-keep @com.squareup.moshi.JsonClass class * { *; }
+
+# ── Room entities ────────────────────────────────────────
+-keep class com.asuka.pocketpdf.data.local.entity.** { *; }
+
+# ── OkHttp / Okio ────────────────────────────────────────
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# ── Coroutines ───────────────────────────────────────────
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.internal.FastServiceLoader {}
+
+# ── Timber ────────────────────────────────────────────────
+-dontwarn org.jetbrains.annotations.**
+
+# ── Keep line numbers for crash debugging ────────────────
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

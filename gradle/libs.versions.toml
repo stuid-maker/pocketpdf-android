@@ -39,6 +39,9 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 moshi = "1.15.1"
 
+# Compose
+composeBom = "2024.09.00"
+
 # Logging
 timber = "5.0.1"
 
@@ -82,6 +85,15 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 	androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
+	# Compose
+	compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+	compose-ui = { group = "androidx.compose.ui", name = "ui" }
+	compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+	compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+	compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+	compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+	compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
+
 # PDF
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 
@@ -114,4 +126,6 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+	ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+	kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
