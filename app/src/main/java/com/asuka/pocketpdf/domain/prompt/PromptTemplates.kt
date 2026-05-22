@@ -32,17 +32,22 @@ object PromptTemplates {
     }
 
     /**
-     * W4 预留：RAG 问答 prompt。
+     * RAG 问答 prompt（W4）。
      *
-     * @param context 检索到的文档上下文
+     * @param context 检索到的文档上下文（含页码标记）
      * @param question 用户问题
      */
     fun ragQuery(context: String, question: String): String = buildString {
-        appendLine("请根据以下文档内容回答问题。如文档中没有相关信息，请如实说明：")
-        appendLine("---")
+        appendLine("你是一个文档分析助手。请仅根据以下文档内容回答问题。")
+        appendLine("如果文档中没有相关信息，请如实说明。")
+        appendLine()
+        appendLine("重要：回答中引用文档原文时，请使用 [第N页] 格式标注页码。")
+        appendLine()
+        appendLine("--- 文档内容 ---")
         append(context)
         appendLine("---")
-        appendLine("问题：$question")
+        appendLine()
+        append("问题：$question")
     }
 
     /**

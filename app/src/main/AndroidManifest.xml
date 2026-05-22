@@ -61,6 +61,11 @@
             android:name=".ui.settings.SettingsActivity"
             android:exported="false"
             android:label="设置" />
+
+        <activity
+            android:name=".ui.chat.ChatActivity"
+            android:exported="false"
+            android:label="文档问答" />
     </application>
 
 </manifest>
