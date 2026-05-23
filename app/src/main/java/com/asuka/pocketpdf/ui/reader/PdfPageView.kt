@@ -6,19 +6,20 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.util.AttributeSet
-import android.view.GestureDetector
 import android.view.MotionEvent
-import android.view.ScaleGestureDetector
 import android.view.View
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
- * 单页 PDF 渲染视图：Canvas + Matrix 实现平滑缩放与平移。
+ * 单页 PDF 渲染视图：Canvas + Matrix 实现缩放与平移。
  *
  * 设计要点：
  * - 用 [Matrix] 控制 scale + translate，在 [onDraw] 中 `canvas.drawBitmap(bitmap, matrix, null)`
- * - [ScaleGestureDetector] 处理双指缩放（以焦点为中心）
- * - [GestureDetector] 处理单指平移 + 双击切换缩放
- * - 平移边界钳制：内容不会完全移出屏幕
+ * - 双指缩放（以焦点为中心）
+ * - 单指平移（任何时候都能拖拽，1x 时边界钳制自动居中）
+ * - 双击切换 1x ↔ 2.5x
  */
 class PdfPageView @JvmOverloads constructor(
     context: Context,
@@ -31,23 +32,29 @@ class PdfPageView @JvmOverloads constructor(
     private val bitmapRect = RectF()
     private val viewRect = RectF()
 
-    private var isZooming = false
     private var currentScale = 1f
+    private var isZooming = false
 
-    private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
-    private val gestureDetector = GestureDetector(context, PanListener())
+    // 触控状态追踪
+    private var activePointerId = -1          // 单指跟踪的 pointer id
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+    private var lastSpan = 0f                 // 双指间距
+    private var lastSpanX = 0f
+    private var lastSpanY = 0f
+    private var downTime = 0L                 // 按下时间（双击检测）
+    private var lastTapTime = 0L              // 上次点击时间
+    private var lastTapX = 0f
+    private var lastTapY = 0f
 
     init {
-        // 关闭硬件加速的 drawing cache 以避免大 Bitmap 的渲染问题
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
 
     /** 设置当前页的位图并重置缩放 */
     fun setBitmap(bitmap: Bitmap?) {
-        pageBitmap = bitmap?.let { bitmap ->
-            // 只有当传入的 bitmap 可能被外部复用时才防御性拷贝
-            // 如果 bitmap 被传入后不再被外部修改，直接引用以节省内存
-            if (bitmap.isMutable) Bitmap.createBitmap(bitmap) else bitmap
+        pageBitmap = bitmap?.let {
+            if (it.isMutable) Bitmap.createBitmap(it) else it
         }
         currentScale = 1f
         if (pageBitmap != null) {
@@ -73,26 +80,122 @@ class PdfPageView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // 双指缩放优先，再交给手势检测器
-        val inScale = scaleDetector.onTouchEvent(event)
+        val pointerCount = event.pointerCount
 
-        // 缩放进行中时不把手势交给 GestureDetector，避免两者互相干扰
-        val inGesture = if (!inScale) {
-            gestureDetector.onTouchEvent(event)
-        } else {
-            // 通知 GestureDetector 手势结束，防止残留状态干扰后续单指操作
-            val cancelEvent = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
-            gestureDetector.onTouchEvent(cancelEvent)
-            cancelEvent.recycle()
-            false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // 取第一个手指作为跟踪指针
+                activePointerId = event.getPointerId(0)
+                val idx = event.findPointerIndex(activePointerId)
+                lastTouchX = event.getX(idx)
+                lastTouchY = event.getY(idx)
+                lastSpan = 0f
+                isZooming = false
+                downTime = event.eventTime
+            }
+
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // 第二根手指按下 → 进入缩放模式
+                isZooming = true
+                lastSpan = calculateSpan(event)
+                // 计算双指中点
+                lastSpanX = calculateMidX(event)
+                lastSpanY = calculateMidY(event)
+                // 保存当前矩阵状态用于缩放焦点计算
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (pointerCount >= 2 && isZooming) {
+                    // 双指缩放
+                    val newSpan = calculateSpan(event)
+                    if (lastSpan > 0f) {
+                        val scaleFactor = newSpan / lastSpan
+                        currentScale = (currentScale * scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE)
+                        val focusX = calculateMidX(event)
+                        val focusY = calculateMidY(event)
+                        applyScaleAround(focusX, focusY)
+                        invalidate()
+                    }
+                    lastSpan = newSpan
+                    lastSpanX = calculateMidX(event)
+                    lastSpanY = calculateMidY(event)
+                } else if (pointerCount == 1 && !isZooming) {
+                    // 单指拖拽平移
+                    val idx = event.findPointerIndex(activePointerId)
+                    if (idx >= 0) {
+                        val x = event.getX(idx)
+                        val y = event.getY(idx)
+                        val dx = x - lastTouchX
+                        val dy = y - lastTouchY
+                        applyPan(dx, dy)
+                        invalidate()
+                        lastTouchX = x
+                        lastTouchY = y
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_POINTER_UP -> {
+                // 抬起一根手指 → 如果还剩一根则切换到单指模式
+                val remaining = pointerCount - 1
+                if (remaining == 1) {
+                    // 找到剩下的那根手指
+                    val upIndex = event.actionIndex
+                    val remainingId = if (upIndex == 0) event.getPointerId(1) else event.getPointerId(0)
+                    activePointerId = remainingId
+                    val idx = event.findPointerIndex(activePointerId)
+                    if (idx >= 0) {
+                        lastTouchX = event.getX(idx)
+                        lastTouchY = event.getY(idx)
+                    }
+                    isZooming = false
+                }
+            }
+
+            MotionEvent.ACTION_UP -> {
+                // 单指抬起 → 检测双击
+                val upX = event.x
+                val upY = event.y
+                val now = event.eventTime
+                val elapsed = now - lastTapTime
+                val distance = sqrt((upX - lastTapX) * (upX - lastTapX) + (upY - lastTapY) * (upY - lastTapY))
+
+                if (elapsed < DOUBLE_TAP_TIME && distance < DOUBLE_TAP_SLOP) {
+                    // 双击
+                    currentScale = if (currentScale < 1.5f) 2.5f else 1f
+                    applyScaleAround(upX, upY)
+                    invalidate()
+                    lastTapTime = 0  // 防止三击触发
+                } else {
+                    lastTapTime = now
+                    lastTapX = upX
+                    lastTapY = upY
+                }
+                isZooming = false
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                isZooming = false
+            }
         }
 
-        if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-            isZooming = false
-        }
-
-        return true // 始终消费触摸事件，保证完整手势流
+        return true
     }
+
+    /** 计算双指间距 */
+    private fun calculateSpan(event: MotionEvent): Float {
+        val dx = event.getX(0) - event.getX(1)
+        val dy = event.getY(0) - event.getY(1)
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    /** 计算双指中点 X */
+    private fun calculateMidX(event: MotionEvent): Float =
+        (event.getX(0) + event.getX(1)) / 2f
+
+    /** 计算双指中点 Y */
+    private fun calculateMidY(event: MotionEvent): Float =
+        (event.getY(0) + event.getY(1)) / 2f
 
     /** 将 bitmap 居中适配到 View 内，计算初始 Matrix */
     private fun fitToCenter() {
@@ -112,9 +215,8 @@ class PdfPageView @JvmOverloads constructor(
         drawMatrix.postTranslate(offsetX, offsetY)
     }
 
-    /** 以当前 [currentScale] 和指定焦点更新 Matrix，并钳制平移边界 */
-    private fun applyScaleToMatrix(focusX: Float, focusY: Float) {
-
+    /** 以焦点为中心缩放 */
+    private fun applyScaleAround(focusX: Float, focusY: Float) {
         val bmp = pageBitmap ?: return
         val bmpW = bmp.width.toFloat()
         val bmpH = bmp.height.toFloat()
@@ -130,7 +232,7 @@ class PdfPageView @JvmOverloads constructor(
         val scaledW = bmpW * scale
         val scaledH = bmpH * scale
 
-        // 计算当前焦点在 bitmap 上的归一化位置
+        // 获取当前矩阵的变换值
         val prevValues = FloatArray(9)
         drawMatrix.getValues(prevValues)
         val prevScale = prevValues[Matrix.MSCALE_X]
@@ -138,23 +240,21 @@ class PdfPageView @JvmOverloads constructor(
         val prevTransY = prevValues[Matrix.MTRANS_Y]
 
         // 焦点对应的 bitmap 坐标
-        val focusBmpX = (focusX - prevTransX) / prevScale
-        val focusBmpY = (focusY - prevTransY) / prevScale
+        val focusBmpX = if (prevScale != 0f) (focusX - prevTransX) / prevScale else 0f
+        val focusBmpY = if (prevScale != 0f) (focusY - prevTransY) / prevScale else 0f
 
         // 新平移：让焦点保持在同一屏幕位置
         var newTransX = focusX - focusBmpX * scale
         var newTransY = focusY - focusBmpY * scale
 
-        // 边界钳制：内容边缘不能进入 View 内部太远（保留至少 1/4 内容可见）
-        val minX = viewW - scaledW
-        val minY = viewH - scaledH
+        // 边界钳制
         if (scaledW > viewW) {
-            newTransX = newTransX.coerceIn(minX, 0f)
+            newTransX = newTransX.coerceIn(viewW - scaledW, 0f)
         } else {
             newTransX = (viewW - scaledW) / 2f
         }
         if (scaledH > viewH) {
-            newTransY = newTransY.coerceIn(minY, 0f)
+            newTransY = newTransY.coerceIn(viewH - scaledH, 0f)
         } else {
             newTransY = (viewH - scaledH) / 2f
         }
@@ -163,10 +263,8 @@ class PdfPageView @JvmOverloads constructor(
         drawMatrix.postTranslate(newTransX, newTransY)
     }
 
-    /** 在缩放时平移，并钳制边界 */
+    /** 平移，并钳制边界 */
     private fun applyPan(dx: Float, dy: Float) {
-        if (currentScale <= 1f) return
-
         val values = FloatArray(9)
         drawMatrix.getValues(values)
         val scale = values[Matrix.MSCALE_X]
@@ -179,18 +277,18 @@ class PdfPageView @JvmOverloads constructor(
         val viewW = width.toFloat()
         val viewH = height.toFloat()
 
-        var newTransX = transX - dx
-        var newTransY = transY - dy
+        var newTransX = transX + dx
+        var newTransY = transY + dy
 
         if (scaledW > viewW) {
             newTransX = newTransX.coerceIn(viewW - scaledW, 0f)
         } else {
-            newTransX = transX
+            newTransX = transX  // 内容比视图窄时不水平移动
         }
         if (scaledH > viewH) {
             newTransY = newTransY.coerceIn(viewH - scaledH, 0f)
         } else {
-            newTransY = transY
+            newTransY = transY  // 内容比视图矮时不垂直移动
         }
 
         values[Matrix.MTRANS_X] = newTransX
@@ -198,48 +296,10 @@ class PdfPageView @JvmOverloads constructor(
         drawMatrix.setValues(values)
     }
 
-    private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
-            isZooming = true
-            return true
-        }
-
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
-            // scaleFactor 是增量值（currentSpan / previousSpan），逐帧累乘
-            currentScale = (currentScale * detector.scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE)
-            applyScaleToMatrix(
-                focusX = detector.focusX,
-                focusY = detector.focusY,
-            )
-            invalidate()
-            return true
-        }
-    }
-
-    private inner class PanListener : GestureDetector.SimpleOnGestureListener() {
-        override fun onScroll(
-            e1: MotionEvent?,
-            e2: MotionEvent,
-            distanceX: Float,
-            distanceY: Float,
-        ): Boolean {
-            if (isZooming || currentScale <= 1f) return false
-            applyPan(distanceX, distanceY)
-            invalidate()
-            return true
-        }
-
-        override fun onDoubleTap(e: MotionEvent): Boolean {
-            // 双击切换 1x ↔ 2.5x
-            currentScale = if (currentScale < 1.5f) 2.5f else 1f
-            applyScaleToMatrix(e.x, e.y)
-            invalidate()
-            return true
-        }
-    }
-
     companion object {
         private const val MIN_SCALE = 0.5f
         private const val MAX_SCALE = 5f
+        private const val DOUBLE_TAP_TIME = 300L  // 双击最大间隔（毫秒）
+        private const val DOUBLE_TAP_SLOP = 50f   // 双击最大偏移（像素）
     }
 }
