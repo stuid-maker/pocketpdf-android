@@ -45,7 +45,13 @@ class SettingsDataStore @Inject constructor(
     }
 
     suspend fun setApiKey(key: String?) {
-        context.dataStore.edit { it[KEY_API_KEY] = key ?: "" }
+        context.dataStore.edit { prefs ->
+            if (key != null) {
+                prefs[KEY_API_KEY] = key
+            } else {
+                prefs.remove(KEY_API_KEY)
+            }
+        }
     }
 
     suspend fun setSystemPrompt(prompt: String) {

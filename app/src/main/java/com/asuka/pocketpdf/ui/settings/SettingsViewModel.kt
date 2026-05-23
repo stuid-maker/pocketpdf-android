@@ -41,15 +41,36 @@ class SettingsViewModel @Inject constructor(
 
     fun onPresetSelected(presetId: String) {
         val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        val current = _uiState.value
+        // 从 custom 切换到其他预设，且用户改了 URL → 弹确认
+        if (current.selectedPreset == "custom" && current.baseUrl.isNotBlank() && current.baseUrl != preset.baseUrl) {
+            _uiState.update { it.copy(confirmPresetId = presetId) }
+            return
+        }
+        applyPreset(preset)
+    }
+
+    private fun applyPreset(preset: ModelPreset) {
         _uiState.update {
             it.copy(
-                selectedPreset = presetId,
+                selectedPreset = preset.id,
                 baseUrl = preset.baseUrl,
-                modelName = preset.modelName,
+                // modelName not touched — user's previous selection preserved
                 apiKey = preset.apiKey,
                 saveSuccess = false,
+                confirmPresetId = null,
             )
         }
+    }
+
+    fun confirmPresetOverride() {
+        val presetId = _uiState.value.confirmPresetId ?: return
+        val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        applyPreset(preset)
+    }
+
+    fun cancelPresetOverride() {
+        _uiState.update { it.copy(confirmPresetId = null) }
     }
 
     fun onBaseUrlChanged(url: String) {
@@ -114,11 +135,8 @@ class SettingsViewModel @Inject constructor(
 
     fun testConnection() {
         val url = _uiState.value.baseUrl
-        if (url == lastTestedUrl && _uiState.value.connectionTestResult != null) return
-
         viewModelScope.launch {
             _uiState.update { it.copy(connectionTesting = true, connectionTestResult = null) }
-            lastTestedUrl = url
             try {
                 when (val result = llmRepository.testConnection(url)) {
                     is Result.Success -> {

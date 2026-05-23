@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -38,7 +39,7 @@ class ReaderViewModel @Inject constructor(
 
     fun load(documentId: Long) {
         if (documentId <= 0L) {
-            _uiState.value = ReaderUiState.Error("Invalid document id: $documentId")
+            _uiState.value = ReaderUiState.Error("无效的文档 ID：$documentId")
             return
         }
         viewModelScope.launch {
@@ -46,10 +47,10 @@ class ReaderViewModel @Inject constructor(
             try {
                 val state = withContext(dispatchers.io) {
                     val document = getDocument(documentId)
-                        ?: return@withContext ReaderUiState.Error("Document #$documentId not found")
+                        ?: return@withContext ReaderUiState.Error("找不到文档 #$documentId")
                     val pdfFile = File(document.uri)
                     if (!pdfFile.isFile) {
-                        return@withContext ReaderUiState.Error("PDF file missing: ${document.title}")
+                        return@withContext ReaderUiState.Error("PDF 文件缺失：${document.title}")
                     }
                     ReaderUiState.Loaded(document)
                 }
@@ -78,7 +79,6 @@ class ReaderViewModel @Inject constructor(
     fun stopSummarizing() {
         summaryJob?.cancel()
         summaryJob = null
-        updateSummaryState(SummaryState.Idle)
     }
 
     private fun startSummary(documentId: Long, scope: SummaryScope) {
@@ -105,6 +105,8 @@ class ReaderViewModel @Inject constructor(
                 val partial = accumulated.toString()
                 if (partial.isNotBlank()) {
                     updateSummaryState(SummaryState.Done(partial))
+                } else {
+                    updateSummaryState(SummaryState.Idle)
                 }
             } catch (e: NoChunksForPageException) {
                 Timber.tag(TAG).w("no chunks for page")
@@ -122,9 +124,9 @@ class ReaderViewModel @Inject constructor(
     }
 
     private fun updateSummaryState(summaryState: SummaryState) {
-        val current = _uiState.value
-        if (current is ReaderUiState.Loaded) {
-            _uiState.value = current.copy(summaryState = summaryState)
+        _uiState.update { current ->
+            if (current is ReaderUiState.Loaded) current.copy(summaryState = summaryState)
+            else current
         }
     }
 

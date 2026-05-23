@@ -118,6 +118,10 @@ class DocumentRepositoryImpl @Inject constructor(
         chunkDao.getChunksByDocumentId(documentId).map { it.toDomain() }
     }
 
+    override suspend fun getChunksByPage(documentId: Long, pageIndex: Int): List<DocumentChunk> = withContext(dispatchers.io) {
+        chunkDao.getChunksByDocumentIdAndPage(documentId, pageIndex).map { it.toDomain() }
+    }
+
     private companion object {
         const val TAG = "DocumentRepositoryImpl"
     }

@@ -1,0 +1,32 @@
+package com.asuka.pocketpdf.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Material 3 紫色品牌色 — 与 colors.xml / themes.xml 一致
+val PurplePrimary = Color(0xFF6750A4)
+val PurpleOnPrimary = Color(0xFFFFFFFF)
+val PurplePrimaryContainer = Color(0xFFEADDFF)
+val PurpleOnPrimaryContainer = Color(0xFF21005D)
+val PurpleSecondary = Color(0xFF625B71)
+val PurpleOnSecondary = Color(0xFFFFFFFF)
+val PurpleSecondaryContainer = Color(0xFFE8DEF8)
+val PurpleOnSecondaryContainer = Color(0xFF1D192B)
+val PurpleTertiary = Color(0xFF7D5260)
+val PurpleOnTertiary = Color(0xFFFFFFFF)
+val PurpleTertiaryContainer = Color(0xFFFFD8E4)
+val PurpleOnTertiaryContainer = Color(0xFF31111D)
+val PurpleError = Color(0xFFB3261E)
+val PurpleOnError = Color(0xFFFFFFFF)
+val PurpleErrorContainer = Color(0xFFF9DEDC)
+val PurpleOnErrorContainer = Color(0xFF410E0B)
+val PurpleSurface = Color(0xFFFFFBFE)
+val PurpleOnSurface = Color(0xFF1C1B1F)
+val PurpleSurfaceVariant = Color(0xFFE7E0EC)
+val PurpleOnSurfaceVariant = Color(0xFF49454F)
+val PurpleOutline = Color(0xFF79747E)
+val PurpleOutlineVariant = Color(0xFFCAC4D0)
+val PurpleBackground = Color(0xFFFFFBFE)
+val PurpleOnBackground = Color(0xFF1C1B1F)
+val PurpleInverseSurface = Color(0xFF313033)
+val PurpleInverseOnSurface = Color(0xFFF6EFFC)
+val PurpleInversePrimary = Color(0xFFD0BCFF)

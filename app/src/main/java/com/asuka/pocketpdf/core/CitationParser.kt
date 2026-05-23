@@ -17,7 +17,7 @@ object CitationParser {
         Regex("""\[第\s*(\d+)\s*页]"""),                      // [第3页]
         Regex("""\[Page\s+(\d+)]""", RegexOption.IGNORE_CASE), // [Page 3]
         Regex("""\([Pp]\.\s*(\d+)\)"""),                      // (P.3)
-        Regex("""【来源\s*(\d+)】"""),                         // 【来源3】
+        Regex("""【来源\s?(\d+)】"""),                         // 【来源3】
     )
 
     /**

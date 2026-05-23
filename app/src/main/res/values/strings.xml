@@ -27,15 +27,15 @@
     <string name="library_delete_undo_action">撤销</string>
     <string name="library_reader_placeholder">%1$s · 阅读器待 W1 Day 4 接入</string>
     <!-- PDF reader -->
-    <string name="reader_title_loading">Loading PDF</string>
-    <string name="reader_back">Back</string>
-    <string name="reader_page_content_description">PDF page</string>
-    <string name="reader_previous_page">Previous page</string>
-    <string name="reader_next_page">Next page</string>
+    <string name="reader_title_loading">正在加载 PDF</string>
+    <string name="reader_back">返回</string>
+    <string name="reader_page_content_description">PDF 页面</string>
+    <string name="reader_previous_page">上一页</string>
+    <string name="reader_next_page">下一页</string>
     <string name="reader_page_indicator">%1$d / %2$d</string>
-    <string name="reader_error_empty_pdf">This PDF has no pages.</string>
-    <string name="reader_error_open_failed">Could not open PDF: %1$s</string>
-    <string name="reader_error_render_failed">Could not render page: %1$s</string>
+    <string name="reader_error_empty_pdf">此 PDF 无页面内容</string>
+    <string name="reader_error_open_failed">无法打开 PDF：%1$s</string>
+    <string name="reader_error_render_failed">无法渲染页面：%1$s</string>
 
     <!-- Reader summary (W3) -->
     <string name="reader_summarize_page">总结本页</string>
@@ -47,4 +47,37 @@
     <string name="reader_summary_close">关闭</string>
     <string name="reader_summary_copy">复制摘要</string>
     <string name="reader_summary_copied">已复制</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_save">保存</string>
+    <string name="settings_preset_label">模型预设</string>
+    <string name="settings_base_url_hint">LLM 服务器地址</string>
+    <string name="settings_test_connection">测试连接</string>
+    <string name="settings_model_name_hint">模型名称</string>
+    <string name="settings_api_key_hint">API Key</string>
+    <string name="settings_chunking_label">切块策略（新导入生效）</string>
+    <string name="settings_system_prompt_hint">系统提示词（可选）</string>
+    <string name="settings_reset_defaults">恢复默认值</string>
+    <string name="settings_chunking_sliding_window">滑动窗口（默认）</string>
+    <string name="settings_chunking_paragraph">按段落</string>
+    <string name="settings_saved">已保存</string>
+    <string name="settings_btn_connected">✅ 已连接</string>
+    <string name="settings_btn_retry">❌ 重试</string>
+    <string name="settings_confirm_switch_title">确认切换预设</string>
+    <string name="settings_confirm_switch_message">您已手动修改了连接地址，切换至「%1$s」将覆盖您的修改。是否继续？</string>
+    <string name="settings_confirm_switch_positive">确认切换</string>
+    <string name="settings_confirm_switch_negative">取消</string>
+
+    <!-- Chat -->
+    <string name="chat_title">文档问答</string>
+    <string name="chat_close">关闭</string>
+    <string name="chat_retry">重试</string>
+    <string name="chat_dismiss">关闭</string>
+    <string name="chat_empty_hint">向文档提问，AI 会基于内容回答</string>
+    <string name="chat_citation_page"> [第%d页]</string>
+    <string name="chat_input_placeholder">输入问题…</string>
+    <string name="chat_stop">停止</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_generate_failed">生成回答失败</string>
 </resources>

@@ -269,9 +269,14 @@ class ReaderActivity : AppCompatActivity() {
                 val bitmap = withContext(Dispatchers.IO) {
                     renderBitmap(targetIndex, renderWidth)
                 }
+                binding.pdfPageView.alpha = 0f
                 binding.pdfPageView.setBitmap(bitmap)
                 currentPageIndex = targetIndex
                 bitmap.recycle()
+                binding.pdfPageView.animate()
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start()
             } catch (t: CancellationException) {
                 throw t
             } catch (t: Throwable) {
@@ -285,13 +290,18 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun renderBitmap(pageIndex: Int, renderWidth: Int): Bitmap = synchronized(rendererLock) {
         val renderer = pdfRenderer ?: error("PDF renderer is closed")
-        renderer.openPage(pageIndex).use { page ->
-            val ratio = page.height.toFloat() / page.width.toFloat()
-            val renderHeight = max((renderWidth * ratio).toInt(), 1)
-            Bitmap.createBitmap(renderWidth, renderHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
-                bitmap.eraseColor(Color.WHITE)
-                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        try {
+            renderer.openPage(pageIndex).use { page ->
+                val ratio = page.height.toFloat() / page.width.toFloat()
+                val renderHeight = max((renderWidth * ratio).toInt(), 1)
+                Bitmap.createBitmap(renderWidth, renderHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
+                    bitmap.eraseColor(Color.WHITE)
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                }
             }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "openPage failed: page=%d", pageIndex + 1)
+            throw e
         }
     }
 

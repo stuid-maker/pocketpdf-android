@@ -2,8 +2,10 @@ package com.asuka.pocketpdf.data.remote
 
 import com.asuka.pocketpdf.data.remote.dto.ChatCompletionChunkDto
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.withContext
 import okio.BufferedSource
 import timber.log.Timber
 import java.io.IOException
@@ -37,39 +39,41 @@ class SseStreamParser(
      * channelFlow 允许在不同 context 中 send。
      */
     fun parse(source: BufferedSource): Flow<String> = channelFlow {
-        while (!source.exhausted()) {
-            val line = source.readUtf8Line() ?: continue
+        withContext(Dispatchers.IO) {
+            while (!source.exhausted()) {
+                val line = source.readUtf8Line() ?: continue
 
-            // 跳过 SSE 注释行（以 `:` 开头）
-            if (line.startsWith(":")) continue
+                // 跳过 SSE 注释行（以 `:` 开头）
+                if (line.startsWith(":")) continue
 
-            // 跳过空行
-            if (line.isBlank()) continue
+                // 跳过空行
+                if (line.isBlank()) continue
 
-            // 检测流结束标记
-            if (line.startsWith("data: [DONE]") || line.startsWith("data:[DONE]")) {
-                Timber.tag(TAG).d("Stream finished (DONE)")
-                break
-            }
-
-            // 提取 `data: ` 后的 JSON
-            if (!line.startsWith("data: ")) continue
-
-            val json = line.removePrefix("data: ")
-            if (json.isBlank()) continue
-
-            try {
-                val chunk = chunkAdapter.fromJson(json) ?: continue
-                val content = chunk.choices
-                    ?.firstOrNull()
-                    ?.delta
-                    ?.content
-
-                if (!content.isNullOrEmpty()) {
-                    send(content)
+                // 检测流结束标记
+                if (line.startsWith("data: [DONE]") || line.startsWith("data:[DONE]")) {
+                    Timber.tag(TAG).d("Stream finished (DONE)")
+                    break
                 }
-            } catch (e: IOException) {
-                Timber.tag(TAG).w(e, "Failed to parse SSE chunk: %s", json)
+
+                // 提取 `data: ` 后的 JSON
+                if (!line.startsWith("data: ")) continue
+
+                val json = line.removePrefix("data: ")
+                if (json.isBlank()) continue
+
+                try {
+                    val chunk = chunkAdapter.fromJson(json) ?: continue
+                    val content = chunk.choices
+                        ?.firstOrNull()
+                        ?.delta
+                        ?.content
+
+                    if (!content.isNullOrEmpty()) {
+                        send(content)
+                    }
+                } catch (e: IOException) {
+                    Timber.tag(TAG).w(e, "Failed to parse SSE chunk: %s", json)
+                }
             }
         }
     }

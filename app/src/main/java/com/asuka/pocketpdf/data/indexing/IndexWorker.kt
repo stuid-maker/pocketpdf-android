@@ -14,8 +14,10 @@ import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.File
 
@@ -42,7 +44,12 @@ class IndexWorker @AssistedInject constructor(
 
         try {
             // 0. 选择切块策略
-            val strategy = settingsDataStore.chunkingStrategy.first()
+            val strategy = try {
+                withTimeout(5000) { settingsDataStore.chunkingStrategy.first() }
+            } catch (e: TimeoutCancellationException) {
+                Timber.tag(TAG).w("chunking strategy read timed out, using default")
+                SettingsDataStore.STRATEGY_SLIDING_WINDOW
+            }
             val activeChunker = when (strategy) {
                 SettingsDataStore.STRATEGY_PARAGRAPH -> paragraphChunker
                 else -> chunker

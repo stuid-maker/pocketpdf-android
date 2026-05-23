@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew testDebugUnitTest)",
+      "Bash(./gradlew testDebugUnitTest --tests \"com.asuka.pocketpdf.ui.library.LibraryViewModelTest\" --tests \"com.asuka.pocketpdf.domain.usecase.*\" --tests \"com.asuka.pocketpdf.core.*\" --tests \"com.asuka.pocketpdf.data.local.mapper.*\" --tests \"com.asuka.pocketpdf.data.local.converter.*\" --tests \"com.asuka.pocketpdf.data.chunking.*\")",
+      "Bash(adb logcat:*)",
+      "Bash(adb devices:*)",
+      "Bash(./gradlew assembleDebug)"
+    ]
+  }
+}

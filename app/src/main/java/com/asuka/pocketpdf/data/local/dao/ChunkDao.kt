@@ -15,6 +15,9 @@ interface ChunkDao {
     @Query("SELECT * FROM chunks WHERE documentId = :documentId ORDER BY pageIndex ASC, chunkIndex ASC")
     suspend fun getChunksByDocumentId(documentId: Long): List<ChunkEntity>
 
+    @Query("SELECT * FROM chunks WHERE documentId = :documentId AND pageIndex = :pageIndex ORDER BY chunkIndex ASC")
+    suspend fun getChunksByDocumentIdAndPage(documentId: Long, pageIndex: Int): List<ChunkEntity>
+
     @Query("DELETE FROM chunks WHERE documentId = :documentId")
     suspend fun deleteChunksByDocumentId(documentId: Long)
 }
