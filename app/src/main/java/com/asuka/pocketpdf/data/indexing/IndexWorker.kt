@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.asuka.pocketpdf.data.chunking.ParagraphChunker
+import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.IndexStatus
@@ -12,6 +14,7 @@ import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
@@ -23,6 +26,8 @@ class IndexWorker @AssistedInject constructor(
     private val documentRepo: DocumentRepository,
     private val pdfExtractor: PdfTextExtractor,
     private val chunker: TextChunker,
+    private val paragraphChunker: ParagraphChunker,
+    private val settingsDataStore: SettingsDataStore,
     private val embedEngine: EmbeddingEngine,
 ) : CoroutineWorker(appContext, params) {
 
@@ -36,6 +41,14 @@ class IndexWorker @AssistedInject constructor(
         Timber.tag(TAG).i("IndexWorker started for document #%d", documentId)
 
         try {
+            // 0. 选择切块策略
+            val strategy = settingsDataStore.chunkingStrategy.first()
+            val activeChunker = when (strategy) {
+                SettingsDataStore.STRATEGY_PARAGRAPH -> paragraphChunker
+                else -> chunker
+            }
+            Timber.tag(TAG).d("Chunking strategy: %s", strategy)
+
             // 1. 读取文档并标记 INDEXING
             val doc = documentRepo.getDocument(documentId)
                 ?: run {
@@ -50,7 +63,7 @@ class IndexWorker @AssistedInject constructor(
 
             // 3. 切片
             Timber.tag(TAG).d("Step 3: chunking %d pages", pages.size)
-            val chunks = chunker.chunk(documentId, pages)
+            val chunks = activeChunker.chunk(documentId, pages)
             Timber.tag(TAG).d("Produced %d chunks", chunks.size)
 
             if (chunks.isEmpty()) {

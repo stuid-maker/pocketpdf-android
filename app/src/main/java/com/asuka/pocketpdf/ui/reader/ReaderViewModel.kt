@@ -88,11 +88,13 @@ class ReaderViewModel @Inject constructor(
         val accumulated = StringBuilder()
         summaryJob = viewModelScope.launch {
             val model = settingsDataStore.modelName.first()
+            val systemPrompt = settingsDataStore.systemPrompt.first()
             try {
                 summarizeDocument(
                     documentId = documentId,
                     model = model,
                     scope = scope,
+                    systemPrompt = systemPrompt,
                 ).collect { token ->
                     accumulated.append(token)
                     updateSummaryState(SummaryState.Streaming(accumulated.toString()))

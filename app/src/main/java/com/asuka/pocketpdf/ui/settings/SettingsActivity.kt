@@ -39,6 +39,7 @@ class SettingsActivity : AppCompatActivity() {
 
         addTextWatchers()
         setupPresetDropdown()
+        setupChunkingDropdown()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -64,6 +65,17 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupChunkingDropdown() {
+        val strategies = listOf("滑动窗口（默认）" to "sliding_window", "按段落" to "paragraph")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, strategies.map { it.first })
+        (binding.etChunkingStrategy as? android.widget.AutoCompleteTextView)?.apply {
+            setAdapter(adapter)
+            setOnItemClickListener { _, _, pos, _ ->
+                viewModel.onChunkingStrategyChanged(strategies[pos].second)
+            }
+        }
+    }
+
     private fun render(state: SettingsUiState) {
         if (!fieldsPopulated && state.baseUrl.isNotEmpty()) {
             binding.etBaseUrl.setText(state.baseUrl)
@@ -72,6 +84,7 @@ class SettingsActivity : AppCompatActivity() {
             binding.etSystemPrompt.setText(state.systemPrompt)
             val p = MODEL_PRESETS.find { it.baseUrl == state.baseUrl && it.modelName == state.modelName }
             binding.etPreset.setText(p?.label ?: "自定义")
+            binding.etChunkingStrategy.setText(if (state.chunkingStrategy == "paragraph") "按段落" else "滑动窗口（默认）")
             fieldsPopulated = true
         }
         binding.btnTestConnection.isEnabled = !state.connectionTesting

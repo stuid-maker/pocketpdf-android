@@ -31,14 +31,29 @@ class SettingsViewModel @Inject constructor(
             val baseUrl = settingsDataStore.baseUrl.first()
             val modelName = settingsDataStore.modelName.first()
             val apiKey = settingsDataStore.apiKey.first() ?: ""
+            val systemPrompt = settingsDataStore.systemPrompt.first()
+            val chunkingStrategy = settingsDataStore.chunkingStrategy.first()
             _uiState.update {
-                it.copy(baseUrl = baseUrl, modelName = modelName, apiKey = apiKey)
+                it.copy(baseUrl = baseUrl, modelName = modelName, apiKey = apiKey, systemPrompt = systemPrompt, chunkingStrategy = chunkingStrategy)
             }
         }
     }
 
+    fun onPresetSelected(presetId: String) {
+        val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        _uiState.update {
+            it.copy(
+                selectedPreset = presetId,
+                baseUrl = preset.baseUrl,
+                modelName = preset.modelName,
+                apiKey = preset.apiKey,
+                saveSuccess = false,
+            )
+        }
+    }
+
     fun onBaseUrlChanged(url: String) {
-        _uiState.update { it.copy(baseUrl = url, saveSuccess = false, connectionTestResult = null) }
+        _uiState.update { it.copy(baseUrl = url, saveSuccess = false, connectionTestResult = null, selectedPreset = "custom") }
     }
 
     fun onModelNameChanged(name: String) {
@@ -46,7 +61,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onApiKeyChanged(key: String) {
-        _uiState.update { it.copy(apiKey = key, saveSuccess = false) }
+        _uiState.update { it.copy(apiKey = key, saveSuccess = false, selectedPreset = "custom") }
+    }
+
+    fun onSystemPromptChanged(prompt: String) {
+        _uiState.update { it.copy(systemPrompt = prompt, saveSuccess = false) }
+    }
+
+    fun onChunkingStrategyChanged(strategy: String) {
+        _uiState.update { it.copy(chunkingStrategy = strategy, saveSuccess = false) }
     }
 
     fun save() {
@@ -58,6 +81,8 @@ class SettingsViewModel @Inject constructor(
                 settingsDataStore.setApiKey(
                     _uiState.value.apiKey.ifBlank { null }
                 )
+                settingsDataStore.setSystemPrompt(_uiState.value.systemPrompt)
+                settingsDataStore.setChunkingStrategy(_uiState.value.chunkingStrategy)
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "save settings failed")

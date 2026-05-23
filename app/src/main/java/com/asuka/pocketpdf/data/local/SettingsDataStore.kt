@@ -28,6 +28,14 @@ class SettingsDataStore @Inject constructor(
         prefs[KEY_API_KEY]
     }
 
+    val systemPrompt: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SYSTEM_PROMPT] ?: ""
+    }
+
+    val chunkingStrategy: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_CHUNKING_STRATEGY] ?: STRATEGY_SLIDING_WINDOW
+    }
+
     suspend fun setBaseUrl(url: String) {
         context.dataStore.edit { it[KEY_BASE_URL] = url }
     }
@@ -40,6 +48,14 @@ class SettingsDataStore @Inject constructor(
         context.dataStore.edit { it[KEY_API_KEY] = key ?: "" }
     }
 
+    suspend fun setSystemPrompt(prompt: String) {
+        context.dataStore.edit { it[KEY_SYSTEM_PROMPT] = prompt }
+    }
+
+    suspend fun setChunkingStrategy(strategy: String) {
+        context.dataStore.edit { it[KEY_CHUNKING_STRATEGY] = strategy }
+    }
+
     suspend fun resetDefaults() {
         context.dataStore.edit { it.clear() }
     }
@@ -48,6 +64,10 @@ class SettingsDataStore @Inject constructor(
         private val KEY_BASE_URL = stringPreferencesKey("base_url")
         private val KEY_MODEL_NAME = stringPreferencesKey("model_name")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
+        private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
+        private val KEY_CHUNKING_STRATEGY = stringPreferencesKey("chunking_strategy")
+        const val STRATEGY_SLIDING_WINDOW = "sliding_window"
+        const val STRATEGY_PARAGRAPH = "paragraph"
         const val DEFAULT_BASE_URL = "http://localhost:1234/v1"
         const val DEFAULT_MODEL_NAME = "gemma-3-4b"
     }

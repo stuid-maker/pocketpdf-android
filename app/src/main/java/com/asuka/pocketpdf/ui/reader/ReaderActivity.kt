@@ -57,6 +57,7 @@ class ReaderActivity : AppCompatActivity() {
     private var renderJob: Job? = null
     private var currentDocumentId: Long = -1L
     private var currentPageIndex: Int = 0
+    private var pendingPageIndex: Int = PAGE_INDEX_NONE
     private var summaryDialog: BottomSheetDialog? = null
     private var dialogTextView: TextView? = null
     private var dialogScrollView: ScrollView? = null
@@ -99,6 +100,7 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         viewModel.load(intent.getLongExtra(EXTRA_DOCUMENT_ID, -1L))
+        pendingPageIndex = intent.getIntExtra(EXTRA_PAGE_INDEX, PAGE_INDEX_NONE)
     }
 
     override fun onDestroy() {
@@ -149,8 +151,11 @@ class ReaderActivity : AppCompatActivity() {
             pdfRenderer = PdfRenderer(requireNotNull(parcelFileDescriptor))
             currentDocumentId = document.id
             currentPageIndex = 0
-            Timber.tag(TAG).i("open reader: id=%d title=%s pages=%d", document.id, document.title, pdfRenderer?.pageCount ?: 0)
-            renderPage(0)
+            val targetPage = pendingPageIndex
+            pendingPageIndex = PAGE_INDEX_NONE
+            Timber.tag(TAG).i("open reader: id=%d title=%s pages=%d target=%d", document.id, document.title, pdfRenderer?.pageCount ?: 0, targetPage)
+            val startPage = if (targetPage in 0 until (pdfRenderer?.pageCount ?: 0)) targetPage else 0
+            renderPage(startPage)
         } catch (t: Throwable) {
             Timber.tag(TAG).e(t, "open reader failed: id=%d", document.id)
             showError(getString(R.string.reader_error_open_failed, t.message ?: t.javaClass.simpleName))
@@ -341,11 +346,15 @@ class ReaderActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_DOCUMENT_ID = "com.asuka.pocketpdf.extra.DOCUMENT_ID"
+        private const val EXTRA_PAGE_INDEX = "com.asuka.pocketpdf.extra.PAGE_INDEX"
+        private const val PAGE_INDEX_NONE = -1
         private const val TAG = "ReaderActivity"
         private const val MIN_RENDER_WIDTH = 1200
         private const val MAX_RENDER_WIDTH = 2400
 
-        fun newIntent(context: Context, documentId: Long): Intent =
-            Intent(context, ReaderActivity::class.java).putExtra(EXTRA_DOCUMENT_ID, documentId)
+        fun newIntent(context: Context, documentId: Long, pageIndex: Int = PAGE_INDEX_NONE): Intent =
+            Intent(context, ReaderActivity::class.java)
+                .putExtra(EXTRA_DOCUMENT_ID, documentId)
+                .putExtra(EXTRA_PAGE_INDEX, pageIndex)
     }
 }

@@ -28,6 +28,7 @@ class ChatViewModel @Inject constructor(
     private var messageIdCounter = 0L
     private var generateJob: Job? = null
     private var documentId: Long = -1L
+    private var lastQuestion: String = ""
 
     fun load(documentId: Long) {
         if (this.documentId == documentId) return
@@ -43,6 +44,8 @@ class ChatViewModel @Inject constructor(
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
         if (text.isEmpty() || _uiState.value.isGenerating || documentId <= 0) return
+
+        lastQuestion = text
 
         val userMsg = ChatDisplayMessage(
             id = ++messageIdCounter,
@@ -68,7 +71,8 @@ class ChatViewModel @Inject constructor(
         generateJob = viewModelScope.launch {
             try {
                 val model = settingsDataStore.modelName.first()
-                askDocument(documentId, text, model).collect { token ->
+                val systemPrompt = settingsDataStore.systemPrompt.first()
+                askDocument(documentId, text, model, systemPrompt = systemPrompt).collect { token ->
                     _uiState.update { state ->
                         val msgs = state.messages.map { msg ->
                             if (msg.id == aiMsgId) msg.copy(content = msg.content + token)
@@ -127,6 +131,14 @@ class ChatViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun retry() {
+        if (lastQuestion.isBlank()) return
+        val q = lastQuestion
+        lastQuestion = ""
+        _uiState.update { it.copy(inputText = q, error = null) }
+        sendMessage()
     }
 
     companion object {

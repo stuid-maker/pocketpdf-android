@@ -1,5 +1,6 @@
 package com.asuka.pocketpdf.di
 
+import com.asuka.pocketpdf.data.chunking.ParagraphChunker
 import com.asuka.pocketpdf.data.chunking.SlidingWindowChunker
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import dagger.Binds
@@ -20,12 +21,11 @@ abstract class ChunkingModule {
     companion object {
         @Provides
         @Singleton
-        fun provideSlidingWindowChunker(): SlidingWindowChunker {
-            // 这里可以配置默认的 chunkSize 和 overlap
-            return SlidingWindowChunker(
-                chunkSize = 512,
-                chunkOverlap = 50
-            )
-        }
+        fun provideSlidingWindowChunker(): SlidingWindowChunker =
+            SlidingWindowChunker(chunkSize = 512, chunkOverlap = 50)
+
+        @Provides
+        @Singleton
+        fun provideParagraphChunker(): ParagraphChunker = ParagraphChunker()
     }
 }

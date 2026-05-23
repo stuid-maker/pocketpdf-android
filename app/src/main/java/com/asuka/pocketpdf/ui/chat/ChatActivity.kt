@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.ui.chat
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,19 +14,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.asuka.pocketpdf.core.CitationParser
+import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -44,7 +54,7 @@ class ChatActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                ChatScreen(viewModel, onClose = { finish() })
+                ChatScreen(viewModel, documentId, onClose = { finish() })
             }
         }
     }
@@ -59,22 +69,13 @@ class ChatActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: ChatViewModel, onClose: () -> Unit) {
+fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
-    // Auto-scroll when new messages arrive
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
-        }
-    }
-
-    // Error snackbar
-    uiState.error?.let { error ->
-        LaunchedEffect(error) {
-            viewModel.clearError()
         }
     }
 
@@ -90,13 +91,40 @@ fun ChatScreen(viewModel: ChatViewModel, onClose: () -> Unit) {
             )
         },
         bottomBar = {
-            ChatInputBar(
-                text = uiState.inputText,
-                onTextChange = { viewModel.onInputChanged(it) },
-                onSend = { viewModel.sendMessage() },
-                onStop = { viewModel.stopGenerating() },
-                isGenerating = uiState.isGenerating,
-            )
+            Column {
+                uiState.error?.let { error ->
+                    Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                error,
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontSize = 13.sp,
+                            )
+                            TextButton(onClick = { viewModel.retry() }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("重试")
+                            }
+                            TextButton(onClick = { viewModel.clearError() }) {
+                                Text("关闭")
+                            }
+                        }
+                    }
+                }
+                ChatInputBar(
+                    text = uiState.inputText,
+                    onTextChange = { viewModel.onInputChanged(it) },
+                    onSend = { viewModel.sendMessage() },
+                    onStop = { viewModel.stopGenerating() },
+                    isGenerating = uiState.isGenerating,
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -124,15 +152,16 @@ fun ChatScreen(viewModel: ChatViewModel, onClose: () -> Unit) {
                 }
             }
             items(uiState.messages, key = { it.id }) { message ->
-                ChatBubble(message)
+                ChatBubble(message, documentId)
             }
         }
     }
 }
 
 @Composable
-fun ChatBubble(message: ChatDisplayMessage) {
+fun ChatBubble(message: ChatDisplayMessage, documentId: Long) {
     val isUser = message.role == ChatRole.USER
+    val context = LocalContext.current
     val bgColor = if (isUser) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -151,19 +180,69 @@ fun ChatBubble(message: ChatDisplayMessage) {
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = 340.dp)
                 .clip(shape)
                 .background(bgColor)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Column {
-                Text(
-                    text = message.content.ifEmpty { "…" },
-                    fontFamily = FontFamily.Default,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                if (message.isStreaming || isUser) {
+                    Text(
+                        text = message.content.ifEmpty { "…" },
+                        fontFamily = FontFamily.Default,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                } else {
+                    val citations = CitationParser.parseWithRanges(message.content)
+                    if (citations.isEmpty()) {
+                        Text(
+                            text = message.content,
+                            fontFamily = FontFamily.Default,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else {
+                        val annotated = buildAnnotatedString {
+                            var lastEnd = 0
+                            for (c in citations) {
+                                append(message.content.substring(lastEnd, c.start))
+                                pushStringAnnotation("page", c.pageIndex.toString())
+                                withStyle(SpanStyle(
+                                    color = Color(0xFF1565C0),
+                                    fontWeight = FontWeight.Bold,
+                                )) {
+                                    append(" [第${c.pageIndex + 1}页]")
+                                }
+                                pop()
+                                lastEnd = c.end
+                            }
+                            if (lastEnd < message.content.length) {
+                                append(message.content.substring(lastEnd))
+                            }
+                        }
+                        ClickableText(
+                            text = annotated,
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            ),
+                            onClick = { offset ->
+                                annotated.getStringAnnotations("page", offset, offset)
+                                    .firstOrNull()?.let { annotation ->
+                                        val pageIndex = annotation.item.toIntOrNull() ?: return@let
+                                        context.startActivity(
+                                            ReaderActivity.newIntent(context, documentId, pageIndex)
+                                        )
+                                    }
+                            },
+                        )
+                    }
+                }
+
                 if (message.isStreaming) {
                     Spacer(Modifier.height(4.dp))
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -181,10 +260,7 @@ fun ChatInputBar(
     onStop: () -> Unit,
     isGenerating: Boolean,
 ) {
-    Surface(
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-    ) {
+    Surface(tonalElevation = 4.dp, shadowElevation = 8.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -216,3 +292,4 @@ fun ChatInputBar(
         }
     }
 }
+                            
