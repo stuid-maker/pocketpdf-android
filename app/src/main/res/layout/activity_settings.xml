@@ -12,7 +12,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:title="设置"
+        app:title="@string/settings_title"
         app:titleCentered="true">
 
         <Button
@@ -22,7 +22,7 @@
             android:layout_height="36dp"
             android:layout_gravity="end"
             android:layout_marginEnd="8dp"
-            android:text="保存"
+            android:text="@string/settings_save"
             android:textSize="13sp" />
 
     </com.google.android.material.appbar.MaterialToolbar>
@@ -41,17 +41,30 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 模型预设 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"
+                android:text="@string/settings_preset_label"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <Spinner
+                android:id="@+id/spinner_preset"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- LLM 地址 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/input_layout_base_url"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:hint="LLM 服务器地址"
+                android:hint="@string/settings_base_url_hint"
                 app:counterEnabled="true"
-                app:counterMaxLength="200"
-                app:endIconMode="custom"
-                app:endIconContentDescription="测试连接"
-                app:endIconDrawable="@android:drawable/ic_menu_manage">
+                app:counterMaxLength="200">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_base_url"
@@ -60,36 +73,49 @@
                     android:inputType="textUri" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <TextView
+                android:id="@+id/tv_base_url_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_test_connection"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
                 android:layout_marginBottom="16dp"
-                android:text="测试连接"
+                android:text="@string/settings_test_connection"
                 android:textSize="13sp" />
 
+            <!-- 模型名称 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/input_layout_model_name"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:hint="模型名称">
+                android:hint="@string/settings_model_name_hint">
 
                 <com.google.android.material.textfield.MaterialAutoCompleteTextView
                     android:id="@+id/et_model_name"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="none" />
+                    android:layout_height="48dp"
+                    android:inputType="text"
+                    android:gravity="center_vertical" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- API Key -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/input_layout_api_key"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:hint="API Key（可选）"
+                android:layout_marginBottom="4dp"
+                android:hint="@string/settings_api_key_hint"
                 app:counterMaxLength="200"
                 app:endIconMode="password_toggle">
 
@@ -101,19 +127,54 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
+                android:id="@+id/tv_api_key_hint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                android:text="LM Studio 本地使用无需 API Key，留空即可"
+                android:layout_marginBottom="16dp"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <!-- 切块策略 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"
+                android:text="@string/settings_chunking_label"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <Spinner
+                android:id="@+id/spinner_chunking"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- 系统提示词 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/input_layout_system_prompt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="@string/settings_system_prompt_hint"
+                app:counterEnabled="true"
+                app:counterMaxLength="1000">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_system_prompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:inputType="textMultiLine"
+                    android:minLines="3"
+                    android:maxLines="6" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_reset_defaults"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
-                android:text="恢复默认值" />
+                android:text="@string/settings_reset_defaults" />
 
         </LinearLayout>
     </ScrollView>

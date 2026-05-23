@@ -31,14 +31,50 @@ class SettingsViewModel @Inject constructor(
             val baseUrl = settingsDataStore.baseUrl.first()
             val modelName = settingsDataStore.modelName.first()
             val apiKey = settingsDataStore.apiKey.first() ?: ""
+            val systemPrompt = settingsDataStore.systemPrompt.first()
+            val chunkingStrategy = settingsDataStore.chunkingStrategy.first()
             _uiState.update {
-                it.copy(baseUrl = baseUrl, modelName = modelName, apiKey = apiKey)
+                it.copy(baseUrl = baseUrl, modelName = modelName, apiKey = apiKey, systemPrompt = systemPrompt, chunkingStrategy = chunkingStrategy)
             }
         }
     }
 
+    fun onPresetSelected(presetId: String) {
+        val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        val current = _uiState.value
+        // 从 custom 切换到其他预设，且用户改了 URL → 弹确认
+        if (current.selectedPreset == "custom" && current.baseUrl.isNotBlank() && current.baseUrl != preset.baseUrl) {
+            _uiState.update { it.copy(confirmPresetId = presetId) }
+            return
+        }
+        applyPreset(preset)
+    }
+
+    private fun applyPreset(preset: ModelPreset) {
+        _uiState.update {
+            it.copy(
+                selectedPreset = preset.id,
+                baseUrl = preset.baseUrl,
+                // modelName not touched — user's previous selection preserved
+                apiKey = preset.apiKey,
+                saveSuccess = false,
+                confirmPresetId = null,
+            )
+        }
+    }
+
+    fun confirmPresetOverride() {
+        val presetId = _uiState.value.confirmPresetId ?: return
+        val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        applyPreset(preset)
+    }
+
+    fun cancelPresetOverride() {
+        _uiState.update { it.copy(confirmPresetId = null) }
+    }
+
     fun onBaseUrlChanged(url: String) {
-        _uiState.update { it.copy(baseUrl = url, saveSuccess = false, connectionTestResult = null) }
+        _uiState.update { it.copy(baseUrl = url, saveSuccess = false, connectionTestResult = null, selectedPreset = "custom") }
     }
 
     fun onModelNameChanged(name: String) {
@@ -46,7 +82,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onApiKeyChanged(key: String) {
-        _uiState.update { it.copy(apiKey = key, saveSuccess = false) }
+        _uiState.update { it.copy(apiKey = key, saveSuccess = false, selectedPreset = "custom") }
+    }
+
+    fun onSystemPromptChanged(prompt: String) {
+        _uiState.update { it.copy(systemPrompt = prompt, saveSuccess = false) }
+    }
+
+    fun onChunkingStrategyChanged(strategy: String) {
+        _uiState.update { it.copy(chunkingStrategy = strategy, saveSuccess = false) }
     }
 
     fun save() {
@@ -58,6 +102,8 @@ class SettingsViewModel @Inject constructor(
                 settingsDataStore.setApiKey(
                     _uiState.value.apiKey.ifBlank { null }
                 )
+                settingsDataStore.setSystemPrompt(_uiState.value.systemPrompt)
+                settingsDataStore.setChunkingStrategy(_uiState.value.chunkingStrategy)
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "save settings failed")
@@ -89,11 +135,8 @@ class SettingsViewModel @Inject constructor(
 
     fun testConnection() {
         val url = _uiState.value.baseUrl
-        if (url == lastTestedUrl && _uiState.value.connectionTestResult != null) return
-
         viewModelScope.launch {
             _uiState.update { it.copy(connectionTesting = true, connectionTestResult = null) }
-            lastTestedUrl = url
             try {
                 when (val result = llmRepository.testConnection(url)) {
                     is Result.Success -> {

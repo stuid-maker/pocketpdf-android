@@ -57,6 +57,12 @@ class LlmRepositoryImpl @Inject constructor(
             resultOf { api.listModels().data.map(ModelDto::toDomain) }
         }
 
+    /**
+     * 流式 Chat Completion (SSE)。
+     *
+     * **注意：这是一个 cold Flow**，每次 [collect] 都会发起新的 HTTP 请求。
+     * 调用方（ViewModel/UseCase）必须确保只 collect 一次，避免重复调用 LLM 产生额外费用。
+     */
     override fun chatCompletionStream(
         model: String,
         messages: List<ChatMessage>,
@@ -72,9 +78,16 @@ class LlmRepositoryImpl @Inject constructor(
         val requestBody = requestAdapter.toJson(requestDto)
             .toRequestBody("application/json".toMediaType())
 
-        val baseUrl = settingsDataStore.baseUrl.first()
+        val (baseUrl, apiKey) = withContext(Dispatchers.IO) {
+            settingsDataStore.baseUrl.first() to settingsDataStore.apiKey.first()
+        }
         val request = Request.Builder()
             .url("$baseUrl/chat/completions")
+            .apply {
+                if (!apiKey.isNullOrBlank()) {
+                    addHeader("Authorization", "Bearer $apiKey")
+                }
+            }
             .header("Content-Type", "application/json")
             .post(requestBody)
             .build()
@@ -99,7 +112,10 @@ class LlmRepositoryImpl @Inject constructor(
 
             val source = body.source()
             sseParser.parse(source).collect { token ->
-                trySend(token)
+                val result = trySend(token)
+                if (result.isFailure) {
+                    Timber.tag(TAG).w("channel closed, dropping SSE token")
+                }
             }
             response.close()
             channel.close()
@@ -120,18 +136,23 @@ class LlmRepositoryImpl @Inject constructor(
     override suspend fun testConnection(baseUrl: String): Result<List<LlmModel>> =
         withContext(dispatchers.io) {
             resultOf {
+                val apiKey = settingsDataStore.apiKey.first()
                 val request = Request.Builder()
                     .url("$baseUrl/models")
                     .header("Content-Type", "application/json")
+                    .apply {
+                        if (!apiKey.isNullOrBlank()) {
+                            addHeader("Authorization", "Bearer $apiKey")
+                        }
+                    }
                     .get()
                     .build()
                 val response = okHttpClient.newCall(request).execute()
                 response.use { resp ->
+                    val body = resp.body?.string() ?: throw IOException("Empty response body")
                     if (!resp.isSuccessful) {
-                        throw IOException("HTTP ${resp.code}: ${resp.body?.string()}")
+                        throw IOException("HTTP ${resp.code}: $body")
                     }
-                    val body = resp.body?.string()
-                        ?: throw IOException("Empty response body")
                     val modelsResponse = moshi.adapter(ModelsResponseDto::class.java).fromJson(body)
                         ?: throw IOException("Failed to parse models response")
                     modelsResponse.data.map(ModelDto::toDomain)

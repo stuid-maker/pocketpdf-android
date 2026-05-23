@@ -1,5 +1,6 @@
 package com.asuka.pocketpdf.domain.usecase
 
+import com.asuka.pocketpdf.data.repository.SummaryCacheStore
 import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.RetrievalResult
 import com.asuka.pocketpdf.domain.model.SummaryScope
@@ -10,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,7 +24,8 @@ class SummarizeDocumentUseCaseTest {
     private val retrieveChunks = mockk<RetrieveChunksUseCase>()
     private val documentRepository = mockk<DocumentRepository>()
     private val llmRepository = mockk<LlmRepository>()
-    private val useCase = SummarizeDocumentUseCase(retrieveChunks, documentRepository, llmRepository)
+    private val summaryCacheStore = mockk<SummaryCacheStore>(relaxUnitFun = true)
+    private val useCase = SummarizeDocumentUseCase(retrieveChunks, documentRepository, llmRepository, summaryCacheStore)
 
     private fun result(id: Long, pageIndex: Int, text: String, score: Float = 0.9f) =
         RetrievalResult(
@@ -40,10 +43,16 @@ class SummarizeDocumentUseCaseTest {
         tokens.forEach { emit(it) }
     }
 
+    /** 为每个测试设置缓存默认行为：缓存未命中（走 LLM） */
+    private fun stubCacheMiss() {
+        every { summaryCacheStore.get(any(), any()) } returns flowOf(null)
+    }
+
     // ── Full mode ──────────────────────────────────────
 
     @Test
     fun `full mode streams tokens from semantic retrieval`() = runTest {
+        stubCacheMiss()
         val results = listOf(
             result(1, 0, "机器学习"),
             result(2, 0, "深度学习"),
@@ -60,6 +69,7 @@ class SummarizeDocumentUseCaseTest {
 
     @Test
     fun `full mode throws NoChunksException when document has no chunks`() = runTest {
+        stubCacheMiss()
         coEvery { retrieveChunks(1L, "全文核心内容", 5) } returns emptyList()
 
         try {
@@ -74,12 +84,13 @@ class SummarizeDocumentUseCaseTest {
 
     @Test
     fun `page mode summarizes chunks from specified page`() = runTest {
+        stubCacheMiss()
         val chunks = listOf(
             chunk(1, 0, "第1页文本"),
             chunk(2, 2, "第3页文本A"),
             chunk(3, 2, "第3页文本B"),
         )
-        coEvery { documentRepository.getChunks(1L) } returns chunks
+        coEvery { documentRepository.getChunksByPage(1L, 2) } returns chunks
         every {
             llmRepository.chatCompletionStream(model = "gemma-3-4b", messages = any(), temperature = null)
         } returns stubStream("页3", "内容")
@@ -90,10 +101,9 @@ class SummarizeDocumentUseCaseTest {
 
     @Test
     fun `page mode throws when no chunks on that page`() = runTest {
-        val chunks = listOf(
-            chunk(1, 0, "第1页文本"),
-        )
-        coEvery { documentRepository.getChunks(1L) } returns chunks
+        stubCacheMiss()
+        val chunks = emptyList<DocumentChunk>()
+        coEvery { documentRepository.getChunksByPage(1L, 4) } returns chunks
 
         try {
             useCase(1L, "gemma-3-4b", SummaryScope.Page(4)).toList()
@@ -105,12 +115,13 @@ class SummarizeDocumentUseCaseTest {
 
     @Test
     fun `page mode filters out null-embedding chunks`() = runTest {
+        stubCacheMiss()
         val chunks = listOf(
             DocumentChunk(id = 1, documentId = 1L, pageIndex = 2, chunkIndex = 0, text = "有效", embedding = floatArrayOf(1f)),
             DocumentChunk(id = 2, documentId = 1L, pageIndex = 2, chunkIndex = 1, text = "无效", embedding = null),
             DocumentChunk(id = 3, documentId = 1L, pageIndex = 2, chunkIndex = 2, text = "空向量", embedding = floatArrayOf()),
         )
-        coEvery { documentRepository.getChunks(1L) } returns chunks
+        coEvery { documentRepository.getChunksByPage(1L, 2) } returns chunks
         every {
             llmRepository.chatCompletionStream(model = "gemma-3-4b", messages = any(), temperature = null)
         } returns stubStream("只", "有效")
@@ -123,6 +134,7 @@ class SummarizeDocumentUseCaseTest {
 
     @Test
     fun `propagates exception when LLM call fails`() = runTest {
+        stubCacheMiss()
         coEvery { retrieveChunks(1L, "全文核心内容", 5) } returns listOf(result(1, 0, "chunk"))
         every {
             llmRepository.chatCompletionStream(model = "gemma-3-4b", messages = any(), temperature = null)

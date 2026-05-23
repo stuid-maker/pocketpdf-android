@@ -44,7 +44,11 @@ class PdfPageView @JvmOverloads constructor(
 
     /** 设置当前页的位图并重置缩放 */
     fun setBitmap(bitmap: Bitmap?) {
-        pageBitmap = bitmap?.let { Bitmap.createBitmap(it) } // defensive copy
+        pageBitmap = bitmap?.let { bitmap ->
+            // 只有当传入的 bitmap 可能被外部复用时才防御性拷贝
+            // 如果 bitmap 被传入后不再被外部修改，直接引用以节省内存
+            if (bitmap.isMutable) Bitmap.createBitmap(bitmap) else bitmap
+        }
         currentScale = 1f
         if (pageBitmap != null) {
             fitToCenter()

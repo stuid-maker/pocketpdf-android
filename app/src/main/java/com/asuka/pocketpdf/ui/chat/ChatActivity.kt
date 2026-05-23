@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.ui.chat
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,16 +17,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import com.asuka.pocketpdf.R
+import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.ClipData
+import android.content.ClipboardManager
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
 import androidx.core.view.WindowCompat
+import com.asuka.pocketpdf.core.CitationParser
+import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -43,8 +63,8 @@ class ChatActivity : ComponentActivity() {
         viewModel.load(documentId)
 
         setContent {
-            MaterialTheme {
-                ChatScreen(viewModel, onClose = { finish() })
+            PocketPDFTheme {
+                ChatScreen(viewModel, documentId, onClose = { finish() })
             }
         }
     }
@@ -57,161 +77,189 @@ class ChatActivity : ComponentActivity() {
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: ChatViewModel, onClose: () -> Unit) {
+fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
-    // Auto-scroll when new messages arrive
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
     }
 
-    // Error snackbar
-    uiState.error?.let { error ->
-        LaunchedEffect(error) {
-            viewModel.clearError()
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("文档问答") },
+                title = { Text(stringResource(R.string.chat_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = "关闭")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_close))
                     }
                 }
             )
         },
         bottomBar = {
-            ChatInputBar(
-                text = uiState.inputText,
-                onTextChange = { viewModel.onInputChanged(it) },
-                onSend = { viewModel.sendMessage() },
-                onStop = { viewModel.stopGenerating() },
-                isGenerating = uiState.isGenerating,
-            )
+            Column {
+                uiState.error?.let { error ->
+                    Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(error, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 13.sp)
+                            TextButton(onClick = { viewModel.retry() }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(stringResource(R.string.chat_retry))
+                            }
+                            TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.chat_dismiss)) }
+                        }
+                    }
+                }
+                ChatInputBar(
+                    text = uiState.inputText,
+                    onTextChange = { viewModel.onInputChanged(it) },
+                    onSend = { viewModel.sendMessage() },
+                    onStop = { viewModel.stopGenerating() },
+                    isGenerating = uiState.isGenerating,
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 12.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
             state = listState,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 8.dp),
         ) {
             if (uiState.messages.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "向文档提问，AI 会基于内容回答",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.chat_empty_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             items(uiState.messages, key = { it.id }) { message ->
-                ChatBubble(message)
+                ChatBubble(message, documentId)
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: ChatDisplayMessage) {
+fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null) {
     val isUser = message.role == ChatRole.USER
-    val bgColor = if (isUser) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    val context = LocalContext.current
+    val bgColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val shape = RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 16.dp,
+        topStart = 16.dp, topEnd = 16.dp,
         bottomStart = if (isUser) 16.dp else 4.dp,
         bottomEnd = if (isUser) 4.dp else 16.dp,
     )
+    var showMenu by remember { mutableStateOf(false) }
+    val hasMenu = !message.isStreaming && message.role != ChatRole.USER
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
         Box(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = 340.dp)
                 .clip(shape)
                 .background(bgColor)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .then(
+                    if (hasMenu) Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = { showMenu = true }
+                    ) else Modifier
+                ),
         ) {
             Column {
-                Text(
-                    text = message.content.ifEmpty { "…" },
-                    fontFamily = FontFamily.Default,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (message.isStreaming) {
-                    Spacer(Modifier.height(4.dp))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                if (message.isStreaming || isUser) {
+                    Text(message.content.ifEmpty { "…" }, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
+                } else {
+                    val citations = CitationParser.parseWithRanges(message.content)
+                    if (citations.isEmpty()) {
+                        Text(message.content, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
+                    } else {
+                        val annotated = buildAnnotatedString {
+                            var lastEnd = 0
+                            for (c in citations) {
+                                append(message.content.substring(lastEnd, c.start))
+                                pushLink(LinkAnnotation.Clickable(
+                                    tag = "page_${c.pageIndex}",
+                                    styles = TextLinkStyles(SpanStyle(color = Color(0xFF1565C0), fontWeight = FontWeight.Bold))
+                                ) {
+                                    val p = c.pageIndex
+                                    context.startActivity(ReaderActivity.newIntent(context, documentId, p))
+                                })
+                                withStyle(SpanStyle(color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)) {
+                                    append(stringResource(R.string.chat_citation_page, c.pageIndex + 1))
+                                }
+                                pop()
+                                lastEnd = c.end
+                            }
+                            if (lastEnd < message.content.length) append(message.content.substring(lastEnd))
+                        }
+                        BasicText(
+                            text = annotated,
+                            style = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, color = textColor),
+                        )
+                    }
                 }
+                if (message.isStreaming) { Spacer(Modifier.height(4.dp)); LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("复制") },
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("chat_message", message.content))
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("重新生成") },
+                    onClick = {
+                        onRegenerate?.invoke()
+                        showMenu = false
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ChatInputBar(
-    text: String,
-    onTextChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onStop: () -> Unit,
-    isGenerating: Boolean,
-) {
-    Surface(
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-    ) {
+fun ChatInputBar(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit, onStop: () -> Unit, isGenerating: Boolean) {
+    var isCancelling by remember { mutableStateOf(false) }
+    LaunchedEffect(isGenerating) {
+        if (!isGenerating) isCancelling = false
+    }
+    Surface(tonalElevation = 4.dp, shadowElevation = 8.dp) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("输入问题…") },
-                maxLines = 3,
-                shape = RoundedCornerShape(24.dp),
-            )
+            OutlinedTextField(value = text, onValueChange = onTextChange, modifier = Modifier.weight(1f), placeholder = { Text(stringResource(R.string.chat_input_placeholder)) }, maxLines = 3, shape = RoundedCornerShape(24.dp))
             Spacer(Modifier.width(8.dp))
             if (isGenerating) {
-                FilledIconButton(onClick = onStop) {
-                    Icon(Icons.Filled.Close, contentDescription = "停止")
-                }
-            } else {
                 FilledIconButton(
-                    onClick = onSend,
-                    enabled = text.isNotBlank(),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "发送")
-                }
+                    onClick = {
+                        isCancelling = true
+                        onStop()
+                    },
+                    enabled = !isCancelling
+                ) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_stop)) }
+            } else {
+                FilledIconButton(onClick = onSend, enabled = text.isNotBlank()) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.chat_send)) }
             }
         }
     }

@@ -46,4 +46,7 @@ interface DocumentRepository {
     
     /** 获取某文档的所有切片 */
     suspend fun getChunks(documentId: Long): List<DocumentChunk>
+
+    /** 获取某文档指定页的所有切片 */
+    suspend fun getChunksByPage(documentId: Long, pageIndex: Int): List<DocumentChunk>
 }

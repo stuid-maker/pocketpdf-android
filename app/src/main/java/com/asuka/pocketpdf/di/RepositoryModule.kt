@@ -7,9 +7,11 @@ import com.asuka.pocketpdf.data.indexing.WorkManagerIndexingScheduler
 import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
+import com.asuka.pocketpdf.data.repository.ChatRepositoryImpl
 import com.asuka.pocketpdf.data.repository.DocumentRepositoryImpl
 import com.asuka.pocketpdf.data.storage.FileStorage
 import com.asuka.pocketpdf.data.storage.InternalFileStorage
+import com.asuka.pocketpdf.domain.repository.ChatRepository
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import dagger.Binds
@@ -51,6 +53,8 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
+    @Binds @Singleton
     abstract fun bindIndexingScheduler(impl: WorkManagerIndexingScheduler): IndexingScheduler
 
     companion object Providers {

@@ -27,7 +27,9 @@ import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -63,9 +65,12 @@ class LibraryActivity : AppCompatActivity() {
             Timber.tag(TAG).i("SAF cancelled by user")
             return@registerForActivityResult
         }
-        val displayName = resolveDisplayName(uri)
-        Timber.tag(TAG).i("SAF picked uri=%s displayName=%s", uri, displayName)
-        viewModel.onImportRequested(uri.toString(), displayName)
+        // 在 IO 线程执行 contentResolver.query 避免主线程阻塞
+        lifecycleScope.launch {
+            val displayName = resolveDisplayName(uri)
+            Timber.tag(TAG).i("SAF picked uri=%s displayName=%s", uri, displayName)
+            viewModel.onImportRequested(uri.toString(), displayName)
+        }
     }
 
     private val adapter = DocumentListAdapter(
@@ -105,17 +110,19 @@ class LibraryActivity : AppCompatActivity() {
         openDocumentLauncher.launch(arrayOf(MIME_PDF))
     }
 
-    private fun resolveDisplayName(uri: Uri): String {
-        val resolved = runCatching {
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0) cursor.getString(idx) else null
-                } else null
-            }
-        }.onFailure {
-            Timber.tag(TAG).w(it, "DISPLAY_NAME query failed for %s", uri)
-        }.getOrNull()
+    private suspend fun resolveDisplayName(uri: Uri): String {
+        val resolved = withContext(Dispatchers.IO) {
+            runCatching {
+                contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0) cursor.getString(idx) else null
+                    } else null
+                }
+            }.onFailure {
+                Timber.tag(TAG).w(it, "DISPLAY_NAME query failed for %s", uri)
+            }.getOrNull()
+        }
         return resolved?.takeIf { it.isNotBlank() } ?: fallbackDisplayName()
     }
 
