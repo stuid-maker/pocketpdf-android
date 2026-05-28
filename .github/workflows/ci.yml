@@ -1,0 +1,84 @@
+# GitHub Actions CI/CD for pocketPDF Android app
+#
+# Runs on:
+#   - push to main
+#   - pull_request to main
+#
+# Workflow:
+#   1. Checkout code
+#   2. Set up JDK 17 (Temurin)
+#   3. Grant execute permission for gradlew
+#   4. Cache Gradle dependencies
+#   5. Run lint (static analysis)
+#   6. Run unit tests (JUnit4 + MockK + Turbine + Robolectric)
+#   7. Upload test results as artifacts
+#
+# NOTE: Instrumented tests (Espresso) require an Android emulator and are
+# intentionally skipped in this CI. Only unit tests are executed.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=true
+  GRADLE_BUILD_CACHE_ENABLED: true
+
+jobs:
+  build-and-test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Run lint
+        run: ./gradlew lint
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: app/build/reports/lint-results-*.html
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/
+          retention-days: 14

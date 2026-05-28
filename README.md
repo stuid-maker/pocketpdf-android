@@ -8,8 +8,10 @@
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](https://github.com/stuid-maker/pocketpdf-android)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue?logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions)
-[![Status](https://img.shields.io/badge/status-W4%20In%20Progress-yellow)](ROADMAP.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/stuid-maker/pocketpdf-android/ci.yml?branch=main&logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions)
+[![Status](https://img.shields.io/badge/status-v1.0.0--release-green)](ROADMAP.md)
+[![Tests](https://img.shields.io/badge/tests-246%20passed-brightgreen)](https://github.com/stuid-maker/pocketpdf-android/actions)
+[![Tag](https://img.shields.io/github/v/tag/stuid-maker/pocketpdf-android?logo=git)](https://github.com/stuid-maker/pocketpdf-android/tags)
 
 </div>
 
