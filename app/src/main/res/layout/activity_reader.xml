@@ -67,6 +67,41 @@
                 tools:text="PDF file missing" />
         </LinearLayout>
 
+        <!-- Page indicator overlay (Google Play Books style, auto-hides) -->
+        <LinearLayout
+            android:id="@+id/reader_page_bar"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_gravity="bottom"
+            android:alpha="0.0"
+            android:background="#CC000000"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/tv_page_indicator_overlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                tools:text="第 1 / 12 页" />
+
+            <SeekBar
+                android:id="@+id/page_seek_bar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progressTint="@android:color/white"
+                android:thumbTint="@android:color/white" />
+
+        </LinearLayout>
+
     </FrameLayout>
 
     <LinearLayout

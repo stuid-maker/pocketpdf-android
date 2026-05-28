@@ -72,7 +72,7 @@ class ReaderViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state is ReaderUiState.Error)
-        assertEquals("Invalid document id: -1", (state as ReaderUiState.Error).message)
+        assertEquals("无效的文档 ID：-1", (state as ReaderUiState.Error).message)
     }
 
     @Test
@@ -84,7 +84,7 @@ class ReaderViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state is ReaderUiState.Error)
-        assertEquals("Document #7 not found", (state as ReaderUiState.Error).message)
+        assertEquals("找不到文档 #7", (state as ReaderUiState.Error).message)
     }
 
     @Test
@@ -96,7 +96,7 @@ class ReaderViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state is ReaderUiState.Error)
-        assertEquals("PDF file missing: stub.pdf", (state as ReaderUiState.Error).message)
+        assertEquals("PDF 文件缺失：stub.pdf", (state as ReaderUiState.Error).message)
     }
 
     @Test

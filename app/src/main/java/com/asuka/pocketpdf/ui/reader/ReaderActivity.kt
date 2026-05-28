@@ -8,13 +8,17 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -63,6 +67,8 @@ class ReaderActivity : AppCompatActivity() {
     private var dialogScrollView: ScrollView? = null
     private var dialogProgress: View? = null
     private var currentSummaryScope: SummaryScope = SummaryScope.Full
+    private val autoHideHandler = Handler(Looper.getMainLooper())
+    private val autoHideRunnable = Runnable { hidePageIndicator() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,6 +82,8 @@ class ReaderActivity : AppCompatActivity() {
         binding.toolbarReader.setNavigationOnClickListener { finish() }
         binding.btnReaderPrevious.setOnClickListener { renderPage(currentPageIndex - 1) }
         binding.btnReaderNext.setOnClickListener { renderPage(currentPageIndex + 1) }
+
+        setupPageBar()
 
         // Summary buttons
         binding.btnSummarizePage.setOnClickListener {
@@ -243,6 +251,64 @@ class ReaderActivity : AppCompatActivity() {
         summaryDialog = null
     }
 
+    // ── Page indicator overlay ─────────────────────────────
+
+    private fun showPageIndicator() {
+        val bar = binding.readerPageBar
+        if (bar.visibility != View.VISIBLE) {
+            bar.visibility = View.VISIBLE
+            bar.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .start()
+        }
+        // Reset auto-hide timer
+        autoHideHandler.removeCallbacks(autoHideRunnable)
+        autoHideHandler.postDelayed(autoHideRunnable, AUTO_HIDE_DELAY_MS)
+    }
+
+    private fun hidePageIndicator() {
+        binding.readerPageBar.animate()
+            .alpha(0f)
+            .setDuration(300)
+            .withEndAction {
+                binding.readerPageBar.visibility = View.GONE
+            }
+            .start()
+    }
+
+    private fun setupPageBar() {
+        binding.pageSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val pageCount = pdfRenderer?.pageCount ?: 0
+                    binding.tvPageIndicatorOverlay.text = getString(
+                        R.string.reader_page_overlay_format,
+                        progress + 1,
+                        pageCount,
+                    )
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                autoHideHandler.removeCallbacks(autoHideRunnable)
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                val page = seekBar?.progress ?: return
+                renderPage(page)
+            }
+        })
+
+        // Show indicator on any tap on the PDF surface
+        binding.pdfPageView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                showPageIndicator()
+            }
+            false // don't consume — let PdfPageView handle zoom/pan
+        }
+    }
+
     // ── PDF rendering ──────────────────────────────────────
 
     private fun renderPage(requestedIndex: Int) {
@@ -262,6 +328,16 @@ class ReaderActivity : AppCompatActivity() {
         )
         binding.btnReaderPrevious.isEnabled = targetIndex > 0
         binding.btnReaderNext.isEnabled = targetIndex < pageCount - 1
+
+        // Update page overlay indicator
+        binding.tvPageIndicatorOverlay.text = getString(
+            R.string.reader_page_overlay_format,
+            targetIndex + 1,
+            pageCount,
+        )
+        binding.pageSeekBar.max = (pageCount - 1).coerceAtLeast(0)
+        binding.pageSeekBar.progress = targetIndex
+        showPageIndicator()
 
         val renderWidth = min(max(resources.displayMetrics.widthPixels * 2, MIN_RENDER_WIDTH), MAX_RENDER_WIDTH)
         renderJob = lifecycleScope.launch {
@@ -361,6 +437,7 @@ class ReaderActivity : AppCompatActivity() {
         private const val TAG = "ReaderActivity"
         private const val MIN_RENDER_WIDTH = 1200
         private const val MAX_RENDER_WIDTH = 2400
+        private const val AUTO_HIDE_DELAY_MS = 3000L
 
         fun newIntent(context: Context, documentId: Long, pageIndex: Int = PAGE_INDEX_NONE): Intent =
             Intent(context, ReaderActivity::class.java)
