@@ -4,6 +4,8 @@ import com.asuka.pocketpdf.core.DefaultDispatcherProvider
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.data.indexing.IndexingScheduler
 import com.asuka.pocketpdf.data.indexing.WorkManagerIndexingScheduler
+import com.asuka.pocketpdf.data.local.AndroidKeystoreApiKeyCipher
+import com.asuka.pocketpdf.data.local.ApiKeyCipher
 import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
@@ -54,6 +56,11 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindApiKeyCipher(impl: AndroidKeystoreApiKeyCipher): ApiKeyCipher
+
     @Binds @Singleton
     abstract fun bindIndexingScheduler(impl: WorkManagerIndexingScheduler): IndexingScheduler
 

@@ -15,6 +15,7 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 @Singleton
 class SettingsDataStore @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val apiKeyCipher: ApiKeyCipher,
 ) {
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_BASE_URL] ?: DEFAULT_BASE_URL
@@ -25,7 +26,17 @@ class SettingsDataStore @Inject constructor(
     }
 
     val apiKey: Flow<String?> = context.dataStore.data.map { prefs ->
-        prefs[KEY_API_KEY]
+        val stored = prefs[KEY_API_KEY] ?: return@map null
+        if (apiKeyCipher.isEncrypted(stored)) {
+            runCatching { apiKeyCipher.decrypt(stored) }
+                .getOrElse {
+                    context.dataStore.edit { values -> values.remove(KEY_API_KEY) }
+                    null
+                }
+        } else {
+            context.dataStore.edit { it[KEY_API_KEY] = apiKeyCipher.encrypt(stored) }
+            stored
+        }
     }
 
     val systemPrompt: Flow<String> = context.dataStore.data.map { prefs ->
@@ -47,7 +58,7 @@ class SettingsDataStore @Inject constructor(
     suspend fun setApiKey(key: String?) {
         context.dataStore.edit { prefs ->
             if (key != null) {
-                prefs[KEY_API_KEY] = key
+                prefs[KEY_API_KEY] = apiKeyCipher.encrypt(key)
             } else {
                 prefs.remove(KEY_API_KEY)
             }
