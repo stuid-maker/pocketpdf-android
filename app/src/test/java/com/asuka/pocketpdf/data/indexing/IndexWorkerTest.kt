@@ -88,7 +88,7 @@ class IndexWorkerTest {
         every { settingsDataStore.chunkingStrategy } returns flowOf(SettingsDataStore.STRATEGY_SLIDING_WINDOW)
         coEvery { documentRepo.getDocument(documentId) } returns doc
         coEvery { documentRepo.updateDocument(any()) } returns Result.Success(Unit)
-        coEvery { documentRepo.saveChunks(any()) } returns Result.Success(Unit)
+        coEvery { documentRepo.replaceChunks(documentId, any()) } returns Result.Success(Unit)
         coEvery { pdfExtractor.extractPagesText(any()) } returns pages
         every { chunker.chunk(documentId, pages) } returns chunks
         coEvery { embedEngine.getEmbeddings(listOf("Page 1 content", "Page 2 content")) } returns embeddings
@@ -100,7 +100,7 @@ class IndexWorkerTest {
 
         coVerify(exactly = 1) { documentRepo.getDocument(documentId) }
         coVerify(exactly = 1) { pdfExtractor.extractPagesText(any()) }
-        coVerify(exactly = 1) { documentRepo.saveChunks(any()) }
+        coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, any()) }
         coVerify(exactly = 1) { embedEngine.getEmbeddings(any()) }
     }
 
@@ -147,6 +147,9 @@ class IndexWorkerTest {
         every { settingsDataStore.chunkingStrategy } returns flowOf(SettingsDataStore.STRATEGY_SLIDING_WINDOW)
         coEvery { documentRepo.getDocument(documentId) } returns doc
         coEvery { documentRepo.updateDocument(any()) } returns Result.Success(Unit)
+        coEvery {
+            documentRepo.replaceChunks(documentId, emptyList())
+        } returns Result.Success(Unit)
         coEvery { pdfExtractor.extractPagesText(any()) } returns emptyList()
         // chunker.chunk will receive empty pages → returns empty list (default mockk behavior returns emptyList)
         every { chunker.chunk(any(), any()) } returns emptyList()
@@ -157,7 +160,7 @@ class IndexWorkerTest {
         assertTrue("Expected Success", result is ListenableWorker.Result.Success)
         coVerify(atLeast = 1) { documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXED }) }
         coVerify(exactly = 0) { embedEngine.getEmbeddings(any()) }
-        coVerify(exactly = 0) { documentRepo.saveChunks(any()) }
+        coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, emptyList()) }
     }
 
     @Test
@@ -178,5 +181,93 @@ class IndexWorkerTest {
 
         assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
         coVerify(atLeast = 1) { documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED }) }
+    }
+
+    @Test
+    fun `marks FAILED when replacing chunks returns failure`() = runTest {
+        val documentId = 1L
+        val doc = document(documentId)
+        val chunks = listOf(
+            DocumentChunk(documentId = documentId, pageIndex = 0, chunkIndex = 0, text = "content"),
+        )
+
+        stubIndexing(doc, chunks, listOf(floatArrayOf(0.1f)))
+        coEvery { documentRepo.replaceChunks(documentId, any()) } returns
+            Result.Failure(IllegalStateException("database full"))
+
+        val result = createWorker(documentId).doWork()
+
+        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
+        coVerify(exactly = 0) {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXED })
+        }
+        coVerify(atLeast = 1) {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED })
+        }
+    }
+
+    @Test
+    fun `marks FAILED when embedding count differs from chunk count`() = runTest {
+        val documentId = 1L
+        val doc = document(documentId)
+        val chunks = listOf(
+            DocumentChunk(documentId = documentId, pageIndex = 0, chunkIndex = 0, text = "one"),
+            DocumentChunk(documentId = documentId, pageIndex = 0, chunkIndex = 1, text = "two"),
+        )
+
+        stubIndexing(doc, chunks, listOf(floatArrayOf(0.1f)))
+
+        val result = createWorker(documentId).doWork()
+
+        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
+        coVerify(exactly = 0) { documentRepo.replaceChunks(any(), any()) }
+        coVerify(atLeast = 1) {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED })
+        }
+    }
+
+    @Test
+    fun `returns failure when initial status update returns failure`() = runTest {
+        val documentId = 1L
+        val doc = document(documentId)
+
+        every { settingsDataStore.chunkingStrategy } returns
+            flowOf(SettingsDataStore.STRATEGY_SLIDING_WINDOW)
+        coEvery { documentRepo.getDocument(documentId) } returns doc
+        coEvery {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXING })
+        } returns Result.Failure(IllegalStateException("update failed"))
+        coEvery {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED })
+        } returns Result.Success(Unit)
+
+        val result = createWorker(documentId).doWork()
+
+        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
+        coVerify(exactly = 0) { pdfExtractor.extractPagesText(any()) }
+    }
+
+    private fun document(documentId: Long) = Document(
+        id = documentId,
+        title = "test.pdf",
+        uri = "/tmp/test.pdf",
+        pageCount = 1,
+        indexStatus = IndexStatus.NOT_INDEXED,
+        importedAt = 1000L,
+    )
+
+    private fun stubIndexing(
+        doc: Document,
+        chunks: List<DocumentChunk>,
+        embeddings: List<FloatArray>,
+    ) {
+        every { settingsDataStore.chunkingStrategy } returns
+            flowOf(SettingsDataStore.STRATEGY_SLIDING_WINDOW)
+        coEvery { documentRepo.getDocument(doc.id) } returns doc
+        coEvery { documentRepo.updateDocument(any()) } returns Result.Success(Unit)
+        coEvery { documentRepo.replaceChunks(doc.id, any()) } returns Result.Success(Unit)
+        coEvery { pdfExtractor.extractPagesText(any()) } returns listOf("page")
+        every { chunker.chunk(doc.id, any()) } returns chunks
+        coEvery { embedEngine.getEmbeddings(any()) } returns embeddings
     }
 }

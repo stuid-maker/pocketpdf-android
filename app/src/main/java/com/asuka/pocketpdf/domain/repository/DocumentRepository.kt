@@ -41,8 +41,8 @@ interface DocumentRepository {
     /** 同步删除：DB 行 + 内部存储 PDF 文件。任一环节失败回 [Result.Failure]。 */
     suspend fun deleteDocument(id: Long): Result<Unit>
     
-    /** 批量保存文档切片 */
-    suspend fun saveChunks(chunks: List<DocumentChunk>): Result<Unit>
+    /** 原子替换指定文档的全部切片；用于保证重复索引不会累积旧数据。 */
+    suspend fun replaceChunks(documentId: Long, chunks: List<DocumentChunk>): Result<Unit>
     
     /** 获取某文档的所有切片 */
     suspend fun getChunks(documentId: Long): List<DocumentChunk>

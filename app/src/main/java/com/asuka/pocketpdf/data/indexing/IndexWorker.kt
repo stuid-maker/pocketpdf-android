@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.asuka.pocketpdf.data.chunking.ParagraphChunker
 import com.asuka.pocketpdf.data.local.SettingsDataStore
+import com.asuka.pocketpdf.core.Result as OperationResult
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.IndexStatus
@@ -63,6 +64,7 @@ class IndexWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
             documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.INDEXING))
+                .getOrThrow()
 
             // 2. 提取 PDF 文本
             Timber.tag(TAG).d("Step 2: extracting text from %s", doc.uri)
@@ -74,8 +76,11 @@ class IndexWorker @AssistedInject constructor(
             Timber.tag(TAG).d("Produced %d chunks", chunks.size)
 
             if (chunks.isEmpty()) {
+                documentRepo.replaceChunks(documentId, emptyList())
+                    .getOrThrow()
                 // 无文本内容的 PDF（如纯扫描件），直接标记 INDEXED
                 documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.INDEXED))
+                    .getOrThrow()
                 Timber.tag(TAG).i("Document #%d has no extractable text, marked INDEXED", documentId)
                 return@withContext Result.success()
             }
@@ -84,15 +89,20 @@ class IndexWorker @AssistedInject constructor(
             Timber.tag(TAG).d("Step 4: embedding %d chunks", chunks.size)
             val texts = chunks.map { it.text }
             val embeddings = embedEngine.getEmbeddings(texts)
+            check(embeddings.size == chunks.size) {
+                "Embedding count mismatch: chunks=${chunks.size}, embeddings=${embeddings.size}"
+            }
 
             // 5. 回填 embedding 并落库
             val chunksWithEmbeddings = chunks.zip(embeddings) { chunk, embedding ->
                 chunk.copy(embedding = embedding)
             }
-            documentRepo.saveChunks(chunksWithEmbeddings)
+            documentRepo.replaceChunks(documentId, chunksWithEmbeddings)
+                .getOrThrow()
 
             // 6. 标记 INDEXED
             documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.INDEXED))
+                .getOrThrow()
 
             Timber.tag(TAG).i("Document #%d indexed successfully: %d chunks", documentId, chunks.size)
             Result.success()
@@ -122,4 +132,8 @@ class IndexWorker @AssistedInject constructor(
             .putLong(DOCUMENT_ID_KEY, documentId)
             .build()
     }
+}
+
+private fun OperationResult<Unit>.getOrThrow() {
+    if (this is OperationResult.Failure) throw error
 }

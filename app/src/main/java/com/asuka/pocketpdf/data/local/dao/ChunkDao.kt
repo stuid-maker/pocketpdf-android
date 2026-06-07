@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.asuka.pocketpdf.data.local.entity.ChunkEntity
 
 @Dao
@@ -20,4 +21,12 @@ interface ChunkDao {
 
     @Query("DELETE FROM chunks WHERE documentId = :documentId")
     suspend fun deleteChunksByDocumentId(documentId: Long)
+
+    @Transaction
+    suspend fun replaceForDocument(documentId: Long, chunks: List<ChunkEntity>) {
+        deleteChunksByDocumentId(documentId)
+        if (chunks.isNotEmpty()) {
+            insertAll(chunks)
+        }
+    }
 }

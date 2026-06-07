@@ -74,4 +74,42 @@ class ChunkDaoTest {
         fetchedChunks = chunkDao.getChunksByDocumentId(docId)
         assertTrue("Chunks should be automatically deleted", fetchedChunks.isEmpty())
     }
+
+    @Test
+    fun `replaceForDocument removes old chunks before inserting replacements`() = runTest {
+        val docId = documentDao.insert(
+            DocumentEntity(
+                title = "test.pdf",
+                uri = "content://test",
+                pageCount = 2,
+                indexStatus = IndexStatus.NOT_INDEXED.name,
+                importedAt = 100L,
+            ),
+        )
+        chunkDao.insertAll(
+            listOf(
+                ChunkEntity(
+                    documentId = docId,
+                    pageIndex = 0,
+                    chunkIndex = 0,
+                    text = "old",
+                ),
+            ),
+        )
+        val replacements = listOf(
+            ChunkEntity(
+                documentId = docId,
+                pageIndex = 1,
+                chunkIndex = 0,
+                text = "new",
+            ),
+        )
+
+        chunkDao.replaceForDocument(docId, replacements)
+
+        val stored = chunkDao.getChunksByDocumentId(docId)
+        assertEquals(1, stored.size)
+        assertEquals("new", stored.single().text)
+        assertEquals(1, stored.single().pageIndex)
+    }
 }

@@ -63,7 +63,11 @@ class DocumentRepositoryContractTest {
             else Result.Failure(IllegalStateException("Document #$id not found"))
         }
 
-        override suspend fun saveChunks(chunks: List<DocumentChunk>): Result<Unit> {
+        override suspend fun replaceChunks(
+            documentId: Long,
+            chunks: List<DocumentChunk>,
+        ): Result<Unit> {
+            this.chunks.removeAll { it.documentId == documentId }
             this.chunks.addAll(chunks)
             return Result.Success(Unit)
         }
@@ -128,13 +132,13 @@ class DocumentRepositoryContractTest {
     }
 
     @Test
-    fun `saveChunks and getChunks round-trip`() = runTest {
+    fun `replaceChunks and getChunks round-trip`() = runTest {
         val repo = FakeDocumentRepository()
         val chunks = listOf(
             DocumentChunk(documentId = 1L, pageIndex = 0, chunkIndex = 0, text = "chunk0"),
             DocumentChunk(documentId = 1L, pageIndex = 1, chunkIndex = 0, text = "chunk1"),
         )
-        val saveResult = repo.saveChunks(chunks)
+        val saveResult = repo.replaceChunks(1L, chunks)
         assertTrue(saveResult is Result.Success)
 
         val retrieved = repo.getChunks(1L)
@@ -144,7 +148,8 @@ class DocumentRepositoryContractTest {
     @Test
     fun `getChunksByPage filters by page index`() = runTest {
         val repo = FakeDocumentRepository()
-        repo.saveChunks(
+        repo.replaceChunks(
+            1L,
             listOf(
                 DocumentChunk(documentId = 1L, pageIndex = 0, chunkIndex = 0, text = "p0c0"),
                 DocumentChunk(documentId = 1L, pageIndex = 0, chunkIndex = 1, text = "p0c1"),
@@ -155,6 +160,27 @@ class DocumentRepositoryContractTest {
         assertEquals(2, page0.size)
         val page1 = repo.getChunksByPage(1L, 1)
         assertEquals(1, page1.size)
+    }
+
+    @Test
+    fun `replaceChunks removes previous chunks for document`() = runTest {
+        val oldChunk = DocumentChunk(
+            documentId = 1L,
+            pageIndex = 0,
+            chunkIndex = 0,
+            text = "old",
+        )
+        val repo = FakeDocumentRepository(initialChunks = listOf(oldChunk))
+        val replacement = DocumentChunk(
+            documentId = 1L,
+            pageIndex = 1,
+            chunkIndex = 0,
+            text = "new",
+        )
+
+        repo.replaceChunks(1L, listOf(replacement))
+
+        assertEquals(listOf(replacement), repo.getChunks(1L))
     }
 
     @Test

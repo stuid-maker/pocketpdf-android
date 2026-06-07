@@ -107,9 +107,15 @@ class DocumentRepositoryImpl @Inject constructor(
         }
     }
     
-    override suspend fun saveChunks(chunks: List<DocumentChunk>): Result<Unit> = withContext(dispatchers.io) {
+    override suspend fun replaceChunks(
+        documentId: Long,
+        chunks: List<DocumentChunk>,
+    ): Result<Unit> = withContext(dispatchers.io) {
         resultOf {
-            chunkDao.insertAll(chunks.map { it.toEntity() })
+            require(chunks.all { it.documentId == documentId }) {
+                "All chunks must belong to document #$documentId"
+            }
+            chunkDao.replaceForDocument(documentId, chunks.map { it.toEntity() })
             Unit
         }
     }
