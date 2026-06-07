@@ -365,3 +365,14 @@
 -keep class com.asuka.pocketpdf.BuildConfig { *; }
 -keep class com.asuka.pocketpdf.R { *; }
 -keep class com.asuka.pocketpdf.R$* { *; }
+
+
+# AutoValue bundles annotation-processor helpers that are unreachable at runtime.
+# R8 still inspects their signatures, so suppress the JDK compiler API references.
+-dontwarn javax.lang.model.SourceVersion
+-dontwarn javax.lang.model.element.Element
+-dontwarn javax.lang.model.element.ElementKind
+-dontwarn javax.lang.model.element.Modifier
+-dontwarn javax.lang.model.type.TypeMirror
+-dontwarn javax.lang.model.type.TypeVisitor
+-dontwarn javax.lang.model.util.SimpleTypeVisitor8

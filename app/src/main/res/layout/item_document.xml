@@ -39,7 +39,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            app:layout_constraintEnd_toStartOf="@id/tv_document_index_badge"
+            app:layout_constraintEnd_toStartOf="@id/layout_index_badge"
             app:layout_constraintStart_toEndOf="@id/iv_document_icon"
             app:layout_constraintTop_toTopOf="@id/iv_document_icon"
             tools:text="Effective Kotlin 第二版.pdf" />
@@ -55,7 +55,7 @@
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:textColor="?android:attr/textColorSecondary"
             app:layout_constraintBottom_toBottomOf="@id/iv_document_icon"
-            app:layout_constraintEnd_toStartOf="@id/tv_document_index_badge"
+            app:layout_constraintEnd_toStartOf="@id/layout_index_badge"
             app:layout_constraintStart_toEndOf="@id/iv_document_icon"
             app:layout_constraintTop_toBottomOf="@id/tv_document_title"
             tools:text="328 页 · 3 分钟前" />
