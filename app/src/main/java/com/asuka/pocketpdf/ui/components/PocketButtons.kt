@@ -1,12 +1,17 @@
 package com.asuka.pocketpdf.ui.components
 
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.asuka.pocketpdf.ui.theme.PocketRadii
 
 @Composable
 fun PocketCompactButton(
@@ -17,10 +22,16 @@ fun PocketCompactButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 48.dp),
+        modifier = modifier.defaultMinSize(minHeight = 40.dp),
         enabled = enabled,
-        contentPadding = ButtonDefaults.ContentPadding,
+        shape = RoundedCornerShape(PocketRadii.Control),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF302739),
+            contentColor = Color.White,
+            disabledContainerColor = Color(0xFF302739).copy(alpha = .38f),
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        Text(text)
+        Text(text, modifier = Modifier.padding(horizontal = 2.dp))
     }
 }

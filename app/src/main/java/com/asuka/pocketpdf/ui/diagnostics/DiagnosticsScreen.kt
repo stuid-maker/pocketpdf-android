@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.diagnostics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,10 +20,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.asuka.pocketpdf.ui.components.PocketCompactButton
 import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
@@ -56,6 +59,9 @@ fun DiagnosticsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("连接诊断") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = colors.workspace.copy(alpha = .92f),
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -70,7 +76,7 @@ fun DiagnosticsScreen(
                 .padding(padding)
                 .navigationBarsPadding()
                 .padding(PocketSpacing.Xl),
-            verticalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(PocketSpacing.Xxl),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(PocketSpacing.Lg)) {
                 Text(
@@ -88,7 +94,15 @@ fun DiagnosticsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.paper, RoundedCornerShape(PocketRadii.Card))
+                        .background(
+                            colors.paper.copy(alpha = .94f),
+                            RoundedCornerShape(PocketRadii.Card),
+                        )
+                        .border(
+                            1.dp,
+                            androidx.compose.ui.graphics.Color.White.copy(alpha = .8f),
+                            RoundedCornerShape(PocketRadii.Card),
+                        )
                         .padding(PocketSpacing.Lg),
                     verticalArrangement = Arrangement.spacedBy(PocketSpacing.Lg),
                 ) {
@@ -97,20 +111,20 @@ fun DiagnosticsScreen(
                     }
                 }
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm),
-            ) {
-                PocketCompactButton(
-                    text = if (state.isRunning) "检测中" else "重新检测",
-                    onClick = onRetry,
-                    enabled = !state.isRunning,
-                )
-                TextButton(onClick = onOpenSettings) {
-                    Text("检查服务设置")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm),
+                ) {
+                    PocketCompactButton(
+                        text = if (state.isRunning) "检测中" else "重新检测",
+                        onClick = onRetry,
+                        enabled = !state.isRunning,
+                    )
+                    TextButton(onClick = onOpenSettings) {
+                        Text("检查服务设置")
+                    }
                 }
             }
-        }
     }
 }
 

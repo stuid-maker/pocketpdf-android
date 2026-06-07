@@ -22,12 +22,12 @@ fun PocketEmptyState(
 ) {
     val colors = LocalPocketColors.current
     Column(
-        modifier = modifier.padding(PocketSpacing.Xxxl),
+        modifier = modifier.padding(PocketSpacing.Xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PocketSpacing.Md),
     ) {
         PocketBrandMark()
-        Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink)
+        Text(title, style = MaterialTheme.typography.titleMedium, color = colors.ink)
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,

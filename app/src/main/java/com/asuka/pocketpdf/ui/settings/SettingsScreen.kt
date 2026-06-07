@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
 import com.asuka.pocketpdf.ui.components.PocketCompactButton
 import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
@@ -71,6 +74,9 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("设置", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = colors.workspace.copy(alpha = .92f),
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -80,6 +86,7 @@ fun SettingsScreen(
                     PocketCompactButton(
                         text = if (state.isSaving) "保存中" else "保存",
                         onClick = onSave,
+                        modifier = Modifier.padding(end = PocketSpacing.Sm),
                         enabled = !state.isSaving,
                     )
                 },
@@ -92,8 +99,8 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(PocketSpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(PocketSpacing.Lg),
+                .padding(horizontal = PocketSpacing.Xl, vertical = PocketSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(PocketSpacing.Xl),
         ) {
             SettingsSection("AI 服务") {
                 SettingsRow(
@@ -210,7 +217,15 @@ private fun SettingsSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.paper, RoundedCornerShape(PocketRadii.Card))
+                .background(
+                    colors.paper.copy(alpha = .94f),
+                    RoundedCornerShape(PocketRadii.Card),
+                )
+                .border(
+                    1.dp,
+                    androidx.compose.ui.graphics.Color.White.copy(alpha = .8f),
+                    RoundedCornerShape(PocketRadii.Card),
+                )
                 .padding(horizontal = PocketSpacing.Lg),
             content = content,
         )
@@ -229,7 +244,7 @@ private fun SettingsRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = PocketSpacing.Md),
+            .padding(vertical = 14.dp),
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)

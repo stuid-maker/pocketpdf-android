@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.core.view.WindowCompat
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.ui.chat.ChatActivity
 import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
@@ -33,6 +34,10 @@ class ReaderActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
 
         readerController = controllerFactory.create(
             scope = lifecycleScope,

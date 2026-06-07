@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.ui.library
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +26,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -74,68 +77,94 @@ fun LibraryScreen(
 ) {
     val colors = LocalPocketColors.current
     val resolvedSnackbarHostState = snackbarHostState ?: remember { SnackbarHostState() }
-    Scaffold(
-        modifier = modifier,
-        containerColor = colors.workspace,
-        snackbarHost = { SnackbarHost(resolvedSnackbarHostState) },
-        topBar = {
-            LibraryHeader(onOpenSettings)
-        },
-        floatingActionButton = {
-            if (state !is LibraryUiState.Loading) {
-                FloatingActionButton(
-                    onClick = onImport,
-                    containerColor = colors.crystal,
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(PocketRadii.Floating),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = PocketSpacing.Lg),
-                        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFFAF7FB),
+                        colors.workspace,
+                        Color(0xFFEDE5F3),
+                    ),
+                ),
+            ),
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(resolvedSnackbarHostState) },
+            topBar = {
+                LibraryHeader(onOpenSettings)
+            },
+            floatingActionButton = {
+                if (state !is LibraryUiState.Loading) {
+                    Surface(
+                        onClick = onImport,
+                        modifier = Modifier.shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(PocketRadii.Floating),
+                            ambientColor = Color(0x40302739),
+                            spotColor = Color(0x40302739),
+                        ),
+                        shape = RoundedCornerShape(PocketRadii.Floating),
+                        color = Color(0xEE302739),
+                        contentColor = Color.White,
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(PocketSpacing.Sm))
-                        Text(stringResource(R.string.library_fab_import))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(19.dp),
+                            )
+                            Spacer(Modifier.width(PocketSpacing.Sm))
+                            Text(
+                                stringResource(R.string.library_fab_import),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
                     }
                 }
-            }
-        },
-    ) { innerPadding ->
-        when (state) {
-            LibraryUiState.Loading -> Box(
-                Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
-            LibraryUiState.Empty -> Box(
-                Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                PocketEmptyState(
-                    title = stringResource(R.string.library_empty_title_new),
-                    message = stringResource(R.string.library_empty_subtitle_new),
-                    actionLabel = stringResource(R.string.library_fab_import),
-                    onAction = onImport,
+            },
+        ) { innerPadding ->
+            when (state) {
+                LibraryUiState.Loading -> Box(
+                    Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+                LibraryUiState.Empty -> Box(
+                    Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PocketEmptyState(
+                        title = stringResource(R.string.library_empty_title_new),
+                        message = stringResource(R.string.library_empty_subtitle_new),
+                        actionLabel = stringResource(R.string.library_fab_import),
+                        onAction = onImport,
+                    )
+                }
+                is LibraryUiState.Error -> Box(
+                    Modifier.fillMaxSize().padding(innerPadding).padding(PocketSpacing.Xxl),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.library_load_failed, state.message),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                is LibraryUiState.Loaded -> LibraryContent(
+                    state = state,
+                    padding = innerPadding,
+                    coverLoader = coverLoader,
+                    onOpenDocument = onOpenDocument,
+                    onRetryIndexing = onRetryIndexing,
+                    onDeleteDocument = onDeleteDocument,
                 )
             }
-            is LibraryUiState.Error -> Box(
-                Modifier.fillMaxSize().padding(innerPadding).padding(PocketSpacing.Xxl),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.library_load_failed, state.message),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            is LibraryUiState.Loaded -> LibraryContent(
-                state = state,
-                padding = innerPadding,
-                coverLoader = coverLoader,
-                onOpenDocument = onOpenDocument,
-                onRetryIndexing = onRetryIndexing,
-                onDeleteDocument = onDeleteDocument,
-            )
         }
     }
 }
@@ -146,8 +175,9 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.workspace)
-            .padding(horizontal = PocketSpacing.Xl, vertical = PocketSpacing.Md),
+            .statusBarsPadding()
+            .padding(horizontal = PocketSpacing.Xl)
+            .padding(top = PocketSpacing.Sm, bottom = PocketSpacing.Md),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -160,15 +190,25 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = colors.ink,
             )
-            IconButton(onClick = onOpenSettings) {
+            Surface(
+                onClick = onOpenSettings,
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = .56f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color.White.copy(alpha = .72f),
+                ),
+            ) {
                 Icon(
                     Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.settings_title),
                     tint = colors.ink,
+                    modifier = Modifier.padding(9.dp),
                 )
             }
         }
-        Spacer(Modifier.height(PocketSpacing.Xl))
+        Spacer(Modifier.height(PocketSpacing.Lg))
         Text(
             text = stringResource(R.string.library_greeting),
             style = MaterialTheme.typography.labelLarge,
@@ -177,6 +217,7 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
         Text(
             text = stringResource(R.string.library_workspace_statement),
             style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
             color = colors.ink,
         )
         Text(
@@ -200,18 +241,19 @@ private fun LibraryContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = PocketSpacing.Lg,
-            top = padding.calculateTopPadding() + PocketSpacing.Lg,
-            end = PocketSpacing.Lg,
+            start = PocketSpacing.Xl,
+            top = padding.calculateTopPadding() + PocketSpacing.Md,
+            end = PocketSpacing.Xl,
             bottom = padding.calculateBottomPadding() + 104.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(PocketSpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
             Text(
                 text = stringResource(R.string.library_continue_reading),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = PocketSpacing.Xs),
+                color = LocalPocketColors.current.ink,
+                modifier = Modifier.padding(start = PocketSpacing.Xs, bottom = PocketSpacing.Xs),
             )
         }
         items(state.documents, key = { it.id }) { document ->
@@ -275,10 +317,21 @@ private fun DocumentCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(PocketRadii.Card),
+                ambientColor = Color(0x14302739),
+                spotColor = Color(0x14302739),
+            )
             .clip(RoundedCornerShape(PocketRadii.Card))
             .background(colors.paper)
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = .82f),
+                shape = RoundedCornerShape(PocketRadii.Card),
+            )
             .clickable(onClick = onOpen)
-            .padding(PocketSpacing.Md),
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DocumentCoverView(document, coverLoader)
@@ -337,8 +390,9 @@ private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoad
     )
     Box(
         modifier = Modifier
-            .size(width = 54.dp, height = 72.dp)
-            .clip(RoundedCornerShape(PocketRadii.Compact)),
+            .size(width = 48.dp, height = 64.dp)
+            .shadow(2.dp, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
         when (val current = cover) {

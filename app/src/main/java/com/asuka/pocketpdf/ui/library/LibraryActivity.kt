@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.core.view.WindowCompat
 import com.asuka.pocketpdf.R
 import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import com.asuka.pocketpdf.ui.settings.SettingsActivity
@@ -49,6 +50,10 @@ class LibraryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         setContent {
             PocketPDFTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()

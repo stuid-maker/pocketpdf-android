@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -115,7 +118,14 @@ fun ReaderScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.crystal)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xF0302739),
+                                Color(0xD9302739),
+                            ),
+                        ),
+                    )
                     .statusBarsPadding()
                     .padding(horizontal = PocketSpacing.Sm, vertical = PocketSpacing.Sm),
                 verticalAlignment = Alignment.CenterVertically,
@@ -206,8 +216,19 @@ private fun ReaderToolbar(
         modifier = Modifier
             .padding(PocketSpacing.Lg)
             .navigationBarsPadding()
+            .shadow(
+                elevation = 12.dp,
+                shape = RoundedCornerShape(PocketRadii.Floating),
+                ambientColor = Color.Black.copy(alpha = .28f),
+                spotColor = Color.Black.copy(alpha = .28f),
+            )
             .clip(RoundedCornerShape(PocketRadii.Floating))
-            .background(colors.crystal)
+            .background(Color(0xEE302739))
+            .border(
+                1.dp,
+                Color.White.copy(alpha = .14f),
+                RoundedCornerShape(PocketRadii.Floating),
+            )
             .padding(horizontal = PocketSpacing.Sm, vertical = PocketSpacing.Xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Xs),

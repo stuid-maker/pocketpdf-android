@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.view.WindowCompat
 import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -19,6 +20,10 @@ class DiagnosticsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         setContent {
             PocketPDFTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()

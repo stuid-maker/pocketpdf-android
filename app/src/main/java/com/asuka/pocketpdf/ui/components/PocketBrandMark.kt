@@ -16,12 +16,12 @@ import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 @Composable
 fun PocketBrandMark(modifier: Modifier = Modifier) {
     val colors = LocalPocketColors.current
-    Canvas(modifier.size(92.dp, 84.dp)) {
+    Canvas(modifier.size(78.dp, 76.dp)) {
         drawRoundRect(
             color = Color.White,
-            topLeft = Offset(size.width * .22f, 0f),
-            size = Size(size.width * .58f, size.height * .72f),
-            cornerRadius = CornerRadius(12f),
+            topLeft = Offset(size.width * .24f, 0f),
+            size = Size(size.width * .56f, size.height * .75f),
+            cornerRadius = CornerRadius(10f),
         )
         repeat(3) { index ->
             drawRoundRect(
@@ -33,9 +33,9 @@ fun PocketBrandMark(modifier: Modifier = Modifier) {
         }
         drawRoundRect(
             color = colors.crystal,
-            topLeft = Offset(size.width * .12f, size.height * .55f),
-            size = Size(size.width * .72f, size.height * .4f),
-            cornerRadius = CornerRadius(18f),
+            topLeft = Offset(size.width * .15f, size.height * .61f),
+            size = Size(size.width * .68f, size.height * .3f),
+            cornerRadius = CornerRadius(13f),
         )
         val sparkle = Path().apply {
             moveTo(size.width * .86f, size.height * .18f)
