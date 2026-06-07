@@ -11,6 +11,7 @@ import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -32,6 +33,7 @@ class IndexWorker @AssistedInject constructor(
     private val paragraphChunker: ParagraphChunker,
     private val settingsDataStore: SettingsDataStore,
     private val embedEngine: EmbeddingEngine,
+    private val summaryCacheRepository: SummaryCacheRepository,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -76,6 +78,7 @@ class IndexWorker @AssistedInject constructor(
             Timber.tag(TAG).d("Produced %d chunks", chunks.size)
 
             if (chunks.isEmpty()) {
+                summaryCacheRepository.invalidate(documentId)
                 documentRepo.replaceChunks(documentId, emptyList())
                     .getOrThrow()
                 // 无文本内容的 PDF（如纯扫描件），直接标记 INDEXED
@@ -97,6 +100,7 @@ class IndexWorker @AssistedInject constructor(
             val chunksWithEmbeddings = chunks.zip(embeddings) { chunk, embedding ->
                 chunk.copy(embedding = embedding)
             }
+            summaryCacheRepository.invalidate(documentId)
             documentRepo.replaceChunks(documentId, chunksWithEmbeddings)
                 .getOrThrow()
 

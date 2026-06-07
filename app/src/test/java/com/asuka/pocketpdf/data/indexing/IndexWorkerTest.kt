@@ -14,6 +14,7 @@ import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -44,6 +45,7 @@ class IndexWorkerTest {
     private val paragraphChunker = mockk<ParagraphChunker>()
     private val settingsDataStore = mockk<SettingsDataStore>()
     private val embedEngine = mockk<EmbeddingEngine>()
+    private val summaryCacheRepository = mockk<SummaryCacheRepository>(relaxUnitFun = true)
 
     private lateinit var context: Context
 
@@ -64,6 +66,7 @@ class IndexWorkerTest {
             paragraphChunker = paragraphChunker,
             settingsDataStore = settingsDataStore,
             embedEngine = embedEngine,
+            summaryCacheRepository = summaryCacheRepository,
         )
     }
 
@@ -130,6 +133,7 @@ class IndexWorkerTest {
             paragraphChunker = paragraphChunker,
             settingsDataStore = settingsDataStore,
             embedEngine = embedEngine,
+            summaryCacheRepository = summaryCacheRepository,
         )
         val result = worker.doWork()
 
@@ -161,6 +165,7 @@ class IndexWorkerTest {
         coVerify(atLeast = 1) { documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXED }) }
         coVerify(exactly = 0) { embedEngine.getEmbeddings(any()) }
         coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, emptyList()) }
+        coVerify(exactly = 1) { summaryCacheRepository.invalidate(documentId) }
     }
 
     @Test
@@ -245,6 +250,26 @@ class IndexWorkerTest {
 
         assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
         coVerify(exactly = 0) { pdfExtractor.extractPagesText(any()) }
+    }
+
+    @Test
+    fun `marks FAILED when cache invalidation fails before replacing chunks`() = runTest {
+        val documentId = 1L
+        val doc = document(documentId)
+        val chunks = listOf(
+            DocumentChunk(documentId = documentId, pageIndex = 0, chunkIndex = 0, text = "content"),
+        )
+        stubIndexing(doc, chunks, listOf(floatArrayOf(0.1f)))
+        coEvery { summaryCacheRepository.invalidate(documentId) } throws
+            IllegalStateException("cache unavailable")
+
+        val result = createWorker(documentId).doWork()
+
+        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
+        coVerify(exactly = 0) { documentRepo.replaceChunks(any(), any()) }
+        coVerify(atLeast = 1) {
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED })
+        }
     }
 
     private fun document(documentId: Long) = Document(

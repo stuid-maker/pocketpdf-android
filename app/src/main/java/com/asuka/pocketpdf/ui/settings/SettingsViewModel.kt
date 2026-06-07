@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.repository.LlmRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val llmRepository: LlmRepository,
+    private val summaryCacheRepository: SummaryCacheRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -97,12 +99,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
+                val previousChunkingStrategy = settingsDataStore.chunkingStrategy.first()
                 settingsDataStore.setBaseUrl(_uiState.value.baseUrl)
                 settingsDataStore.setModelName(_uiState.value.modelName)
                 settingsDataStore.setApiKey(
                     _uiState.value.apiKey.ifBlank { null }
                 )
                 settingsDataStore.setSystemPrompt(_uiState.value.systemPrompt)
+                if (previousChunkingStrategy != _uiState.value.chunkingStrategy) {
+                    summaryCacheRepository.invalidateAll()
+                }
                 settingsDataStore.setChunkingStrategy(_uiState.value.chunkingStrategy)
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
             } catch (e: Exception) {

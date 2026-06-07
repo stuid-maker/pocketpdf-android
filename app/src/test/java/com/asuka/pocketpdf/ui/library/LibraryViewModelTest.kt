@@ -5,6 +5,7 @@ import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
@@ -66,7 +67,10 @@ class LibraryViewModelTest {
         viewModel = LibraryViewModel(
             observeDocuments = ObserveDocumentsUseCase(repository),
             importDocument = ImportDocumentUseCase(repository),
-            deleteDocument = DeleteDocumentUseCase(repository),
+            deleteDocument = DeleteDocumentUseCase(
+                repository,
+                mockk<SummaryCacheRepository>(relaxUnitFun = true),
+            ),
             indexingScheduler = indexingScheduler,
         )
     }

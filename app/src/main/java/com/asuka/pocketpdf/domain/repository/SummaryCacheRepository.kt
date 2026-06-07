@@ -12,4 +12,5 @@ interface SummaryCacheRepository {
     fun get(documentId: Long, scope: SummaryScope): Flow<String?>
     suspend fun set(documentId: Long, scope: SummaryScope, text: String)
     suspend fun invalidate(documentId: Long)
+    suspend fun invalidateAll()
 }

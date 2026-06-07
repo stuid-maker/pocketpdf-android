@@ -2,6 +2,8 @@ package com.asuka.pocketpdf.domain.usecase
 
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -12,6 +14,19 @@ import javax.inject.Inject
  */
 class DeleteDocumentUseCase @Inject constructor(
     private val repository: DocumentRepository,
+    private val summaryCacheRepository: SummaryCacheRepository,
 ) {
-    suspend operator fun invoke(id: Long): Result<Unit> = repository.deleteDocument(id)
+    suspend operator fun invoke(id: Long): Result<Unit> {
+        val result = repository.deleteDocument(id)
+        if (result is Result.Success) {
+            try {
+                summaryCacheRepository.invalidate(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The document is already deleted; orphan cache cleanup is best-effort.
+            }
+        }
+        return result
+    }
 }

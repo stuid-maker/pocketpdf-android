@@ -44,6 +44,15 @@ class SummaryCacheStore @Inject constructor(
         }
     }
 
+    override suspend fun invalidateAll() {
+        context.cacheStore.edit { prefs ->
+            prefs.asMap().keys
+                .filterIsInstance<Preferences.Key<String>>()
+                .filter { it.name.startsWith("$KEY_PREFIX:") }
+                .forEach { prefs.remove(it) }
+        }
+    }
+
     private fun cacheKey(documentId: Long, scope: SummaryScope): String =
         "$KEY_PREFIX:$documentId:${scope.toCacheKey()}"
 

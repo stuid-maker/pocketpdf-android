@@ -4,9 +4,11 @@ import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.model.LlmModel
 import com.asuka.pocketpdf.domain.repository.LlmRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -36,6 +38,7 @@ class SettingsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var dataStore: SettingsDataStore
     private lateinit var llmRepository: LlmRepository
+    private lateinit var summaryCacheRepository: SummaryCacheRepository
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -44,6 +47,7 @@ class SettingsViewModelTest {
 
         dataStore = mockk<SettingsDataStore>()
         llmRepository = mockk()
+        summaryCacheRepository = mockk(relaxUnitFun = true)
 
         every { dataStore.baseUrl } returns flowOf("http://localhost:1234/v1")
         every { dataStore.modelName } returns flowOf("gemma-3-4b")
@@ -51,7 +55,7 @@ class SettingsViewModelTest {
         every { dataStore.systemPrompt } returns flowOf("")
         every { dataStore.chunkingStrategy } returns flowOf("sliding_window")
 
-        viewModel = SettingsViewModel(dataStore, llmRepository)
+        viewModel = SettingsViewModel(dataStore, llmRepository, summaryCacheRepository)
     }
 
     @After
@@ -235,6 +239,37 @@ class SettingsViewModelTest {
         runCurrent()
 
         assertEquals("llama-3-8b", viewModel.uiState.value.modelName)
+    }
+
+    @Test
+    fun `save invalidates summaries when chunking strategy changes`() = runTest(dispatcher) {
+        awaitInit()
+        coEvery { dataStore.setBaseUrl(any()) } returns Unit
+        coEvery { dataStore.setModelName(any()) } returns Unit
+        coEvery { dataStore.setApiKey(any()) } returns Unit
+        coEvery { dataStore.setSystemPrompt(any()) } returns Unit
+        coEvery { dataStore.setChunkingStrategy(any()) } returns Unit
+        viewModel.onChunkingStrategyChanged(SettingsDataStore.STRATEGY_PARAGRAPH)
+
+        viewModel.save()
+        runCurrent()
+
+        coVerify(exactly = 1) { summaryCacheRepository.invalidateAll() }
+    }
+
+    @Test
+    fun `save preserves summaries when chunking strategy is unchanged`() = runTest(dispatcher) {
+        awaitInit()
+        coEvery { dataStore.setBaseUrl(any()) } returns Unit
+        coEvery { dataStore.setModelName(any()) } returns Unit
+        coEvery { dataStore.setApiKey(any()) } returns Unit
+        coEvery { dataStore.setSystemPrompt(any()) } returns Unit
+        coEvery { dataStore.setChunkingStrategy(any()) } returns Unit
+
+        viewModel.save()
+        runCurrent()
+
+        coVerify(exactly = 0) { summaryCacheRepository.invalidateAll() }
     }
 
     // ──────────────────────────────────────────────
