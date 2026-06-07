@@ -1,11 +1,11 @@
 package com.asuka.pocketpdf.domain.usecase
 
-import com.asuka.pocketpdf.data.repository.SummaryCacheStore
 import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.RetrievalResult
 import com.asuka.pocketpdf.domain.model.SummaryScope
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -24,8 +24,13 @@ class SummarizeDocumentUseCaseTest {
     private val retrieveChunks = mockk<RetrieveChunksUseCase>()
     private val documentRepository = mockk<DocumentRepository>()
     private val llmRepository = mockk<LlmRepository>()
-    private val summaryCacheStore = mockk<SummaryCacheStore>(relaxUnitFun = true)
-    private val useCase = SummarizeDocumentUseCase(retrieveChunks, documentRepository, llmRepository, summaryCacheStore)
+    private val summaryCacheRepository = mockk<SummaryCacheRepository>(relaxUnitFun = true)
+    private val useCase = SummarizeDocumentUseCase(
+        retrieveChunks,
+        documentRepository,
+        llmRepository,
+        summaryCacheRepository,
+    )
 
     private fun result(id: Long, pageIndex: Int, text: String, score: Float = 0.9f) =
         RetrievalResult(
@@ -45,7 +50,7 @@ class SummarizeDocumentUseCaseTest {
 
     /** 为每个测试设置缓存默认行为：缓存未命中（走 LLM） */
     private fun stubCacheMiss() {
-        every { summaryCacheStore.get(any(), any()) } returns flowOf(null)
+        every { summaryCacheRepository.get(any(), any()) } returns flowOf(null)
     }
 
     // ── Full mode ──────────────────────────────────────

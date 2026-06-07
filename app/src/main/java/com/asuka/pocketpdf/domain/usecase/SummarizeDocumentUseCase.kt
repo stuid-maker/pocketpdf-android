@@ -1,11 +1,11 @@
 package com.asuka.pocketpdf.domain.usecase
 
-import com.asuka.pocketpdf.data.repository.SummaryCacheStore
 import com.asuka.pocketpdf.domain.model.ChatMessage
 import com.asuka.pocketpdf.domain.model.SummaryScope
 import com.asuka.pocketpdf.domain.prompt.PromptTemplates
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
+import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -16,7 +16,7 @@ class SummarizeDocumentUseCase @Inject constructor(
     private val retrieveChunks: RetrieveChunksUseCase,
     private val documentRepository: DocumentRepository,
     private val llmRepository: LlmRepository,
-    private val summaryCacheStore: SummaryCacheStore,
+    private val summaryCacheRepository: SummaryCacheRepository,
 ) {
 
     operator fun invoke(
@@ -27,7 +27,7 @@ class SummarizeDocumentUseCase @Inject constructor(
         systemPrompt: String = "",
     ): Flow<String> = flow {
         // 1. Check cache first
-        val cached = summaryCacheStore.get(documentId, scope).first()
+        val cached = summaryCacheRepository.get(documentId, scope).first()
         if (cached != null) {
             Timber.tag(TAG).d("Cache hit for scope=%s", scope)
             emit(cached)
@@ -84,7 +84,7 @@ class SummarizeDocumentUseCase @Inject constructor(
         }
 
         // 4. Write to cache
-        summaryCacheStore.set(documentId, scope, fullResult.toString())
+        summaryCacheRepository.set(documentId, scope, fullResult.toString())
         Timber.tag(TAG).d("Cache written for scope=%s", scope)
     }
 
