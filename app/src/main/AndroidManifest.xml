@@ -31,11 +31,7 @@
                 tools:node="remove" />
         </provider>
 
-        <!--
-          Week 1 Day 3 起：LibraryActivity 接管 LAUNCHER。
-          PingActivity 代码保留，未来 W3 接 LLM 桥接时复用其"按钮 → ViewModel → UseCase → UiState"
-          模板；不再作为启动入口（无 intent-filter）。如需手动验证 LM Studio 可在 W3 加 debug 菜单。
-        -->
+        <!-- LibraryActivity is the launcher; diagnostics is available from Settings. -->
         <activity
             android:name=".ui.library.LibraryActivity"
             android:exported="true"
@@ -53,9 +49,9 @@
             android:label="@string/app_name" />
 
         <activity
-            android:name=".ui.ping.PingActivity"
+            android:name=".ui.diagnostics.DiagnosticsActivity"
             android:exported="false"
-            android:label="@string/app_name" />
+            android:label="连接诊断" />
 
         <activity
             android:name=".ui.settings.SettingsActivity"
