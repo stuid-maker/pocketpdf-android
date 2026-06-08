@@ -22,4 +22,6 @@ data class PageTextWithPositions(
     val pageIndex: Int,
     val fullText: String,
     val positions: List<PdfTextPosition>,
+    val pdfPageWidth: Float,   // PDF user-space 页面宽度（来自 MediaBox）
+    val pdfPageHeight: Float,  // PDF user-space 页面高度
 )

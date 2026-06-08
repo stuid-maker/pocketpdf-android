@@ -60,6 +60,7 @@ class PdfPageView @JvmOverloads constructor(
     // 长按检测
     private var downX = 0f
     private var downY = 0f
+    private var longPressFired = false       // 防止长按后 onTouchListener 也触发 onTap
     var onLongPress: ((x: Float, y: Float) -> Unit)? = null
 
     // 搜索高亮画笔
@@ -124,6 +125,13 @@ class PdfPageView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** 是否刚刚触发了长按（供外部 onTouchListener 判断是否跳过 onTap） */
+    fun consumeLongPressFlag(): Boolean {
+        val fired = longPressFired
+        longPressFired = false
+        return fired
+    }
+
     /** 设置标注列表 */
     fun setAnnotations(annotations: List<com.asuka.pocketpdf.domain.model.Annotation>) {
         this.annotations = annotations
@@ -177,6 +185,7 @@ class PdfPageView @JvmOverloads constructor(
                 downTime = event.eventTime
                 downX = event.x
                 downY = event.y
+                longPressFired = false
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -245,6 +254,7 @@ class PdfPageView @JvmOverloads constructor(
                 val totalSpan = sqrt((upX - downX) * (upX - downX) + (upY - downY) * (upY - downY))
                 val pressDuration = event.eventTime - downTime
                 if (pressDuration > 500L && totalSpan < 20f && currentScale <= 1.05f) {
+                    longPressFired = true
                     onLongPress?.invoke(upX, upY)
                 }
 
@@ -253,10 +263,10 @@ class PdfPageView @JvmOverloads constructor(
                 val vx = abs(velocityTracker.xVelocity)
                 val vy = abs(velocityTracker.yVelocity)
                 if (currentScale <= 1.05f && vx > flingThreshold && vx > vy * 1.5f) {
-                    // 水平 fling 主导
-                    val totalDx = lastTouchX - event.x
+                    // 水平 fling 主导 — 用 downX 计算总位移（lastTouchX 已被 MOVE 更新至终点）
+                    val totalDx = event.x - downX
                     if (abs(totalDx) > flingDistanceThreshold) {
-                        onPageFling?.invoke(if (velocityTracker.xVelocity > 0) -1 else 1)
+                        onPageFling?.invoke(if (totalDx < 0) 1 else -1)
                     }
                 }
                 velocityTracker.clear()

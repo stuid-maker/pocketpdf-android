@@ -63,6 +63,8 @@ class SearchDocumentUseCase @Inject constructor(
                                 matchText = matchText,
                                 matchIndex = index,
                                 positions = matchedPositions,
+                                pdfPageWidth = page.pdfPageWidth,
+                                pdfPageHeight = page.pdfPageHeight,
                             ),
                         )
                         startIndex = index + 1

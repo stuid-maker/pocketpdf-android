@@ -94,15 +94,28 @@ fun ReaderScreen(
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
     }
 
-    // 计算当前页的搜索高亮区域
-    val currentPageHighlights = remember(searchState, pageState.pageIndex) {
+    // 计算当前页的搜索高亮区域（PDF user-space → bitmap 坐标系缩放）
+    val currentPageHighlights = remember(searchState, pageState.pageIndex, pageState.bitmap) {
         val state = searchState ?: return@remember emptyList<RectF>()
-        val currentIndex = state.currentMatchIndex
-        state.results
-            .filter { it.pageIndex == pageState.pageIndex }
-            .flatMap { result -> result.positions.map { pos -> RectF(pos.x, pos.y, pos.x + pos.width, pos.y + pos.height) } }
+        val bmp = pageState.bitmap ?: return@remember emptyList<RectF>()
+        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
+        if (pageResults.isEmpty()) return@remember emptyList<RectF>()
+        val first = pageResults.first()
+        val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
+        val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
+        pageResults
+            .flatMap { result ->
+                result.positions.map { pos ->
+                    RectF(
+                        pos.x * scaleX,
+                        pos.y * scaleY,
+                        (pos.x + pos.width) * scaleX,
+                        (pos.y + pos.height) * scaleY,
+                    )
+                }
+            }
     }
-    // 当前高亮的 match（只需要标记当前页的第几个匹配）
+    // 当前高亮的 match 在当前页的索引
     val highlightCurrentIndex = remember(searchState, pageState.pageIndex) {
         val state = searchState ?: return@remember -1
         val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
@@ -322,7 +335,9 @@ private fun PdfPageHost(
         factory = { context ->
             PdfPageView(context).apply {
                 setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_UP) onTap()
+                    if (event.action == MotionEvent.ACTION_UP && !consumeLongPressFlag()) {
+                        onTap()
+                    }
                     false
                 }
                 this.onPageFling = { direction -> onPageFling(direction) }

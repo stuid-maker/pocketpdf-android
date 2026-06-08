@@ -15,4 +15,6 @@ data class SearchResult(
     val matchText: String,
     val matchIndex: Int,
     val positions: List<PdfTextPosition>,
+    val pdfPageWidth: Float,
+    val pdfPageHeight: Float,
 )

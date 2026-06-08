@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.data.pdf
 
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.text.TextPosition
 import kotlinx.coroutines.withContext
@@ -57,6 +58,10 @@ class PdfBoxTextExtractor @Inject constructor(
                 if (total == 0) return@withContext emptyList()
                 buildList(total) {
                     for (page in 1..total) {
+                        val pdPage = document.getPage(page - 1)
+                        val mediaBox: PDRectangle = pdPage.mediaBox
+                        val pageWidth = mediaBox.width
+                        val pageHeight = mediaBox.height
                         val positions = mutableListOf<PdfTextPosition>()
                         val stripper = object : PDFTextStripper() {
                             override fun writeString(
@@ -81,7 +86,7 @@ class PdfBoxTextExtractor @Inject constructor(
                         stripper.startPage = page
                         stripper.endPage = page
                         val fullText = stripper.getText(document)
-                        add(PageTextWithPositions(page - 1, fullText, positions))
+                        add(PageTextWithPositions(page - 1, fullText, positions, pageWidth, pageHeight))
                     }
                 }
             } finally {

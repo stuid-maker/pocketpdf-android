@@ -156,7 +156,7 @@ class SearchDocumentUseCaseTest {
                 height = 12f,
             )
         }
-        return PageTextWithPositions(pageIndex, text, positions)
+        return PageTextWithPositions(pageIndex, text, positions, 612f, 792f)
     }
 
     private fun document(id: Long, uri: String) = Document(
