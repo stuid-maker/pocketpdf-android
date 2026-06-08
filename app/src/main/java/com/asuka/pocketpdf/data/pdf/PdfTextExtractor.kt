@@ -29,4 +29,14 @@ interface PdfTextExtractor {
      * @throws RuntimeException PDF 解析失败（损坏 / 加密 / 不支持的版本等）
      */
     suspend fun extractPagesText(file: File): List<String>
+
+    /**
+     * 按页提取文本与字符坐标。
+     *
+     * @param file 已落到内部存储的 PDF 绝对路径文件
+     * @return 每页一个 [PageTextWithPositions]；空 PDF 返回 emptyList
+     * @throws java.io.IOException 文件读取失败
+     * @throws RuntimeException PDF 解析失败
+     */
+    suspend fun extractPagesTextWithPositions(file: File): List<PageTextWithPositions>
 }

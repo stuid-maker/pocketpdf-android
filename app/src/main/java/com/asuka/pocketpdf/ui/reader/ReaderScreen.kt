@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.reader
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,13 +73,34 @@ fun ReaderScreen(
     onSummarizeDocument: () -> Unit,
     onStopSummary: () -> Unit,
     onOpenChat: () -> Unit,
+    searchViewModel: SearchViewModel? = null,
 ) {
     val colors = LocalPocketColors.current
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
     var summarySheetVisible by rememberSaveable { mutableStateOf(false) }
+    var searchVisible by rememberSaveable { mutableStateOf(false) }
+
+    val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
 
     LaunchedEffect(summaryState) {
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
+    }
+
+    // 计算当前页的搜索高亮区域
+    val currentPageHighlights = remember(searchState, pageState.pageIndex) {
+        val state = searchState ?: return@remember emptyList<RectF>()
+        val currentIndex = state.currentMatchIndex
+        state.results
+            .filter { it.pageIndex == pageState.pageIndex }
+            .flatMap { result -> result.positions.map { pos -> RectF(pos.x, pos.y, pos.x + pos.width, pos.y + pos.height) } }
+    }
+    // 当前高亮的 match（只需要标记当前页的第几个匹配）
+    val highlightCurrentIndex = remember(searchState, pageState.pageIndex) {
+        val state = searchState ?: return@remember -1
+        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
+        val currentResult = state.results.getOrNull(state.currentMatchIndex)
+        if (currentResult == null || currentResult.pageIndex != pageState.pageIndex) -1
+        else pageResults.indexOf(currentResult)
     }
 
     Box(
@@ -91,6 +115,8 @@ fun ReaderScreen(
                     onPageRequested(newPage)
                 }
             },
+            searchHighlights = currentPageHighlights,
+            currentHighlightIndex = highlightCurrentIndex,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -150,6 +176,40 @@ fun ReaderScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.titleSmall,
                 )
+                if (searchViewModel != null) {
+                    IconButton(onClick = { searchVisible = !searchVisible }) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "搜索",
+                            tint = colors.ink,
+                        )
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = searchVisible && searchViewModel != null,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+        ) {
+            val state = searchState
+            if (state != null) {
+                SearchBar(
+                    query = state.query,
+                    matchIndex = state.currentMatchIndex,
+                    totalMatches = state.totalMatches,
+                    isSearching = state.isSearching,
+                    onQueryChanged = { searchViewModel?.search(it) },
+                    onSearch = { searchViewModel?.search(state.query) },
+                    onPrevious = { searchViewModel?.previousMatch() },
+                    onNext = { searchViewModel?.nextMatch() },
+                    onClose = {
+                        searchViewModel?.clear()
+                        searchVisible = false
+                    },
+                )
             }
         }
 
@@ -195,6 +255,8 @@ private fun PdfPageHost(
     bitmap: Bitmap?,
     onTap: () -> Unit,
     onPageFling: (Int) -> Unit,
+    searchHighlights: List<RectF> = emptyList(),
+    currentHighlightIndex: Int = -1,
     modifier: Modifier,
 ) {
     AndroidView(
@@ -208,7 +270,10 @@ private fun PdfPageHost(
                 this.onPageFling = { direction -> onPageFling(direction) }
             }
         },
-        update = { view -> view.setBitmap(bitmap) },
+        update = { view ->
+            view.setBitmap(bitmap)
+            view.setSearchHighlights(searchHighlights, currentHighlightIndex)
+        },
     )
 }
 

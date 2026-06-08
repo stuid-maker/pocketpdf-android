@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.data.pdf
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import com.tom_roush.pdfbox.text.TextPosition
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -47,4 +48,44 @@ class PdfBoxTextExtractor @Inject constructor(
             document.close()
         }
     }
+
+    override suspend fun extractPagesTextWithPositions(file: File): List<PageTextWithPositions> =
+        withContext(dispatchers.io) {
+            val document = PDDocument.load(file)
+            try {
+                val total = document.numberOfPages
+                if (total == 0) return@withContext emptyList()
+                buildList(total) {
+                    for (page in 1..total) {
+                        val positions = mutableListOf<PdfTextPosition>()
+                        val stripper = object : PDFTextStripper() {
+                            override fun writeString(
+                                text: String,
+                                textPositions: List<TextPosition>,
+                            ) {
+                                for (tp in textPositions) {
+                                    positions.add(
+                                        PdfTextPosition(
+                                            text = tp.unicode,
+                                            pageIndex = page - 1,
+                                            x = tp.xDirAdj,
+                                            y = tp.yDirAdj,
+                                            width = tp.widthDirAdj,
+                                            height = tp.heightDir,
+                                        ),
+                                    )
+                                }
+                                super.writeString(text, textPositions)
+                            }
+                        }
+                        stripper.startPage = page
+                        stripper.endPage = page
+                        val fullText = stripper.getText(document)
+                        add(PageTextWithPositions(page - 1, fullText, positions))
+                    }
+                }
+            } finally {
+                document.close()
+            }
+        }
 }

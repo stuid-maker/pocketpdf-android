@@ -3,7 +3,9 @@ package com.asuka.pocketpdf.ui.reader
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -55,6 +57,19 @@ class PdfPageView @JvmOverloads constructor(
     private val flingDistanceThreshold = 60f   // px 最小滑动距离
     var onPageFling: ((direction: Int) -> Unit)? = null  // 翻页回调
 
+    // 搜索高亮画笔
+    private val highlightPaint = Paint().apply {
+        color = Color.argb(80, 255, 200, 0)   // 半透明黄色
+        style = Paint.Style.FILL
+    }
+    private val currentHighlightPaint = Paint().apply {
+        color = Color.argb(120, 255, 140, 0)  // 半透明橙色
+        style = Paint.Style.FILL
+    }
+
+    private var searchHighlights: List<RectF> = emptyList()
+    private var currentHighlightIndex: Int = -1
+
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
@@ -80,10 +95,31 @@ class PdfPageView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** 设置搜索高亮区域（PDF 页面坐标系） */
+    fun setSearchHighlights(highlights: List<RectF>, currentIndex: Int) {
+        this.searchHighlights = highlights
+        this.currentHighlightIndex = currentIndex
+        invalidate()
+    }
+
+    /** 清除搜索高亮 */
+    fun clearSearchHighlights() {
+        searchHighlights = emptyList()
+        currentHighlightIndex = -1
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         pageBitmap?.let { bitmap ->
             canvas.drawBitmap(bitmap, drawMatrix, null)
+        }
+        // 绘制搜索高亮
+        for ((i, rect) in searchHighlights.withIndex()) {
+            val mappedRect = RectF(rect)
+            drawMatrix.mapRect(mappedRect)
+            val paint = if (i == currentHighlightIndex) currentHighlightPaint else highlightPaint
+            canvas.drawRect(mappedRect, paint)
         }
     }
 
