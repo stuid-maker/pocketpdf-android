@@ -24,7 +24,7 @@ fun PocketCompactButton(
     val colors = LocalPocketColors.current
     Button(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 34.dp),
+        modifier = modifier.defaultMinSize(minHeight = 48.dp),
         enabled = enabled,
         shape = RoundedCornerShape(PocketRadii.Control),
         colors = ButtonDefaults.buttonColors(

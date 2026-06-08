@@ -132,9 +132,9 @@ fun ReaderScreen(
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                        tint = Color.White,
+                        Icons.Default.Refresh,
+                        contentDescription = "页面摘要",
+                        tint = colors.ink,
                     )
                 }
                 Text(
@@ -258,23 +258,23 @@ private fun ReaderToolbar(
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "下一页",
-                tint = Color.White,
+                tint = colors.ink,
             )
         }
         IconButton(onClick = onSummary) {
-            Icon(Icons.Default.Refresh, contentDescription = "页面摘要", tint = Color.White)
+            Icon(Icons.Default.Refresh, contentDescription = "页面摘要", tint = colors.ink)
         }
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(PocketRadii.Control))
-                .background(Color(0xFFC4A4ED))
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.crystal)
                 .clickable(onClick = onAi),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "✦",
-                color = Color(0xFF30223C),
+                color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .semantics { contentDescription = "文档 AI" }

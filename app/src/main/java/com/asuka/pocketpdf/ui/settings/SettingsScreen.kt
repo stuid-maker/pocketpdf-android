@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,8 +75,8 @@ fun SettingsScreen(
     actions: SettingsActions,
 ) {
     val colors = LocalPocketColors.current
-    var editor by remember { mutableStateOf<SettingsEditor?>(null) }
-    var presetDialogVisible by remember { mutableStateOf(false) }
+    var editor by rememberSaveable { mutableStateOf<SettingsEditor?>(null) }
+    var presetDialogVisible by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -281,7 +282,7 @@ private fun SettingsHeader(
     ) {
         Surface(
             onClick = onBack,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(48.dp),
             shape = RoundedCornerShape(18.dp),
             color = colors.paper.copy(alpha = .58f),
             border = androidx.compose.foundation.BorderStroke(
@@ -337,8 +338,8 @@ private fun SettingsSection(
                 .shadow(
                     elevation = 3.dp,
                     shape = RoundedCornerShape(PocketRadii.Card),
-                    ambientColor = Color(0x10302739),
-                    spotColor = Color(0x10302739),
+                    ambientColor = colors.shadowAmbient,
+                    spotColor = colors.shadowSpot,
                 )
                 .background(
                     colors.paper,

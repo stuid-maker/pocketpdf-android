@@ -80,6 +80,7 @@ class PdfReaderController(
                 activeSession.render(target, renderWidth())
             }
         }.onSuccess { bitmap ->
+            mutableState.value.bitmap?.recycle()
             mutableState.value = ReaderPageState(
                 pageIndex = target,
                 pageCount = activeSession.pageCount,

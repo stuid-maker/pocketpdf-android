@@ -10,13 +10,19 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 
 @Composable
 fun PocketBrandMark(modifier: Modifier = Modifier) {
     val colors = LocalPocketColors.current
-    Canvas(modifier.size(78.dp, 76.dp)) {
+    Canvas(
+        modifier
+            .size(78.dp, 76.dp)
+            .semantics { contentDescription = "PocketPDF" },
+    ) {
         drawRoundRect(
             color = Color(0xFFF1E6FF),
             topLeft = Offset(size.width * .26f, size.height * .06f),

@@ -79,6 +79,8 @@ fun PocketPDFTheme(
             mutedInk = Color(0xFFD0C6D5),
             success = Color(0xFF78B895),
             warning = Color(0xFFD5A85F),
+            shadowAmbient = Color(0x10302739),
+            shadowSpot = Color(0x10302739),
         )
     } else {
         PocketColors(
@@ -90,6 +92,8 @@ fun PocketPDFTheme(
             mutedInk = PurpleOnSurfaceVariant,
             success = Color(0xFF4F8A69),
             warning = Color(0xFFA8732D),
+            shadowAmbient = Color(0x10302739),
+            shadowSpot = Color(0x10302739),
         )
     }
     CompositionLocalProvider(

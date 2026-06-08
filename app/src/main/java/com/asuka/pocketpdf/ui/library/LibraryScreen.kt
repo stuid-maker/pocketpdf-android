@@ -144,12 +144,12 @@ fun LibraryScreen(
                         modifier = Modifier.shadow(
                             elevation = 10.dp,
                             shape = RoundedCornerShape(PocketRadii.Floating),
-                            ambientColor = Color(0x40302739),
-                            spotColor = Color(0x40302739),
-                        ),
-                        shape = RoundedCornerShape(PocketRadii.Floating),
+                            ambientColor = colors.shadowAmbient,
+                            spotColor = colors.shadowSpot,
+                            )
+                            .background(colors.paper.copy(alpha = .82f)),
                         color = Color(0xEE302739),
-                        contentColor = Color.White,
+                        contentColor = colors.ink,
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -238,7 +238,7 @@ private fun LibraryHeader(
             )
             Surface(
                 onClick = onOpenSettings,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(18.dp),
                 color = colors.paper.copy(alpha = .62f),
                 border = androidx.compose.foundation.BorderStroke(
@@ -437,11 +437,10 @@ private fun DocumentCard(
             .shadow(
                 elevation = 3.dp,
                 shape = RoundedCornerShape(PocketRadii.Card),
-                ambientColor = Color(0x10302739),
-                spotColor = Color(0x10302739),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
-            .clip(RoundedCornerShape(PocketRadii.Card))
-            .background(colors.paper)
+            .background(colors.paper.copy(alpha = .82f))
             .border(
                 width = 1.dp,
                 color = colors.crystalBorder,
@@ -510,6 +509,7 @@ private fun DocumentCard(
 
 @Composable
 private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoader?) {
+    val colors = LocalPocketColors.current
     val cover by produceState<DocumentCover>(
         initialValue = fallbackCover(document.id, document.title),
         document.id,
@@ -529,10 +529,10 @@ private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoad
             .shadow(
                 elevation = 3.dp,
                 shape = RoundedCornerShape(8.dp),
-                ambientColor = Color(0x1F302739),
-                spotColor = Color(0x1F302739),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
-            .clip(RoundedCornerShape(8.dp)),
+            .background(colors.paper.copy(alpha = .82f)),
         contentAlignment = Alignment.Center,
     ) {
         when (val current = cover) {

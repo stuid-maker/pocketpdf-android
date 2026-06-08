@@ -36,6 +36,8 @@ data class PocketColors(
     val mutedInk: Color,
     val success: Color,
     val warning: Color,
+    val shadowAmbient: Color,
+    val shadowSpot: Color,
 )
 
 val LocalPocketColors = staticCompositionLocalOf<PocketColors> {
