@@ -279,6 +279,17 @@
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# API KEY ENCRYPTION — Android Keystore AES/GCM cipher classes
+# ═════════════════════════════════════════════════════════════════════════════
+-keep class com.asuka.pocketpdf.data.local.ApiKeyCipher { *; }
+-keep class com.asuka.pocketpdf.data.local.AndroidKeystoreApiKeyCipher { *; }
+-keep class javax.crypto.** { *; }
+-keep class javax.crypto.spec.** { *; }
+-keep class java.security.KeyStore { *; }
+-keep class java.security.KeyStore$** { *; }
+-keep class android.security.keystore.** { *; }
+
+# ═════════════════════════════════════════════════════════════════════════════
 # KOTLIN REFLECTION / STD LIB — keep metadata needed by Moshi, Retrofit, etc.
 # ═════════════════════════════════════════════════════════════════════════════
 -keep class kotlin.Metadata { *; }
