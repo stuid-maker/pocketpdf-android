@@ -75,15 +75,16 @@ fun SettingsScreen(
 ) {
     val colors = LocalPocketColors.current
     var editor by remember { mutableStateOf<SettingsEditor?>(null) }
+    var presetDialogVisible by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFFDFBFE),
+                        colors.paper,
                         colors.workspace,
-                        Color(0xFFF0E8F5),
+                        colors.workspace,
                     ),
                 ),
             ),
@@ -112,7 +113,7 @@ fun SettingsScreen(
                         title = "模型服务",
                         supporting = "DeepSeek / 通义千问 / LM Studio",
                         value = MODEL_PRESETS.find { it.id == state.selectedPreset }?.label ?: "自定义",
-                        onClick = {},
+                        onClick = { presetDialogVisible = true },
                     )
                     SettingsRow("服务地址", state.baseUrl, "编辑") { editor = SettingsEditor.BaseUrl }
                     SettingsRow("模型名称", state.modelName.ifBlank { "尚未选择" }, "编辑") {
@@ -166,6 +167,17 @@ fun SettingsScreen(
         }
     }
 
+    if (presetDialogVisible) {
+        PresetDialog(
+            selectedPreset = state.selectedPreset,
+            onPresetSelected = {
+                actions.onPresetSelected(it)
+                presetDialogVisible = false
+            },
+            onDismiss = { presetDialogVisible = false },
+        )
+    }
+
     editor?.let { selected ->
         val (title, value, onChanged, password) = when (selected) {
             SettingsEditor.BaseUrl -> EditorSpec("服务地址", state.baseUrl, actions.onBaseUrlChanged)
@@ -201,6 +213,58 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun PresetDialog(
+    selectedPreset: String,
+    onPresetSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择模型服务") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                MODEL_PRESETS.forEach { preset ->
+                    val selected = preset.id == selectedPreset
+                    Surface(
+                        onClick = { onPresetSelected(preset.id) },
+                        shape = RoundedCornerShape(PocketRadii.Control),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f)
+                        },
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(PocketSpacing.Md),
+                        ) {
+                            Text(
+                                text = preset.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                            )
+                            Text(
+                                text = preset.baseUrl.ifBlank { "保留自定义服务地址" },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("完成") }
+        },
+    )
+}
+
+@Composable
 private fun SettingsHeader(
     isSaving: Boolean,
     onBack: () -> Unit,
@@ -219,8 +283,11 @@ private fun SettingsHeader(
             onClick = onBack,
             modifier = Modifier.size(36.dp),
             shape = RoundedCornerShape(18.dp),
-            color = Color.White.copy(alpha = .58f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .74f)),
+            color = colors.paper.copy(alpha = .58f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                colors.crystalBorder,
+            ),
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
@@ -274,12 +341,12 @@ private fun SettingsSection(
                     spotColor = Color(0x10302739),
                 )
                 .background(
-                    Color(0xFFFEFCFF),
+                    colors.paper,
                     RoundedCornerShape(PocketRadii.Card),
                 )
                 .border(
                     1.dp,
-                    Color.White.copy(alpha = .88f),
+                    colors.crystalBorder,
                     RoundedCornerShape(PocketRadii.Card),
                 )
                 .padding(horizontal = PocketSpacing.Lg),

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,12 +38,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,15 +83,16 @@ fun LibraryScreen(
 ) {
     val colors = LocalPocketColors.current
     val resolvedSnackbarHostState = snackbarHostState ?: remember { SnackbarHostState() }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFFDFBFE),
+                        colors.paper,
                         colors.workspace,
-                        Color(0xFFF0E8F5),
+                        colors.workspace,
                     ),
                 ),
             ),
@@ -99,7 +106,7 @@ fun LibraryScreen(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            Color(0x66D9C4F3),
+                            MaterialTheme.colorScheme.primary.copy(alpha = .18f),
                             Color.Transparent,
                         ),
                     ),
@@ -114,7 +121,7 @@ fun LibraryScreen(
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            Color(0x3FC4A4ED),
+                            MaterialTheme.colorScheme.primary.copy(alpha = .12f),
                             Color.Transparent,
                         ),
                     ),
@@ -124,7 +131,11 @@ fun LibraryScreen(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(resolvedSnackbarHostState) },
             topBar = {
-                LibraryHeader(onOpenSettings)
+                LibraryHeader(
+                    searchQuery = searchQuery,
+                    onSearchQueryChanged = { searchQuery = it },
+                    onOpenSettings = onOpenSettings,
+                )
             },
             floatingActionButton = {
                 if (state is LibraryUiState.Loaded) {
@@ -188,6 +199,7 @@ fun LibraryScreen(
                 }
                 is LibraryUiState.Loaded -> LibraryContent(
                     state = state,
+                    searchQuery = searchQuery,
                     padding = innerPadding,
                     coverLoader = coverLoader,
                     onOpenDocument = onOpenDocument,
@@ -200,14 +212,18 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryHeader(onOpenSettings: () -> Unit) {
+private fun LibraryHeader(
+    searchQuery: String,
+    onSearchQueryChanged: (String) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val colors = LocalPocketColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = PocketSpacing.Xl)
-            .padding(top = PocketSpacing.Sm, bottom = 10.dp),
+            .padding(top = PocketSpacing.Xxl, bottom = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -224,10 +240,10 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
                 onClick = onOpenSettings,
                 modifier = Modifier.size(36.dp),
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White.copy(alpha = .62f),
+                color = colors.paper.copy(alpha = .62f),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    Color.White.copy(alpha = .72f),
+                    colors.crystalBorder,
                 ),
             ) {
                 Icon(
@@ -238,36 +254,63 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = stringResource(R.string.library_greeting),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = stringResource(R.string.library_workspace_statement),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.ink,
-        )
-        Text(
-            text = stringResource(R.string.library_workspace_supporting),
-            modifier = Modifier.padding(top = 6.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.mutedInk,
-        )
+        Spacer(Modifier.height(PocketSpacing.Xl))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            color = colors.paper.copy(alpha = .68f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+        ) {
+            Column(
+                modifier = Modifier.padding(PocketSpacing.Xl),
+            ) {
+                Text(
+                    text = stringResource(R.string.library_greeting),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.library_workspace_statement),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.library_workspace_supporting),
+                    modifier = Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.mutedInk,
+                )
+                Spacer(Modifier.height(PocketSpacing.Lg))
+                LibrarySearchBar(
+                    query = searchQuery,
+                    onQueryChanged = onSearchQueryChanged,
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun LibraryContent(
     state: LibraryUiState.Loaded,
+    searchQuery: String,
     padding: PaddingValues,
     coverLoader: DocumentCoverLoader?,
     onOpenDocument: (Long) -> Unit,
     onRetryIndexing: (Long) -> Unit,
     onDeleteDocument: (Document) -> Unit,
 ) {
+    val documents = remember(state.documents, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            state.documents
+        } else {
+            state.documents.filter { document ->
+                document.title.contains(query, ignoreCase = true)
+            }
+        }
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -286,7 +329,7 @@ private fun LibraryContent(
                 modifier = Modifier.padding(start = PocketSpacing.Xs, bottom = PocketSpacing.Xs),
             )
         }
-        items(state.documents, key = { it.id }) { document ->
+        items(documents, key = { it.id }) { document ->
             DismissibleDocumentCard(
                 document = document,
                 coverLoader = coverLoader,
@@ -302,6 +345,50 @@ private fun LibraryContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LibrarySearchBar(
+    query: String,
+    onQueryChanged: (String) -> Unit,
+) {
+    val colors = LocalPocketColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(PocketRadii.Control),
+        color = colors.paper.copy(alpha = .58f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+    ) {
+        TextField(
+            value = query,
+            onValueChange = onQueryChanged,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = colors.mutedInk,
+                )
+            },
+            placeholder = {
+                Text(
+                    text = "搜索文档",
+                    color = colors.mutedInk,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.ink),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = MaterialTheme.colorScheme.primary,
+            ),
+        )
     }
 }
 
@@ -354,10 +441,10 @@ private fun DocumentCard(
                 spotColor = Color(0x10302739),
             )
             .clip(RoundedCornerShape(PocketRadii.Card))
-            .background(Color(0xFFFEFCFF))
+            .background(colors.paper)
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = .9f),
+                color = colors.crystalBorder,
                 shape = RoundedCornerShape(PocketRadii.Card),
             )
             .clickable(onClick = onOpen)

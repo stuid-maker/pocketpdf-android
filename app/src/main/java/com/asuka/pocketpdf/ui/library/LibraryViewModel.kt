@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.data.indexing.IndexingScheduler
+import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
@@ -47,6 +50,7 @@ class LibraryViewModel @Inject constructor(
     observeDocuments: ObserveDocumentsUseCase,
     private val importDocument: ImportDocumentUseCase,
     private val deleteDocument: DeleteDocumentUseCase,
+    private val documentRepository: DocumentRepository,
     private val indexingScheduler: IndexingScheduler,
 ) : ViewModel() {
 
@@ -54,6 +58,7 @@ class LibraryViewModel @Inject constructor(
     private val isImporting = MutableStateFlow(false)
 
     private val pendingDeleteJobs = mutableMapOf<Long, Job>()
+    private val staleIndexingUpdates = mutableSetOf<Long>()
 
     private val _oneShotEvents = Channel<LibraryEvent>(Channel.BUFFERED)
     val oneShotEvents = _oneShotEvents.receiveAsFlow()
@@ -63,7 +68,23 @@ class LibraryViewModel @Inject constructor(
         pendingDeleteIds,
         isImporting,
     ) { documents, pending, importing ->
-        val visible = if (pending.isEmpty()) documents else documents.filterNot { it.id in pending }
+        val recoveredDocuments = documents.map { document ->
+            if (
+                document.indexStatus == IndexStatus.INDEXING &&
+                System.currentTimeMillis() - document.importedAt > STALE_INDEXING_MS
+            ) {
+                document.copy(indexStatus = IndexStatus.FAILED).also { recovered ->
+                    markStaleIndexingFailed(recovered)
+                }
+            } else {
+                document
+            }
+        }
+        val visible = if (pending.isEmpty()) {
+            recoveredDocuments
+        } else {
+            recoveredDocuments.filterNot { it.id in pending }
+        }
         when {
             visible.isEmpty() && !importing -> LibraryUiState.Empty
             else -> LibraryUiState.Loaded(visible, isImporting = importing)
@@ -124,8 +145,40 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun enqueueIndexing(documentId: Long) {
-        indexingScheduler.schedule(documentId)
-        Timber.tag(TAG).d("IndexWorker enqueued for document #%d", documentId)
+        runCatching {
+            indexingScheduler.schedule(documentId)
+        }.onSuccess {
+            Timber.tag(TAG).d("IndexWorker enqueued for document #%d", documentId)
+        }.onFailure { error ->
+            Timber.tag(TAG).e(error, "Failed to enqueue IndexWorker for document #%d", documentId)
+            viewModelScope.launch {
+                _oneShotEvents.send(
+                    LibraryEvent.ShowImportError(
+                        "文档已导入，但索引任务启动失败，可稍后点状态重试",
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun markStaleIndexingFailed(document: Document) {
+        if (!staleIndexingUpdates.add(document.id)) return
+        viewModelScope.launch {
+            when (val result = documentRepository.updateDocument(document)) {
+                is Result.Success -> Timber.tag(TAG).w(
+                    "Recovered stale indexing document as failed: id=%d",
+                    document.id,
+                )
+                is Result.Failure -> {
+                    staleIndexingUpdates.remove(document.id)
+                    Timber.tag(TAG).e(
+                        result.error,
+                        "Failed to persist stale indexing recovery for document #%d",
+                        document.id,
+                    )
+                }
+            }
+        }
     }
 
     private suspend fun commitDelete(documentId: Long) {
@@ -146,5 +199,6 @@ class LibraryViewModel @Inject constructor(
         const val TAG = "LibraryViewModel"
         const val UNDO_TIMEOUT_MS = 5_000L
         const val STOP_TIMEOUT_MS = 5_000L
+        const val STALE_INDEXING_MS = 10 * 60 * 1000L
     }
 }

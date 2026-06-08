@@ -18,9 +18,9 @@ fun PocketBrandMark(modifier: Modifier = Modifier) {
     val colors = LocalPocketColors.current
     Canvas(modifier.size(78.dp, 76.dp)) {
         drawRoundRect(
-            color = Color.White,
-            topLeft = Offset(size.width * .24f, 0f),
-            size = Size(size.width * .56f, size.height * .75f),
+            color = Color(0xFFF1E6FF),
+            topLeft = Offset(size.width * .26f, size.height * .06f),
+            size = Size(size.width * .52f, size.height * .62f),
             cornerRadius = CornerRadius(10f),
         )
         repeat(3) { index ->
@@ -32,7 +32,7 @@ fun PocketBrandMark(modifier: Modifier = Modifier) {
             )
         }
         drawRoundRect(
-            color = colors.crystal,
+            color = colors.crystal.copy(alpha = .92f),
             topLeft = Offset(size.width * .15f, size.height * .61f),
             size = Size(size.width * .68f, size.height * .3f),
             cornerRadius = CornerRadius(13f),
@@ -48,7 +48,7 @@ fun PocketBrandMark(modifier: Modifier = Modifier) {
             lineTo(size.width * .82f, size.height * .27f)
             close()
         }
-        drawPath(sparkle, color = Color(0xFFC4A4ED))
+        drawPath(sparkle, color = Color(0xFF9E6DE0))
         drawPath(sparkle, color = Color.White.copy(alpha = .65f), style = Stroke(2f))
     }
 }

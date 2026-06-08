@@ -64,9 +64,9 @@ fun DiagnosticsScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFFDFBFE),
+                        colors.paper,
                         colors.workspace,
-                        Color(0xFFF0E8F5),
+                        colors.workspace,
                     ),
                 ),
             ),
@@ -108,12 +108,12 @@ fun DiagnosticsScreen(
                                 spotColor = Color(0x10302739),
                             )
                             .background(
-                                Color(0xFFFEFCFF),
+                                colors.paper,
                                 RoundedCornerShape(PocketRadii.Card),
                             )
                             .border(
                                 1.dp,
-                                Color.White.copy(alpha = .88f),
+                                colors.crystalBorder,
                                 RoundedCornerShape(PocketRadii.Card),
                             )
                             .padding(PocketSpacing.Lg),
@@ -156,8 +156,11 @@ private fun DiagnosticsHeader(onBack: () -> Unit) {
         Surface(
             onClick = onBack,
             shape = RoundedCornerShape(18.dp),
-            color = Color.White.copy(alpha = .58f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .74f)),
+            color = colors.paper.copy(alpha = .58f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                colors.crystalBorder,
+            ),
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,

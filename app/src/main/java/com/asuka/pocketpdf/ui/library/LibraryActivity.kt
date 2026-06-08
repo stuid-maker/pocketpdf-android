@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.core.view.WindowCompat
 import com.asuka.pocketpdf.R
 import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import com.asuka.pocketpdf.ui.settings.SettingsActivity
@@ -42,6 +41,7 @@ class LibraryActivity : ComponentActivity() {
         ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
+        persistReadPermission(uri)
         lifecycleScope.launch {
             viewModel.onImportRequested(uri.toString(), resolveDisplayName(uri))
         }
@@ -50,10 +50,6 @@ class LibraryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true
-            isAppearanceLightNavigationBars = true
-        }
         setContent {
             PocketPDFTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,6 +105,17 @@ class LibraryActivity : ComponentActivity() {
 
     private fun launchSafPicker() {
         openDocumentLauncher.launch(arrayOf(MIME_PDF))
+    }
+
+    private fun persistReadPermission(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }.onFailure {
+            Timber.tag(TAG).w(it, "Persistable permission not granted for %s", uri)
+        }
     }
 
     private suspend fun resolveDisplayName(uri: Uri): String {

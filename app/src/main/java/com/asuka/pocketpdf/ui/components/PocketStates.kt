@@ -40,12 +40,12 @@ fun PocketEmptyState(
                 spotColor = Color(0x10302739),
             )
             .background(
-                Color(0xBFFFFFFF),
+                colors.paper.copy(alpha = .82f),
                 RoundedCornerShape(PocketRadii.Floating),
             )
             .border(
                 1.dp,
-                Color.White.copy(alpha = .9f),
+                colors.crystalBorder,
                 RoundedCornerShape(PocketRadii.Floating),
             )
             .padding(horizontal = PocketSpacing.Xl, vertical = PocketSpacing.Xxl),
