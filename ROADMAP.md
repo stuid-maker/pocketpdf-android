@@ -114,21 +114,21 @@ DDL：2026-06-15（周日，第 5 周末）
 
 ---
 
-## Week 5 · 测试 + 文档 + Demo + 简历素材｜⚪
+## Week 5 · 测试 + 文档 + Demo + 简历素材｜✅ 完成
 
-**目标**：作品集级别的工程化收尾。
+**目标**：作品集级别的工程化收尾。除 Demo 视频外全部完成。
 
-- [ ] domain 层单元测试，覆盖率 ≥ 70%
-- [ ] 集成测试：`IndexWorker`、关键 Repository
-- [ ] Espresso：导入流程、问答流程（用 Hilt test runner）
-- [ ] `docs/ARCHITECTURE.md` 完整版（含 Mermaid 模块图、数据流图）
-- [ ] `README.md`：功能截图、GIF、快速开始
-- [ ] GitHub Actions：lint + unit test，README 加徽章
-- [ ] R8 / ProGuard 规则（保留 PdfBox、Sentence-Embeddings 类）
-- [ ] Release build 签名，`./gradlew assembleRelease`，APK 体积优化
-- [ ] Demo 视频 60–90 秒，B 站上传
-- [ ] `INTERVIEW_NOTES.md`（私有，不提交）：自答 20 个常问
-- [ ] 简历项目段（一句话 / 一段话 / 详细描述 三个版本）
+- [x] domain 层单元测试，覆盖率 ≥ 70%
+- [x] 集成测试：`IndexWorker`、关键 Repository
+- [x] Espresso：导入流程、问答流程（用 Hilt test runner）
+- [x] `docs/ARCHITECTURE.md` 完整版（含 Mermaid 模块图、数据流图）
+- [x] `README.md`：功能截图、GIF、快速开始（W5 已补：徽章更新、测试数 246）
+- [x] GitHub Actions：lint + unit test，README 加徽章
+- [x] R8 / ProGuard 规则（保留 PdfBox、Sentence-Embeddings 类）
+- [x] Release build 签名，`./gradlew assembleRelease`，APK 体积优化
+- [ ] Demo 视频 60–90 秒，B 站上传（用户要求跳过）
+- [x] `INTERVIEW_NOTES.md`（私有，不提交）：自答 25 个常问
+- [x] 简历项目段（一句话 / 一段话 / 详细描述 三个版本）
 
 **验收**：仓库一眼能看懂 / Demo 流畅 / CI 绿 / 面试问答有底。
 

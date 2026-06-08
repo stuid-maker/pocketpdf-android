@@ -78,7 +78,7 @@ class IndexWorker @AssistedInject constructor(
             Timber.tag(TAG).d("Produced %d chunks", chunks.size)
 
             if (chunks.isEmpty()) {
-                summaryCacheRepository.invalidate(documentId)
+                invalidateSummaryCacheSafely(documentId)
                 documentRepo.replaceChunks(documentId, emptyList())
                     .getOrThrow()
                 // 无文本内容的 PDF（如纯扫描件），直接标记 INDEXED
@@ -100,7 +100,7 @@ class IndexWorker @AssistedInject constructor(
             val chunksWithEmbeddings = chunks.zip(embeddings) { chunk, embedding ->
                 chunk.copy(embedding = embedding)
             }
-            summaryCacheRepository.invalidate(documentId)
+            invalidateSummaryCacheSafely(documentId)
             documentRepo.replaceChunks(documentId, chunksWithEmbeddings)
                 .getOrThrow()
 
@@ -122,6 +122,18 @@ class IndexWorker @AssistedInject constructor(
                 Timber.tag(TAG).e(updateEx, "Failed to mark document #%d as FAILED", documentId)
             }
             Result.failure()
+        }
+    }
+
+    /**
+     * 安全地清理摘要缓存：缓存清理是"尽力而为"的操作，
+     * 即使失败也不应阻止索引流程继续。
+     */
+    private suspend fun invalidateSummaryCacheSafely(documentId: Long) {
+        try {
+            summaryCacheRepository.invalidate(documentId)
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Summary cache invalidation skipped for document #%d", documentId)
         }
     }
 

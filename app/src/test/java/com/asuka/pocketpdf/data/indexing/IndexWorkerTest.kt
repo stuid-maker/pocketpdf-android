@@ -253,7 +253,7 @@ class IndexWorkerTest {
     }
 
     @Test
-    fun `marks FAILED when cache invalidation fails before replacing chunks`() = runTest {
+    fun `cache invalidation failure does not prevent successful indexing`() = runTest {
         val documentId = 1L
         val doc = document(documentId)
         val chunks = listOf(
@@ -265,10 +265,11 @@ class IndexWorkerTest {
 
         val result = createWorker(documentId).doWork()
 
-        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
-        coVerify(exactly = 0) { documentRepo.replaceChunks(any(), any()) }
+        // 缓存清理失败不影响索引流程，应返回 Success
+        assertTrue("Expected Success", result is ListenableWorker.Result.Success)
+        coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, any()) }
         coVerify(atLeast = 1) {
-            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.FAILED })
+            documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXED })
         }
     }
 
