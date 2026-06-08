@@ -81,7 +81,6 @@ fun ReaderScreen(
     val colors = LocalPocketColors.current
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
     var summarySheetVisible by rememberSaveable { mutableStateOf(false) }
-    var searchVisible by rememberSaveable { mutableStateOf(false) }
 
     val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
 
@@ -95,36 +94,6 @@ fun ReaderScreen(
 
     LaunchedEffect(summaryState) {
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
-    }
-
-    // 计算当前页的搜索高亮区域（PDF user-space → bitmap 坐标系缩放）
-    val currentPageHighlights = remember(searchState, pageState.pageIndex, pageState.bitmap) {
-        val state = searchState ?: return@remember emptyList<RectF>()
-        val bmp = pageState.bitmap ?: return@remember emptyList<RectF>()
-        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
-        if (pageResults.isEmpty()) return@remember emptyList<RectF>()
-        val first = pageResults.first()
-        val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
-        val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
-        pageResults
-            .flatMap { result ->
-                result.positions.map { pos ->
-                    RectF(
-                        pos.x * scaleX,
-                        pos.y * scaleY,
-                        (pos.x + pos.width) * scaleX,
-                        (pos.y + pos.height) * scaleY,
-                    )
-                }
-            }
-    }
-    // 当前高亮的 match 在当前页的索引
-    val highlightCurrentIndex = remember(searchState, pageState.pageIndex) {
-        val state = searchState ?: return@remember -1
-        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
-        val currentResult = state.results.getOrNull(state.currentMatchIndex)
-        if (currentResult == null || currentResult.pageIndex != pageState.pageIndex) -1
-        else pageResults.indexOf(currentResult)
     }
 
     Box(
@@ -212,8 +181,6 @@ fun ReaderScreen(
                 annotationToolbarVisible = true
             },
             annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
-            searchHighlights = currentPageHighlights,
-            currentHighlightIndex = highlightCurrentIndex,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -272,46 +239,6 @@ fun ReaderScreen(
                     maxLines = 1,
                     color = Color.White,
                     style = MaterialTheme.typography.titleSmall,
-                )
-                if (searchViewModel != null) {
-                    IconButton(onClick = {
-                        searchVisible = !searchVisible
-                        if (searchVisible) chromeVisible = false
-                    }) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "搜索",
-                            tint = colors.ink,
-                        )
-                    }
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = searchVisible && searchViewModel != null,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding(),
-            enter = fadeIn() + slideInVertically { -it / 2 },
-            exit = fadeOut() + slideOutVertically { -it / 2 },
-        ) {
-            val state = searchState
-            if (state != null) {
-                SearchBar(
-                    query = state.query,
-                    matchIndex = state.currentMatchIndex,
-                    totalMatches = state.totalMatches,
-                    isSearching = state.isSearching,
-                    onQueryChanged = { searchViewModel?.search(it) },
-                    onSearch = { searchViewModel?.search(state.query) },
-                    onPrevious = { searchViewModel?.previousMatch() },
-                    onNext = { searchViewModel?.nextMatch() },
-                    onClose = {
-                        searchViewModel?.clear()
-                        searchVisible = false
-                        chromeVisible = true
-                    },
                 )
             }
         }
@@ -392,8 +319,6 @@ private fun PdfPageHost(
     onPageFling: (Int) -> Unit,
     onLongPress: (Float, Float) -> Unit = { _, _ -> },
     annotations: List<Annotation> = emptyList(),
-    searchHighlights: List<RectF> = emptyList(),
-    currentHighlightIndex: Int = -1,
     modifier: Modifier,
 ) {
     AndroidView(
@@ -412,7 +337,6 @@ private fun PdfPageHost(
         },
         update = { view ->
             view.setBitmap(bitmap)
-            view.setSearchHighlights(searchHighlights, currentHighlightIndex)
             view.setAnnotations(annotations)
         },
     )
