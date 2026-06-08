@@ -99,6 +99,8 @@ class ReaderActivity : ComponentActivity() {
                                     document = readerState.document,
                                     initialPage = initialPage.takeIf { it >= 0 } ?: 0,
                                 )
+                                // 预加载全页文字坐标，确保长按选中无需先搜索
+                                searchViewModel.loadPageTextPositions()
                             }
                         }
                         ReaderScreen(

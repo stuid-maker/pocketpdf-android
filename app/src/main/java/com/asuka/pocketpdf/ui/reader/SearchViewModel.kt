@@ -25,6 +25,7 @@ class SearchViewModel @Inject constructor(
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private var documentId: Long = 0
+    private var pageTextLoading = false  // 防止并发加载
 
     fun init(documentId: Long) {
         this.documentId = documentId
@@ -74,5 +75,19 @@ class SearchViewModel @Inject constructor(
 
     fun clear() {
         _uiState.update { SearchUiState() }
+    }
+
+    /** 加载全页文字坐标（供长按选中，不依赖搜索） */
+    fun loadPageTextPositions() {
+        if (pageTextLoading) return
+        pageTextLoading = true
+        viewModelScope.launch {
+            searchDocumentUseCase.extractPageTextPositions(documentId)
+                .onSuccess { pages ->
+                    val cache = pages.associateBy { it.pageIndex }
+                    _uiState.update { it.copy(pageTextCache = cache) }
+                }
+            pageTextLoading = false
+        }
     }
 }

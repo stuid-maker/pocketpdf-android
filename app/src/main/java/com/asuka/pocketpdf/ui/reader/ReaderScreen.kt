@@ -140,45 +140,73 @@ fun ReaderScreen(
                 }
             },
             onLongPress = { bmpX, bmpY ->
-                // 从 searchState 获取当前页的 text positions + 缩放比
+                // 优先使用全页文字坐标缓存（独立于搜索）
                 val state = searchState
                 val bmp = pageState.bitmap
                 selectedAnnotationText = ""
                 if (state != null && bmp != null) {
-                    val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
-                    val first = pageResults.firstOrNull()
-                    if (first != null) {
-                        val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
-                        val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
+                    // 尝试从 pageTextCache 获取当前页文字坐标
+                    val pageText = state.pageTextCache[pageState.pageIndex]
+                    if (pageText != null) {
+                        val scaleX = if (pageText.pdfPageWidth > 0) bmp.width / pageText.pdfPageWidth else 1f
+                        val scaleY = if (pageText.pdfPageHeight > 0) bmp.height / pageText.pdfPageHeight else 1f
                         val pdfX = bmpX / scaleX
                         val pdfY = bmpY / scaleY
-                        for (result in pageResults) {
-                            for (pos in result.positions) {
-                                if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
-                                    pdfY >= pos.y - pos.height && pdfY <= pos.y
-                                ) {
-                                    selectedAnnotationText = buildString {
-                                        for (p in result.positions) append(p.text)
-                                    }
-                                    // 计算 PDF 坐标矩形（所有 positions 的包围盒）
-                                    val minX = result.positions.minOf { it.x }
-                                    val minY = result.positions.minOf { it.y - it.height }
-                                    val maxX = result.positions.maxOf { it.x + it.width }
-                                    val maxY = result.positions.maxOf { it.y }
-                                    selectedAnnotationRect = android.graphics.RectF(minX, minY, maxX, maxY)
-                                    // 计算 bitmap 坐标矩形
-                                    selectedAnnotationBmpRect = android.graphics.RectF(
-                                        minX * scaleX, minY * scaleY,
-                                        maxX * scaleX, maxY * scaleY,
-                                    )
-                                    break
-                                }
+                        // 遍历该页所有文字位置，找到被触摸的单词
+                        for (pos in pageText.positions) {
+                            if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
+                                pdfY >= pos.y - pos.height && pdfY <= pos.y
+                            ) {
+                                selectedAnnotationText = pos.text
+                                val rect = android.graphics.RectF(
+                                    pos.x * scaleX, (pos.y - pos.height) * scaleY,
+                                    (pos.x + pos.width) * scaleX, pos.y * scaleY,
+                                )
+                                selectedAnnotationRect = android.graphics.RectF(pos.x, pos.y - pos.height, pos.x + pos.width, pos.y)
+                                selectedAnnotationBmpRect = rect
+                                break
                             }
-                            if (selectedAnnotationText.isNotEmpty()) break
+                        }
+                    }
+                    // 回退：使用搜索结果（保留兼容）
+                    if (selectedAnnotationText.isEmpty()) {
+                        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
+                        val first = pageResults.firstOrNull()
+                        if (first != null) {
+                            val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
+                            val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
+                            val pdfX = bmpX / scaleX
+                            val pdfY = bmpY / scaleY
+                            for (result in pageResults) {
+                                for (pos in result.positions) {
+                                    if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
+                                        pdfY >= pos.y - pos.height && pdfY <= pos.y
+                                    ) {
+                                        selectedAnnotationText = buildString {
+                                            for (p in result.positions) append(p.text)
+                                        }
+                                        val minX = result.positions.minOf { it.x }
+                                        val minY = result.positions.minOf { it.y - it.height }
+                                        val maxX = result.positions.maxOf { it.x + it.width }
+                                        val maxY = result.positions.maxOf { it.y }
+                                        selectedAnnotationRect = android.graphics.RectF(minX, minY, maxX, maxY)
+                                        selectedAnnotationBmpRect = android.graphics.RectF(
+                                            minX * scaleX, minY * scaleY,
+                                            maxX * scaleX, maxY * scaleY,
+                                        )
+                                        break
+                                    }
+                                }
+                                if (selectedAnnotationText.isNotEmpty()) break
+                            }
                         }
                     }
                 }
                 if (selectedAnnotationText.isEmpty()) {
+                    // 缓存未命中 → 触发异步加载，下次长按可用
+                    if (state?.pageTextCache?.isEmpty() == true) {
+                        searchViewModel?.loadPageTextPositions()
+                    }
                     selectedAnnotationText = "(未识别文字，请重试)"
                 }
                 annotationToolbarVisible = true

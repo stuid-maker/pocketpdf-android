@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.domain.usecase
 
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.data.pdf.PageTextWithPositions
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.model.SearchResult
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
@@ -71,6 +72,27 @@ class SearchDocumentUseCase @Inject constructor(
                     }
                 }
                 Result.success(results)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /** 提取文档所有页面的文字坐标（供长按选中，不依赖搜索） */
+    suspend fun extractPageTextPositions(documentId: Long): Result<List<PageTextWithPositions>> {
+        return withContext(dispatchers.io) {
+            try {
+                val doc = documentRepository.getDocument(documentId)
+                    ?: return@withContext Result.failure(
+                        IllegalStateException("Document not found: id=$documentId"),
+                    )
+                val file = File(doc.uri)
+                if (!file.exists()) {
+                    return@withContext Result.failure(
+                        IllegalStateException("File not found: ${doc.uri}"),
+                    )
+                }
+                Result.success(textExtractor.extractPagesTextWithPositions(file))
             } catch (e: Exception) {
                 Result.failure(e)
             }
