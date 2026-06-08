@@ -50,13 +50,9 @@ class SearchDocumentUseCase @Inject constructor(
                         if (index < 0) break
                         val endIndex = index + query.length
                         val matchText = page.fullText.substring(index, endIndex)
-                        // Collect positions that overlap with the match range
+                        // Collect positions that overlap with the match range (by character offset)
                         val matchedPositions = page.positions.filter { pos ->
-                            val posLower = pos.text.lowercase()
-                            // Check if this position's text falls within the match range
-                            // by searching from the match start
-                            val posIndex = lowerText.indexOf(posLower, index)
-                            posIndex >= 0 && posIndex < endIndex
+                            pos.charEnd > index && pos.charStart < endIndex
                         }
                         results.add(
                             SearchResult(

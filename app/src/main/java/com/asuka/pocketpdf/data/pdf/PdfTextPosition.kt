@@ -13,6 +13,10 @@ data class PdfTextPosition(
     val y: Float,
     val width: Float,
     val height: Float,
+    /** 在页内 fullText 中的起始字符偏移（0-based） */
+    val charStart: Int = 0,
+    /** 在页内 fullText 中的结束字符偏移（不包含） */
+    val charEnd: Int = 0,
 )
 
 /**

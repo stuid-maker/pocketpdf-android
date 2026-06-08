@@ -63,12 +63,14 @@ class PdfBoxTextExtractor @Inject constructor(
                         val pageWidth = mediaBox.width
                         val pageHeight = mediaBox.height
                         val positions = mutableListOf<PdfTextPosition>()
+                        var runningOffset = 0  // 追踪当前字符偏移
                         val stripper = object : PDFTextStripper() {
                             override fun writeString(
                                 text: String,
                                 textPositions: List<TextPosition>,
                             ) {
                                 for (tp in textPositions) {
+                                    val len = tp.unicode.length
                                     positions.add(
                                         PdfTextPosition(
                                             text = tp.unicode,
@@ -77,8 +79,11 @@ class PdfBoxTextExtractor @Inject constructor(
                                             y = tp.yDirAdj,
                                             width = tp.widthDirAdj,
                                             height = tp.heightDir,
+                                            charStart = runningOffset,
+                                            charEnd = runningOffset + len,
                                         ),
                                     )
+                                    runningOffset += len
                                 }
                                 super.writeString(text, textPositions)
                             }
