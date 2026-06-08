@@ -57,6 +57,11 @@ class PdfPageView @JvmOverloads constructor(
     private val flingDistanceThreshold = 60f   // px 最小滑动距离
     var onPageFling: ((direction: Int) -> Unit)? = null  // 翻页回调
 
+    // 长按检测
+    private var downX = 0f
+    private var downY = 0f
+    var onLongPress: ((x: Float, y: Float) -> Unit)? = null
+
     // 搜索高亮画笔
     private val highlightPaint = Paint().apply {
         color = Color.argb(80, 255, 200, 0)   // 半透明黄色
@@ -69,6 +74,16 @@ class PdfPageView @JvmOverloads constructor(
 
     private var searchHighlights: List<RectF> = emptyList()
     private var currentHighlightIndex: Int = -1
+
+    // 标注渲染
+    private val annotationHighlightPaint = Paint().apply {
+        style = Paint.Style.FILL
+    }
+    private val annotationUnderlinePaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    private var annotations: List<com.asuka.pocketpdf.domain.model.Annotation> = emptyList()
 
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
@@ -109,6 +124,12 @@ class PdfPageView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** 设置标注列表 */
+    fun setAnnotations(annotations: List<com.asuka.pocketpdf.domain.model.Annotation>) {
+        this.annotations = annotations
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         pageBitmap?.let { bitmap ->
@@ -120,6 +141,22 @@ class PdfPageView @JvmOverloads constructor(
             drawMatrix.mapRect(mappedRect)
             val paint = if (i == currentHighlightIndex) currentHighlightPaint else highlightPaint
             canvas.drawRect(mappedRect, paint)
+        }
+        // 绘制标注
+        for (annotation in annotations) {
+            val rect = RectF(annotation.rect)
+            drawMatrix.mapRect(rect)
+            when (annotation.type) {
+                com.asuka.pocketpdf.domain.model.AnnotationType.HIGHLIGHT -> {
+                    annotationHighlightPaint.color = annotation.color
+                    annotationHighlightPaint.alpha = 100
+                    canvas.drawRect(rect, annotationHighlightPaint)
+                }
+                com.asuka.pocketpdf.domain.model.AnnotationType.UNDERLINE -> {
+                    annotationUnderlinePaint.color = annotation.color
+                    canvas.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, annotationUnderlinePaint)
+                }
+            }
         }
     }
 
@@ -138,6 +175,8 @@ class PdfPageView @JvmOverloads constructor(
                 lastSpan = 0f
                 isZooming = false
                 downTime = event.eventTime
+                downX = event.x
+                downY = event.y
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -200,6 +239,15 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
+                // 长按检测
+                val upX = event.x
+                val upY = event.y
+                val totalSpan = sqrt((upX - downX) * (upX - downX) + (upY - downY) * (upY - downY))
+                val pressDuration = event.eventTime - downTime
+                if (pressDuration > 500L && totalSpan < 20f && currentScale <= 1.05f) {
+                    onLongPress?.invoke(upX, upY)
+                }
+
                 // Fling 检测（仅在 1x 缩放时触发翻页）
                 velocityTracker.computeCurrentVelocity(1000)
                 val vx = abs(velocityTracker.xVelocity)
@@ -214,8 +262,6 @@ class PdfPageView @JvmOverloads constructor(
                 velocityTracker.clear()
 
                 // 单指抬起 → 检测双击
-                val upX = event.x
-                val upY = event.y
                 val now = event.eventTime
                 val elapsed = now - lastTapTime
                 val distance = sqrt((upX - lastTapX) * (upX - lastTapX) + (upY - lastTapY) * (upY - lastTapY))

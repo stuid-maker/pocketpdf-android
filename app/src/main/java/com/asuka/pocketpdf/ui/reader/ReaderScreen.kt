@@ -57,6 +57,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.asuka.pocketpdf.domain.model.Annotation
+import com.asuka.pocketpdf.domain.model.AnnotationType
 import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
 import com.asuka.pocketpdf.ui.theme.PocketSpacing
@@ -74,6 +76,7 @@ fun ReaderScreen(
     onStopSummary: () -> Unit,
     onOpenChat: () -> Unit,
     searchViewModel: SearchViewModel? = null,
+    annotationViewModel: AnnotationViewModel? = null,
 ) {
     val colors = LocalPocketColors.current
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
@@ -81,6 +84,11 @@ fun ReaderScreen(
     var searchVisible by rememberSaveable { mutableStateOf(false) }
 
     val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    // 标注工具栏状态
+    var annotationToolbarVisible by rememberSaveable { mutableStateOf(false) }
+    var longPressX by rememberSaveable { mutableStateOf(0f) }
+    var longPressY by rememberSaveable { mutableStateOf(0f) }
 
     LaunchedEffect(summaryState) {
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
@@ -115,6 +123,12 @@ fun ReaderScreen(
                     onPageRequested(newPage)
                 }
             },
+            onLongPress = { x, y ->
+                longPressX = x
+                longPressY = y
+                annotationToolbarVisible = true
+            },
+            annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
             searchHighlights = currentPageHighlights,
             currentHighlightIndex = highlightCurrentIndex,
             modifier = Modifier.fillMaxSize(),
@@ -214,7 +228,49 @@ fun ReaderScreen(
         }
 
         AnimatedVisibility(
-            visible = chromeVisible,
+            visible = annotationToolbarVisible && annotationViewModel != null,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
+        ) {
+            AnnotationToolbar(
+                selectedText = "长按选中的文本",
+                onHighlight = { color ->
+                    annotationViewModel?.addAnnotation(
+                        pageState.pageIndex,
+                        AnnotationType.HIGHLIGHT,
+                        color,
+                        "selected text",
+                        android.graphics.RectF(
+                            longPressX - 50,
+                            longPressY - 10,
+                            longPressX + 50,
+                            longPressY + 10,
+                        ),
+                    )
+                    annotationToolbarVisible = false
+                },
+                onUnderline = { color ->
+                    annotationViewModel?.addAnnotation(
+                        pageState.pageIndex,
+                        AnnotationType.UNDERLINE,
+                        color,
+                        "selected text",
+                        android.graphics.RectF(
+                            longPressX - 50,
+                            longPressY - 10,
+                            longPressX + 50,
+                            longPressY + 10,
+                        ),
+                    )
+                    annotationToolbarVisible = false
+                },
+                onDismiss = { annotationToolbarVisible = false },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = chromeVisible && !annotationToolbarVisible,
             modifier = Modifier.align(Alignment.BottomCenter),
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut() + slideOutVertically { it / 2 },
@@ -255,6 +311,8 @@ private fun PdfPageHost(
     bitmap: Bitmap?,
     onTap: () -> Unit,
     onPageFling: (Int) -> Unit,
+    onLongPress: (Float, Float) -> Unit = { _, _ -> },
+    annotations: List<Annotation> = emptyList(),
     searchHighlights: List<RectF> = emptyList(),
     currentHighlightIndex: Int = -1,
     modifier: Modifier,
@@ -268,11 +326,13 @@ private fun PdfPageHost(
                     false
                 }
                 this.onPageFling = { direction -> onPageFling(direction) }
+                this.onLongPress = { x, y -> onLongPress(x, y) }
             }
         },
         update = { view ->
             view.setBitmap(bitmap)
             view.setSearchHighlights(searchHighlights, currentHighlightIndex)
+            view.setAnnotations(annotations)
         },
     )
 }
