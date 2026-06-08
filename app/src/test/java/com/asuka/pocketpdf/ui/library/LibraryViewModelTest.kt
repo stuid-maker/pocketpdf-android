@@ -71,6 +71,7 @@ class LibraryViewModelTest {
                 repository,
                 mockk<SummaryCacheRepository>(relaxUnitFun = true),
             ),
+            documentRepository = repository,
             indexingScheduler = indexingScheduler,
         )
     }

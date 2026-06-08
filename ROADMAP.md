@@ -143,11 +143,12 @@ DDL：2026-06-15（周日，第 5 周末）
 - [x] PDF 导入 + 阅读 + 翻页（W1）
 - [x] 文本切块 + MediaPipe 向量化 + 索引（W2）
 - [x] 检索 + LLM 流式生成 + 摘要（W3）
-- [ ] 聊天 UI（Compose）+ 问答 + 引用跳转（W4）
-- [ ] 多模型预设 + System Prompt + 段落切块（W4 D4-D5）
-- [ ] 聊天历史持久化 + 摘要缓存（W4 D6）
-- [ ] 错误处理 + 长按菜单 + 截图（W4 D7）
-- [ ] 测试 + CI + Demo + 发布（W5）
+- [x] 聊天 UI（Compose）+ 问答 + 引用跳转（W4）
+- [x] 多模型预设 + System Prompt + 段落切块（W4 D4-D5）
+- [x] 聊天历史持久化 + 摘要缓存（W4 D6）
+- [x] 错误处理 + 长按菜单 + 截图（W4 D7）
+- [x] 测试 + CI + Demo + 发布（W5）
+- [x] 全 UI Compose 迁移 — Purple Crystal 设计系统（W5+）
 
 ## v2.0 方向（6 月 15 日后）— 产品化
 
@@ -155,7 +156,7 @@ DDL：2026-06-15（周日，第 5 周末）
 
 - 语义切块（递归字符 + 语义边界）
 - Hybrid RAG（BM25 + 向量 + reranker + 多轮对话）
-- UI 全面 Compose 化
+- ~~UI 全面 Compose 化~~ ✅ 已完成（Purple Crystal）
 - 插件/技能系统
 - 云端同步
 
