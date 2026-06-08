@@ -36,13 +36,26 @@ class SettingsViewModel @Inject constructor(
             val systemPrompt = settingsDataStore.systemPrompt.first()
             val chunkingStrategy = settingsDataStore.chunkingStrategy.first()
             _uiState.update {
-                it.copy(baseUrl = baseUrl, modelName = modelName, apiKey = apiKey, systemPrompt = systemPrompt, chunkingStrategy = chunkingStrategy)
+                it.copy(
+                    baseUrl = baseUrl,
+                    modelName = modelName,
+                    apiKey = apiKey,
+                    systemPrompt = systemPrompt,
+                    chunkingStrategy = chunkingStrategy,
+                    selectedPreset = inferPresetId(baseUrl),
+                )
             }
         }
     }
 
     fun onPresetSelected(presetId: String) {
         val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        if (preset.id == "custom") {
+            _uiState.update {
+                it.copy(selectedPreset = "custom", saveSuccess = false, confirmPresetId = null)
+            }
+            return
+        }
         val current = _uiState.value
         // 从 custom 切换到其他预设，且用户改了 URL → 弹确认
         if (current.selectedPreset == "custom" && current.baseUrl.isNotBlank() && current.baseUrl != preset.baseUrl) {
@@ -177,5 +190,10 @@ class SettingsViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "SettingsViewModel"
+
+        private fun inferPresetId(baseUrl: String): String =
+            MODEL_PRESETS.firstOrNull { preset ->
+                preset.id != "custom" && preset.baseUrl.equals(baseUrl, ignoreCase = true)
+            }?.id ?: "custom"
     }
 }

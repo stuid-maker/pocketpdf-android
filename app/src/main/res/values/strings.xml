@@ -14,6 +14,13 @@
     <string name="library_empty_title">还没有文档</string>
     <string name="library_empty_subtitle">点击右下角 + 选一份 PDF 开始</string>
     <string name="library_empty_button">选择 PDF</string>
+    <string name="library_empty_title_new">从一份文档开始</string>
+    <string name="library_empty_subtitle_new">导入论文、教材或技术资料。PocketPDF 会在设备上建立可提问的索引。</string>
+    <string name="library_greeting">下午好</string>
+    <string name="library_workspace_statement">你的知识，\n正在形成脉络。</string>
+    <string name="library_workspace_supporting">继续阅读、梳理与提问。所有处理都由你掌控。</string>
+    <string name="library_continue_reading">继续阅读</string>
+    <string name="library_swipe_delete">删除</string>
     <string name="library_item_meta">%1$d 页 · %2$s</string>
     <string name="library_badge_not_indexed">未索引</string>
     <string name="library_badge_indexing">索引中</string>
