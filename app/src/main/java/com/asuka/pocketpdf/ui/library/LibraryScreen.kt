@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -27,7 +28,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -81,15 +81,45 @@ fun LibraryScreen(
         modifier = modifier
             .fillMaxSize()
             .background(
-                Brush.linearGradient(
+                Brush.verticalGradient(
                     listOf(
-                        Color(0xFFFAF7FB),
+                        Color(0xFFFDFBFE),
                         colors.workspace,
-                        Color(0xFFEDE5F3),
+                        Color(0xFFF0E8F5),
                     ),
                 ),
             ),
     ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 72.dp, end = 6.dp)
+                .size(180.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            Color(0x66D9C4F3),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 96.dp)
+                .size(220.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            Color(0x3FC4A4ED),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
         Scaffold(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(resolvedSnackbarHostState) },
@@ -97,7 +127,7 @@ fun LibraryScreen(
                 LibraryHeader(onOpenSettings)
             },
             floatingActionButton = {
-                if (state !is LibraryUiState.Loading) {
+                if (state is LibraryUiState.Loaded) {
                     Surface(
                         onClick = onImport,
                         modifier = Modifier.shadow(
@@ -111,7 +141,7 @@ fun LibraryScreen(
                         contentColor = Color.White,
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
@@ -122,7 +152,7 @@ fun LibraryScreen(
                             Spacer(Modifier.width(PocketSpacing.Sm))
                             Text(
                                 stringResource(R.string.library_fab_import),
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         }
                     }
@@ -177,7 +207,7 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = PocketSpacing.Xl)
-            .padding(top = PocketSpacing.Sm, bottom = PocketSpacing.Md),
+            .padding(top = PocketSpacing.Sm, bottom = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -186,15 +216,15 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
             Text(
                 text = "PocketPDF",
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = colors.ink,
             )
             Surface(
                 onClick = onOpenSettings,
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = Color.White.copy(alpha = .56f),
+                modifier = Modifier.size(36.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = Color.White.copy(alpha = .62f),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
                     Color.White.copy(alpha = .72f),
@@ -204,14 +234,14 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
                     Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.settings_title),
                     tint = colors.ink,
-                    modifier = Modifier.padding(9.dp),
+                    modifier = Modifier.padding(8.dp),
                 )
             }
         }
-        Spacer(Modifier.height(PocketSpacing.Lg))
+        Spacer(Modifier.height(14.dp))
         Text(
             text = stringResource(R.string.library_greeting),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
@@ -222,7 +252,7 @@ private fun LibraryHeader(onOpenSettings: () -> Unit) {
         )
         Text(
             text = stringResource(R.string.library_workspace_supporting),
-            modifier = Modifier.padding(top = PocketSpacing.Sm),
+            modifier = Modifier.padding(top = 6.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = colors.mutedInk,
         )
@@ -242,11 +272,11 @@ private fun LibraryContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = PocketSpacing.Xl,
-            top = padding.calculateTopPadding() + PocketSpacing.Md,
+            top = padding.calculateTopPadding() + 10.dp,
             end = PocketSpacing.Xl,
             bottom = padding.calculateBottomPadding() + 104.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         item {
             Text(
@@ -318,22 +348,37 @@ private fun DocumentCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 4.dp,
+                elevation = 3.dp,
                 shape = RoundedCornerShape(PocketRadii.Card),
-                ambientColor = Color(0x14302739),
-                spotColor = Color(0x14302739),
+                ambientColor = Color(0x10302739),
+                spotColor = Color(0x10302739),
             )
             .clip(RoundedCornerShape(PocketRadii.Card))
-            .background(colors.paper)
+            .background(Color(0xFFFEFCFF))
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = .82f),
+                color = Color.White.copy(alpha = .9f),
                 shape = RoundedCornerShape(PocketRadii.Card),
             )
             .clickable(onClick = onOpen)
-            .padding(14.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(48.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFFC4A4ED),
+                            Color(0x557652A8),
+                        ),
+                    ),
+                ),
+        )
+        Spacer(Modifier.width(11.dp))
         DocumentCoverView(document, coverLoader)
         Spacer(Modifier.width(PocketSpacing.Md))
         Column(Modifier.weight(1f)) {
@@ -341,7 +386,7 @@ private fun DocumentCard(
                 text = document.title,
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.ink,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -360,7 +405,10 @@ private fun DocumentCard(
                     color = indexColor(document.indexStatus),
                     modifier = if (document.indexStatus == IndexStatus.FAILED) {
                         Modifier.clickable(onClick = onRetryIndexing)
-                    } else Modifier,
+                    } else Modifier
+                        .clip(RoundedCornerShape(PocketRadii.Compact))
+                        .background(indexColor(document.indexStatus).copy(alpha = .09f))
+                        .padding(horizontal = 7.dp, vertical = 3.dp),
                 )
                 if (document.indexStatus == IndexStatus.INDEXING) {
                     Spacer(Modifier.width(PocketSpacing.Sm))
@@ -391,7 +439,12 @@ private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoad
     Box(
         modifier = Modifier
             .size(width = 48.dp, height = 64.dp)
-            .shadow(2.dp, RoundedCornerShape(8.dp))
+            .shadow(
+                elevation = 3.dp,
+                shape = RoundedCornerShape(8.dp),
+                ambientColor = Color(0x1F302739),
+                spotColor = Color(0x1F302739),
+            )
             .clip(RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {

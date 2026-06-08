@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import com.asuka.pocketpdf.ui.theme.PocketRadii
 
 @Composable
@@ -22,7 +23,7 @@ fun PocketCompactButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 40.dp),
+        modifier = modifier.defaultMinSize(minHeight = 34.dp),
         enabled = enabled,
         shape = RoundedCornerShape(PocketRadii.Control),
         colors = ButtonDefaults.buttonColors(
@@ -30,8 +31,12 @@ fun PocketCompactButton(
             contentColor = Color.White,
             disabledContainerColor = Color(0xFF302739).copy(alpha = .38f),
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 15.dp, vertical = 6.dp),
     ) {
-        Text(text, modifier = Modifier.padding(horizontal = 2.dp))
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 1.dp),
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }

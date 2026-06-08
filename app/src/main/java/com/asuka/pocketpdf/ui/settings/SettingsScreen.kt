@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -25,16 +28,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -69,93 +75,93 @@ fun SettingsScreen(
 ) {
     val colors = LocalPocketColors.current
     var editor by remember { mutableStateOf<SettingsEditor?>(null) }
-    Scaffold(
-        containerColor = colors.workspace,
-        topBar = {
-            TopAppBar(
-                title = { Text("设置", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colors.workspace.copy(alpha = .92f),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFFFDFBFE),
+                        colors.workspace,
+                        Color(0xFFF0E8F5),
+                    ),
                 ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    PocketCompactButton(
-                        text = if (state.isSaving) "保存中" else "保存",
-                        onClick = onSave,
-                        modifier = Modifier.padding(end = PocketSpacing.Sm),
-                        enabled = !state.isSaving,
+            ),
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                SettingsHeader(
+                    isSaving = state.isSaving,
+                    onBack = onBack,
+                    onSave = onSave,
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = PocketSpacing.Xl, vertical = PocketSpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                SettingsSection("AI 服务") {
+                    SettingsRow(
+                        title = "模型服务",
+                        supporting = "DeepSeek / 通义千问 / LM Studio",
+                        value = MODEL_PRESETS.find { it.id == state.selectedPreset }?.label ?: "自定义",
+                        onClick = {},
                     )
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = PocketSpacing.Xl, vertical = PocketSpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(PocketSpacing.Xl),
-        ) {
-            SettingsSection("AI 服务") {
-                SettingsRow(
-                    title = "模型服务",
-                    supporting = "DeepSeek / 通义千问 / LM Studio",
-                    value = MODEL_PRESETS.find { it.id == state.selectedPreset }?.label ?: "自定义",
-                    onClick = {},
-                )
-                SettingsRow("服务地址", state.baseUrl, "编辑") { editor = SettingsEditor.BaseUrl }
-                SettingsRow("模型名称", state.modelName.ifBlank { "尚未选择" }, "编辑") {
-                    editor = SettingsEditor.Model
+                    SettingsRow("服务地址", state.baseUrl, "编辑") { editor = SettingsEditor.BaseUrl }
+                    SettingsRow("模型名称", state.modelName.ifBlank { "尚未选择" }, "编辑") {
+                        editor = SettingsEditor.Model
+                    }
+                    SettingsRow(
+                        "API Key",
+                        if (state.apiKey.isBlank()) "未设置" else "••••••••",
+                        "编辑",
+                    ) { editor = SettingsEditor.ApiKey }
+                    SettingsRow(
+                        title = "连接状态",
+                        supporting = state.connectionTestResult ?: "尚未检测",
+                        value = if (state.connectionTesting) "检测中" else "测试",
+                        onClick = actions.onTestConnection,
+                    )
                 }
-                SettingsRow(
-                    "API Key",
-                    if (state.apiKey.isBlank()) "未设置" else "••••••••",
-                    "编辑",
-                ) { editor = SettingsEditor.ApiKey }
-                SettingsRow(
-                    title = "连接状态",
-                    supporting = state.connectionTestResult ?: "尚未检测",
-                    value = if (state.connectionTesting) "检测中" else "测试",
-                    onClick = actions.onTestConnection,
-                )
-            }
-            SettingsSection("文档理解") {
-                SettingsRow(
-                    title = "切块策略",
-                    supporting = "影响索引粒度与问答上下文",
-                    value = if (state.chunkingStrategy == "paragraph") "按段落" else "滑动窗口",
-                    onClick = {
-                        actions.onChunkingChanged(
-                            if (state.chunkingStrategy == "paragraph") "sliding_window" else "paragraph",
-                        )
-                    },
-                )
-                SettingsRow(
-                    title = "系统提示词",
-                    supporting = state.systemPrompt.ifBlank { "默认" },
-                    value = "编辑",
-                    onClick = { editor = SettingsEditor.Prompt },
-                )
-            }
-            SettingsSection("维护") {
-                SettingsRow("连接诊断", "检查模型服务与本地状态", "运行检测") {
-                    onOpenDiagnostics()
+                SettingsSection("文档理解") {
+                    SettingsRow(
+                        title = "切块策略",
+                        supporting = "影响索引粒度与问答上下文",
+                        value = if (state.chunkingStrategy == "paragraph") "按段落" else "滑动窗口",
+                        onClick = {
+                            actions.onChunkingChanged(
+                                if (state.chunkingStrategy == "paragraph") "sliding_window" else "paragraph",
+                            )
+                        },
+                    )
+                    SettingsRow(
+                        title = "系统提示词",
+                        supporting = state.systemPrompt.ifBlank { "默认" },
+                        value = "编辑",
+                        onClick = { editor = SettingsEditor.Prompt },
+                    )
                 }
-                SettingsRow("恢复默认设置", "清除当前自定义连接配置", "恢复") {
-                    actions.onResetDefaults()
+                SettingsSection("维护") {
+                    SettingsRow("连接诊断", "检查模型服务与本地状态", "运行检测") {
+                        onOpenDiagnostics()
+                    }
+                    SettingsRow("恢复默认设置", "清除当前自定义连接配置", "恢复") {
+                        actions.onResetDefaults()
+                    }
                 }
-            }
-            state.error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
-            if (state.saveSuccess) {
-                Text("设置已保存", color = colors.success)
+                state.error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+                if (state.saveSuccess) {
+                    Text("设置已保存", color = colors.success)
+                }
             }
         }
     }
@@ -194,6 +200,50 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+private fun SettingsHeader(
+    isSaving: Boolean,
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val colors = LocalPocketColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = PocketSpacing.Xl)
+            .padding(top = PocketSpacing.Sm, bottom = PocketSpacing.Md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            onClick = onBack,
+            modifier = Modifier.size(36.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = Color.White.copy(alpha = .58f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .74f)),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = colors.ink,
+                modifier = Modifier.padding(8.dp),
+            )
+        }
+        Text(
+            text = "设置",
+            modifier = Modifier.weight(1f).padding(start = PocketSpacing.Md),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.ink,
+        )
+        PocketCompactButton(
+            text = if (isSaving) "保存中" else "保存",
+            onClick = onSave,
+            enabled = !isSaving,
+        )
+    }
+}
+
 private data class EditorSpec(
     val title: String,
     val value: String,
@@ -217,13 +267,19 @@ private fun SettingsSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(
+                    elevation = 3.dp,
+                    shape = RoundedCornerShape(PocketRadii.Card),
+                    ambientColor = Color(0x10302739),
+                    spotColor = Color(0x10302739),
+                )
                 .background(
-                    colors.paper.copy(alpha = .94f),
+                    Color(0xFFFEFCFF),
                     RoundedCornerShape(PocketRadii.Card),
                 )
                 .border(
                     1.dp,
-                    androidx.compose.ui.graphics.Color.White.copy(alpha = .8f),
+                    Color.White.copy(alpha = .88f),
                     RoundedCornerShape(PocketRadii.Card),
                 )
                 .padding(horizontal = PocketSpacing.Lg),
@@ -244,7 +300,8 @@ private fun SettingsRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)
