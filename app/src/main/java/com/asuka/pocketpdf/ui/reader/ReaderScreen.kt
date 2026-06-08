@@ -274,7 +274,10 @@ fun ReaderScreen(
                     style = MaterialTheme.typography.titleSmall,
                 )
                 if (searchViewModel != null) {
-                    IconButton(onClick = { searchVisible = !searchVisible }) {
+                    IconButton(onClick = {
+                        searchVisible = !searchVisible
+                        if (searchVisible) chromeVisible = false
+                    }) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "搜索",
@@ -287,7 +290,9 @@ fun ReaderScreen(
 
         AnimatedVisibility(
             visible = searchVisible && searchViewModel != null,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding(),
             enter = fadeIn() + slideInVertically { -it / 2 },
             exit = fadeOut() + slideOutVertically { -it / 2 },
         ) {
@@ -305,6 +310,7 @@ fun ReaderScreen(
                     onClose = {
                         searchViewModel?.clear()
                         searchVisible = false
+                        chromeVisible = true
                     },
                 )
             }
