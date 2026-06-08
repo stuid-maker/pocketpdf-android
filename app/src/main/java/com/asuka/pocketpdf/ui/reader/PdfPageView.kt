@@ -7,7 +7,9 @@ import android.graphics.Matrix
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -47,6 +49,12 @@ class PdfPageView @JvmOverloads constructor(
     private var lastTapX = 0f
     private var lastTapY = 0f
 
+    // Fling（滑动手势翻页）
+    private val velocityTracker = VelocityTracker.obtain()
+    private val flingThreshold = 300f          // px/s 最小 fling 速度
+    private val flingDistanceThreshold = 60f   // px 最小滑动距离
+    var onPageFling: ((direction: Int) -> Unit)? = null  // 翻页回调
+
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
@@ -84,6 +92,8 @@ class PdfPageView @JvmOverloads constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                velocityTracker.clear()
+                velocityTracker.addMovement(event)
                 // 取第一个手指作为跟踪指针
                 activePointerId = event.getPointerId(0)
                 val idx = event.findPointerIndex(activePointerId)
@@ -105,6 +115,7 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                velocityTracker.addMovement(event)
                 if (pointerCount >= 2 && isZooming) {
                     // 双指缩放
                     val newSpan = calculateSpan(event)
@@ -153,6 +164,19 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
+                // Fling 检测（仅在 1x 缩放时触发翻页）
+                velocityTracker.computeCurrentVelocity(1000)
+                val vx = abs(velocityTracker.xVelocity)
+                val vy = abs(velocityTracker.yVelocity)
+                if (currentScale <= 1.05f && vx > flingThreshold && vx > vy * 1.5f) {
+                    // 水平 fling 主导
+                    val totalDx = lastTouchX - event.x
+                    if (abs(totalDx) > flingDistanceThreshold) {
+                        onPageFling?.invoke(if (velocityTracker.xVelocity > 0) -1 else 1)
+                    }
+                }
+                velocityTracker.clear()
+
                 // 单指抬起 → 检测双击
                 val upX = event.x
                 val upY = event.y

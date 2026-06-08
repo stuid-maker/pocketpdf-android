@@ -85,6 +85,12 @@ fun ReaderScreen(
         PdfPageHost(
             bitmap = pageState.bitmap,
             onTap = { chromeVisible = !chromeVisible },
+            onPageFling = { direction ->
+                val newPage = pageState.pageIndex + direction
+                if (newPage in 0 until pageState.pageCount) {
+                    onPageRequested(newPage)
+                }
+            },
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -188,6 +194,7 @@ fun ReaderScreen(
 private fun PdfPageHost(
     bitmap: Bitmap?,
     onTap: () -> Unit,
+    onPageFling: (Int) -> Unit,
     modifier: Modifier,
 ) {
     AndroidView(
@@ -198,6 +205,7 @@ private fun PdfPageHost(
                     if (event.action == MotionEvent.ACTION_UP) onTap()
                     false
                 }
+                this.onPageFling = { direction -> onPageFling(direction) }
             }
         },
         update = { view -> view.setBitmap(bitmap) },
