@@ -132,6 +132,15 @@ class PdfPageView @JvmOverloads constructor(
         return fired
     }
 
+    /** 将屏幕触摸坐标转换为 PDF user-space 坐标（需要外部提供 bitmap→PDF 缩放比） */
+    fun screenToPdfCoord(screenX: Float, screenY: Float): Pair<Float, Float> {
+        val inverse = Matrix()
+        if (!drawMatrix.invert(inverse)) return Pair(0f, 0f)
+        val pts = floatArrayOf(screenX, screenY)
+        inverse.mapPoints(pts)
+        return Pair(pts[0], pts[1])
+    }
+
     /** 设置标注列表 */
     fun setAnnotations(annotations: List<com.asuka.pocketpdf.domain.model.Annotation>) {
         this.annotations = annotations
@@ -255,7 +264,15 @@ class PdfPageView @JvmOverloads constructor(
                 val pressDuration = event.eventTime - downTime
                 if (pressDuration > 500L && totalSpan < 20f && currentScale <= 1.05f) {
                     longPressFired = true
-                    onLongPress?.invoke(upX, upY)
+                    // 转换为 bitmap 坐标再回调
+                    val inverse = Matrix()
+                    if (drawMatrix.invert(inverse)) {
+                        val pts = floatArrayOf(upX, upY)
+                        inverse.mapPoints(pts)
+                        onLongPress?.invoke(pts[0], pts[1])
+                    } else {
+                        onLongPress?.invoke(upX, upY)
+                    }
                 }
 
                 // Fling 检测（仅在 1x 缩放时触发翻页）

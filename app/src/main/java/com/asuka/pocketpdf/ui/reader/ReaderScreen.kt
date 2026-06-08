@@ -87,8 +87,11 @@ fun ReaderScreen(
 
     // 标注工具栏状态
     var annotationToolbarVisible by rememberSaveable { mutableStateOf(false) }
-    var longPressX by rememberSaveable { mutableStateOf(0f) }
-    var longPressY by rememberSaveable { mutableStateOf(0f) }
+    var selectedAnnotationText by rememberSaveable { mutableStateOf("") }
+    // 当前选中文本的 PDF 坐标（用于创建标注矩形）
+    var selectedAnnotationRect by remember { mutableStateOf(android.graphics.RectF()) }
+    // 当前选中文本的 bitmap 坐标（已缩放，用于 PdfPageView 渲染）
+    var selectedAnnotationBmpRect by remember { mutableStateOf(android.graphics.RectF()) }
 
     LaunchedEffect(summaryState) {
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
@@ -136,9 +139,48 @@ fun ReaderScreen(
                     onPageRequested(newPage)
                 }
             },
-            onLongPress = { x, y ->
-                longPressX = x
-                longPressY = y
+            onLongPress = { bmpX, bmpY ->
+                // 从 searchState 获取当前页的 text positions + 缩放比
+                val state = searchState
+                val bmp = pageState.bitmap
+                selectedAnnotationText = ""
+                if (state != null && bmp != null) {
+                    val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
+                    val first = pageResults.firstOrNull()
+                    if (first != null) {
+                        val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
+                        val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
+                        val pdfX = bmpX / scaleX
+                        val pdfY = bmpY / scaleY
+                        for (result in pageResults) {
+                            for (pos in result.positions) {
+                                if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
+                                    pdfY >= pos.y - pos.height && pdfY <= pos.y
+                                ) {
+                                    selectedAnnotationText = buildString {
+                                        for (p in result.positions) append(p.text)
+                                    }
+                                    // 计算 PDF 坐标矩形（所有 positions 的包围盒）
+                                    val minX = result.positions.minOf { it.x }
+                                    val minY = result.positions.minOf { it.y - it.height }
+                                    val maxX = result.positions.maxOf { it.x + it.width }
+                                    val maxY = result.positions.maxOf { it.y }
+                                    selectedAnnotationRect = android.graphics.RectF(minX, minY, maxX, maxY)
+                                    // 计算 bitmap 坐标矩形
+                                    selectedAnnotationBmpRect = android.graphics.RectF(
+                                        minX * scaleX, minY * scaleY,
+                                        maxX * scaleX, maxY * scaleY,
+                                    )
+                                    break
+                                }
+                            }
+                            if (selectedAnnotationText.isNotEmpty()) break
+                        }
+                    }
+                }
+                if (selectedAnnotationText.isEmpty()) {
+                    selectedAnnotationText = "(未识别文字，请重试)"
+                }
                 annotationToolbarVisible = true
             },
             annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
@@ -247,19 +289,14 @@ fun ReaderScreen(
             exit = fadeOut() + slideOutVertically { it / 2 },
         ) {
             AnnotationToolbar(
-                selectedText = "长按选中的文本",
+                selectedText = selectedAnnotationText,
                 onHighlight = { color ->
                     annotationViewModel?.addAnnotation(
                         pageState.pageIndex,
                         AnnotationType.HIGHLIGHT,
                         color,
-                        "selected text",
-                        android.graphics.RectF(
-                            longPressX - 50,
-                            longPressY - 10,
-                            longPressX + 50,
-                            longPressY + 10,
-                        ),
+                        selectedAnnotationText,
+                        selectedAnnotationRect,
                     )
                     annotationToolbarVisible = false
                 },
@@ -268,13 +305,8 @@ fun ReaderScreen(
                         pageState.pageIndex,
                         AnnotationType.UNDERLINE,
                         color,
-                        "selected text",
-                        android.graphics.RectF(
-                            longPressX - 50,
-                            longPressY - 10,
-                            longPressX + 50,
-                            longPressY + 10,
-                        ),
+                        selectedAnnotationText,
+                        selectedAnnotationRect,
                     )
                     annotationToolbarVisible = false
                 },
