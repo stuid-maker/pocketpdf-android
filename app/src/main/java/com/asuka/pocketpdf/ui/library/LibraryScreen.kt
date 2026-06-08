@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -147,7 +148,8 @@ fun LibraryScreen(
                             ambientColor = colors.shadowAmbient,
                             spotColor = colors.shadowSpot,
                             )
-                            .background(colors.paper.copy(alpha = .82f)),
+                            .background(colors.paper.copy(alpha = .82f))
+                            .defaultMinSize(minHeight = 48.dp),
                         color = Color(0xEE302739),
                         contentColor = colors.ink,
                     ) {
@@ -538,7 +540,7 @@ private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoad
         when (val current = cover) {
             is DocumentCover.Thumbnail -> Image(
                 bitmap = current.bitmap.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = document.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )

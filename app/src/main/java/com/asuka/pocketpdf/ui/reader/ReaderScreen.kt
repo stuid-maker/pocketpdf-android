@@ -132,8 +132,8 @@ fun ReaderScreen(
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "页面摘要",
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
                         tint = colors.ink,
                     )
                 }
@@ -219,8 +219,8 @@ private fun ReaderToolbar(
             .shadow(
                 elevation = 12.dp,
                 shape = RoundedCornerShape(PocketRadii.Floating),
-                ambientColor = Color.Black.copy(alpha = .28f),
-                spotColor = Color.Black.copy(alpha = .28f),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
             .clip(RoundedCornerShape(PocketRadii.Floating))
             .background(Color(0xEE302739))
@@ -240,7 +240,7 @@ private fun ReaderToolbar(
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "上一页",
-                tint = Color.White,
+                tint = colors.ink,
             )
         }
         Text(

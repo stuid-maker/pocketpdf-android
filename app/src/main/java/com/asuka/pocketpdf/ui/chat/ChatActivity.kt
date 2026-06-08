@@ -159,7 +159,7 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
     val bgColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val textColor = when {
         isUser -> MaterialTheme.colorScheme.onPrimary
-        isDark -> Color.Black
+        isDark -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }
     val shape = RoundedCornerShape(
