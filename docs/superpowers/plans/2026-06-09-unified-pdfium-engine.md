@@ -45,7 +45,7 @@ dependencies. Copy the small fixture into
 .\gradlew.bat connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.asuka.pocketpdf.data.pdf.PdfiumSmokeTest
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add gradle/libs.versions.toml app/build.gradle.kts app/src/androidTest app/src/main/res/raw/pdfium_license.txt
@@ -96,7 +96,7 @@ git commit -m "feat(pdf): define unified engine contract"
 - Create: `app/src/test/java/com/asuka/pocketpdf/data/pdf/PdfPageCacheTest.kt`
 - Create: `app/src/androidTest/java/com/asuka/pocketpdf/data/pdf/PdfiumDocumentSessionTest.kt`
 
-- [ ] **Step 1: Write failing lifecycle tests**
+- [x] **Step 1: Write failing lifecycle tests**
 
 Cover page cache hit, LRU eviction, text-page-before-page close order, complete
 session close, out-of-range pages, cancellation, and repeated close.
@@ -118,7 +118,7 @@ pairs and close deterministically. Bind `PdfDocumentEngine` through Hilt.
 Assert page count, page dimensions, extracted text, and that all operations fail
 with a typed closed-session error after close.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*PdfPageCacheTest"
@@ -151,12 +151,12 @@ close behavior. Assert one document session is reused across page renders.
 Inject `PdfDocumentEngine`, open one session per reader, and render through the
 session. Remove Android `PdfRenderer` and its separate descriptor lifecycle.
 
-- [ ] **Step 4: Verify visual parity**
+- [x] **Step 4: Verify visual parity**
 
 Run the reader instrumentation test for portrait, landscape, rotated, and
 cropped fixtures. Compare dimensions and sampled rendered regions.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*ReaderControllerTest"
@@ -174,28 +174,28 @@ git commit -m "refactor(reader): render pages through pdfium"
 - Create: `app/src/androidTest/java/com/asuka/pocketpdf/data/pdf/PdfiumSearchFixtureTest.kt`
 - Create: `app/src/androidTest/assets/pdf-search-*.pdf`
 
-- [ ] **Step 1: Write failing transform tests**
+- [x] **Step 1: Write failing transform tests**
 
 Cover scale, centering, pan, zoom, rotation, crop-box normalization, and
 multi-line rectangle preservation.
 
-- [ ] **Step 2: Write failing fixture expectations**
+- [x] **Step 2: Write failing fixture expectations**
 
 For English, Chinese, ligature, repeated-term, rotated, crop-box, and multi-line
 fixtures, assert exact match count/text and expected rectangle neighborhoods.
 
-- [ ] **Step 3: Implement native search**
+- [x] **Step 3: Implement native search**
 
 Use PDFium page search to obtain character ranges and PDFium text-page geometry
 to obtain rectangles. Do not search a separately normalized Kotlin string and
 do not synthesize boxes from font metrics.
 
-- [ ] **Step 4: Implement one page-to-view transform**
+- [x] **Step 4: Implement one page-to-view transform**
 
 Map engine page rectangles to the rendered bitmap and then through the existing
 view matrix. Keep active and inactive match styling separate from geometry.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*PdfPageTransformTest"
@@ -216,30 +216,30 @@ git commit -m "feat(search): return exact pdfium match rectangles"
 - Create: `app/src/test/java/com/asuka/pocketpdf/ui/reader/SearchNavigatorTest.kt`
 - Modify: `app/src/androidTest/java/com/asuka/pocketpdf/ui/reader/ReaderScreenTest.kt`
 
-- [ ] **Step 1: Write navigation tests**
+- [x] **Step 1: Write navigation tests**
 
 Cover current-page-first ordering, forward/backward wrap exactly once, repeated
 matches on a page, empty query, a textless document, and cancellation when the
 query changes.
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*SearchNavigatorTest"
 ```
 
-- [ ] **Step 3: Implement incremental navigation**
+- [x] **Step 3: Implement incremental navigation**
 
 Drive page search from the open reader session. Publish progress and matches by
 query generation. Page-jump to the active result before applying visible-page
 highlights.
 
-- [ ] **Step 4: Reconnect the reader UI**
+- [x] **Step 4: Reconnect the reader UI**
 
 Restore the search action and bar. Draw all visible-page matches and emphasize
 the active one. Show an OCR-required message for image-only PDFs.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*SearchNavigatorTest" --tests "*SearchDocumentUseCaseTest"
@@ -261,30 +261,30 @@ git commit -m "feat(reader): restore native document search"
 - Create: `app/src/androidTest/java/com/asuka/pocketpdf/data/pdf/PdfiumTextExtractorParityTest.kt`
 - Modify: `app/src/androidTest/java/com/asuka/pocketpdf/data/local/MigrationTest.kt`
 
-- [ ] **Step 1: Write extraction and invalidation tests**
+- [x] **Step 1: Write extraction and invalidation tests**
 
 Assert page boundaries, textless pages, deterministic text, extractor identity,
 and that documents indexed with the old identity become stale.
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*IndexWorkerTest"
 ```
 
-- [ ] **Step 3: Implement PDFium extraction**
+- [x] **Step 3: Implement PDFium extraction**
 
 Open a worker-owned PDFium session, extract pages sequentially, and preserve
 page numbers used by chunks and citations. Keep PDFBox behind a temporary
 fallback flag only for PDFium open failures.
 
-- [ ] **Step 4: Add extractor version migration**
+- [x] **Step 4: Add extractor version migration**
 
 Store the extractor identity with document index metadata. Mark old indexes
 stale without deleting the source PDF; rebuild lazily through the existing
 scheduler.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*IndexWorkerTest"
@@ -303,7 +303,7 @@ git commit -m "refactor(index): extract pdf text through pdfium"
 - Modify: `app/build.gradle.kts`
 - Modify: `gradle/libs.versions.toml`
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
@@ -317,7 +317,7 @@ Verify search and highlights at multiple zoom levels on Chinese, English,
 rotated, cropped, multi-line, and scanned documents. Record device/API, fixture,
 query, result count, highlight alignment, and latency.
 
-- [ ] **Step 3: Remove the old split path**
+- [x] **Step 3: Remove the old split path**
 
 After parity acceptance, remove PDFBox search geometry and Android
 `PdfRenderer`. Remove PDFBox entirely only when the fallback counter is zero on
@@ -328,7 +328,7 @@ the acceptance corpus.
 Document the unified session, extractor versioning, native licenses, and the
 explicit OCR limitation.
 
-- [ ] **Step 5: Final verification and commit**
+- [x] **Step 5: Final verification and commit**
 
 ```powershell
 .\gradlew.bat clean testDebugUnitTest lintDebug

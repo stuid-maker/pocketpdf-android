@@ -7,8 +7,6 @@ import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.text.TextPosition
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [PdfTextExtractor] 的 PdfBox-Android 实现。
@@ -26,8 +24,7 @@ import javax.inject.Singleton
  *
  * 注意页码：PDFTextStripper 的 page 从 **1 开始**，循环 1..numberOfPages 而不是 0..n-1。
  */
-@Singleton
-class PdfBoxTextExtractor @Inject constructor(
+class PdfBoxTextExtractor(
     private val dispatchers: DispatcherProvider,
 ) : PdfTextExtractor {
 

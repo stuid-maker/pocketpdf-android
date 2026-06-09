@@ -6,7 +6,6 @@ import com.asuka.pocketpdf.data.indexing.IndexingScheduler
 import com.asuka.pocketpdf.data.indexing.WorkManagerIndexingScheduler
 import com.asuka.pocketpdf.data.local.AndroidKeystoreApiKeyCipher
 import com.asuka.pocketpdf.data.local.ApiKeyCipher
-import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfiumTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
