@@ -1,11 +1,11 @@
 package com.asuka.pocketpdf.domain.usecase
 
+import android.graphics.Bitmap
 import com.asuka.pocketpdf.core.TestDispatcherProvider
-import com.asuka.pocketpdf.data.pdf.PageTextWithPositions
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
-import com.asuka.pocketpdf.data.pdf.PdfTextPosition
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.model.SearchResult
+import com.asuka.pocketpdf.domain.pdf.*
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import java.io.File
 import kotlinx.coroutines.test.runTest
@@ -18,12 +18,12 @@ import org.junit.Test
 /**
  * [SearchDocumentUseCase] 的纯逻辑测试。
  *
- * 不依赖 Robolectric / PdfBox：使用 fake [PdfTextExtractor] 注入模拟坐标。
+ * 使用 fake [PdfDocumentEngine] 注入模拟 PDFium 搜索结果。
  */
 class SearchDocumentUseCaseTest {
 
     private lateinit var useCase: SearchDocumentUseCase
-    private lateinit var fakeExtractor: FakeTextExtractor
+    private lateinit var fakeEngine: FakePdfDocumentEngine
     private lateinit var fakeRepository: FakeDocumentRepository
     private lateinit var testFile: File
 
@@ -31,10 +31,10 @@ class SearchDocumentUseCaseTest {
     fun setUp() {
         testFile = File.createTempFile("search_test_", ".pdf").apply { deleteOnExit() }
         testFile.writeText("dummy pdf content")
-        fakeExtractor = FakeTextExtractor()
+        fakeEngine = FakePdfDocumentEngine()
         fakeRepository = FakeDocumentRepository(testFile)
         useCase = SearchDocumentUseCase(
-            textExtractor = fakeExtractor,
+            documentEngine = fakeEngine,
             documentRepository = fakeRepository,
             dispatchers = TestDispatcherProvider(),
         )
@@ -42,9 +42,9 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `search returns matches for existing word`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "Hello world, welcome to PocketPDF"),
-            pageText(1, "Hello again on page two"),
+        fakeEngine.matches = listOf(
+            fakeMatch(0, "Hello", 0),
+            fakeMatch(1, "Hello", 0),
         )
         fakeRepository.document = document(1, testFile.absolutePath)
 
@@ -58,9 +58,7 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `search returns empty for non-existent word`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "Only simple text here"),
-        )
+        fakeEngine.matches = emptyList()
         fakeRepository.document = document(1, testFile.absolutePath)
 
         val result = useCase(1, "missingword")
@@ -71,8 +69,8 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `search is case insensitive`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "CamelCase Word upper LOWER"),
+        fakeEngine.matches = listOf(
+            fakeMatch(0, "CamelCase", 0),
         )
         fakeRepository.document = document(1, testFile.absolutePath)
 
@@ -85,8 +83,8 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `search supports chinese text`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "这是一段中文测试文本，包含搜索关键词"),
+        fakeEngine.matches = listOf(
+            fakeMatch(0, "搜索关键词", 8),
         )
         fakeRepository.document = document(1, testFile.absolutePath)
 
@@ -102,9 +100,7 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `empty query returns empty results`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "Some text"),
-        )
+        fakeEngine.matches = listOf(fakeMatch(0, "Some", 0))
         fakeRepository.document = document(1, testFile.absolutePath)
 
         val result = useCase(1, "")
@@ -131,8 +127,9 @@ class SearchDocumentUseCaseTest {
 
     @Test
     fun `multiple matches on same page are found`() = runTest {
-        fakeExtractor.pages = listOf(
-            pageText(0, "the word appears the word twice on the same page"),
+        fakeEngine.matches = listOf(
+            fakeMatch(0, "word", 4),
+            fakeMatch(0, "word", 28),
         )
         fakeRepository.document = document(1, testFile.absolutePath)
 
@@ -145,19 +142,19 @@ class SearchDocumentUseCaseTest {
 
     // --- Helpers ---
 
-    private fun pageText(pageIndex: Int, text: String): PageTextWithPositions {
-        val positions = text.mapIndexed { i, ch ->
-            PdfTextPosition(
-                text = ch.toString(),
-                pageIndex = pageIndex,
-                x = i * 10f,
-                y = 700f,
-                width = 10f,
-                height = 12f,
-            )
-        }
-        return PageTextWithPositions(pageIndex, text, positions, 612f, 792f)
-    }
+    private fun fakeMatch(pageIndex: Int, text: String, startIndex: Int): PdfSearchMatch =
+        PdfSearchMatch(
+            pageIndex = pageIndex,
+            startIndex = startIndex,
+            length = text.length,
+            text = text,
+            rects = listOf(
+                PdfPageRect(
+                    100f, (700 + pageIndex * 100).toFloat(),
+                    100f + text.length * 10f, (712 + pageIndex * 100).toFloat(),
+                ),
+            ),
+        )
 
     private fun document(id: Long, uri: String) = Document(
         id = id,
@@ -168,12 +165,44 @@ class SearchDocumentUseCaseTest {
         importedAt = System.currentTimeMillis(),
     )
 
-    private class FakeTextExtractor : PdfTextExtractor {
-        var pages: List<PageTextWithPositions> = emptyList()
-        override suspend fun extractPagesText(file: File): List<String> =
-            pages.map { it.fullText }
-        override suspend fun extractPagesTextWithPositions(file: File): List<PageTextWithPositions> =
-            pages
+    /**
+     * Fake [PdfDocumentEngine] that returns pre-configured search matches.
+     */
+    private class FakePdfDocumentEngine : PdfDocumentEngine {
+        var matches: List<PdfSearchMatch> = emptyList()
+
+        override suspend fun open(file: File, password: String?): PdfDocumentSession =
+            FakeSession(matches)
+    }
+
+    /**
+     * Fake [PdfDocumentSession] backed by a list of [PdfSearchMatch].
+     */
+    private class FakeSession(
+        private val allMatches: List<PdfSearchMatch>,
+    ) : PdfDocumentSession {
+        private var closed = false
+
+        override val pageCount: Int
+            get() = 3
+
+        override suspend fun pageInfo(pageIndex: Int): PdfPageInfo =
+            PdfPageInfo(pageIndex, 612f, 792f)
+
+        override suspend fun render(request: PdfRenderRequest): Bitmap =
+            throw UnsupportedOperationException("render not used in search tests")
+
+        override suspend fun extractText(pageIndex: Int): PdfPageText =
+            throw UnsupportedOperationException("extractText not used in search tests")
+
+        override suspend fun searchPage(pageIndex: Int, query: String): List<PdfSearchMatch> {
+            require(!closed) { "Session is closed" }
+            return allMatches.filter { it.pageIndex == pageIndex }
+        }
+
+        override fun close() {
+            closed = true
+        }
     }
 
     private class FakeDocumentRepository(

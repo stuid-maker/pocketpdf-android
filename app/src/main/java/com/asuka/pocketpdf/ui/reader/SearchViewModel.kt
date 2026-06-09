@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,14 +27,16 @@ class SearchViewModel @Inject constructor(
 
     private var documentId: Long = 0
     private var pageTextLoading = false  // 防止并发加载
+    private var searchJob: Job? = null   // 当前搜索 job，支持取消
 
     fun init(documentId: Long) {
         this.documentId = documentId
     }
 
     fun search(query: String) {
+        searchJob?.cancel()
         _uiState.update { it.copy(query = query, isSearching = true, error = null) }
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             searchDocumentUseCase(documentId, query).fold(
                 onSuccess = { results ->
                     _uiState.update {

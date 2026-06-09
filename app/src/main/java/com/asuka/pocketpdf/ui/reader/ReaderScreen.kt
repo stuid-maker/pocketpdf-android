@@ -83,6 +83,7 @@ fun ReaderScreen(
     var summarySheetVisible by rememberSaveable { mutableStateOf(false) }
 
     val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
+    var searchBarVisible by rememberSaveable { mutableStateOf(false) }
 
     // 标注工具栏状态
     var annotationToolbarVisible by rememberSaveable { mutableStateOf(false) }
@@ -99,6 +100,29 @@ fun ReaderScreen(
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF29252D)),
     ) {
+        // 计算搜索高亮
+        val searchHighlights: List<RectF>
+        val currentHighlightIndex: Int
+        val st = searchState
+        val bmp = pageState.bitmap
+        if (st != null && bmp != null && st.totalMatches > 0 && st.rectsAvailable()) {
+            val pageResults = st.results.filter { it.pageIndex == pageState.pageIndex && it.rects.isNotEmpty() }
+            searchHighlights = pageResults.flatMap { result ->
+                val transform = PdfPageTransform(
+                    pdfPageWidthPoints = result.pdfPageWidth,
+                    pdfPageHeightPoints = result.pdfPageHeight,
+                    bitmapWidthPx = bmp.width,
+                    bitmapHeightPx = bmp.height,
+                )
+                transform.pdfRectsToBitmapRects(result.rects)
+            }
+            currentHighlightIndex = pageResults.indexOfFirst { st.results.indexOf(it) == st.currentMatchIndex }
+                .coerceAtLeast(0)
+        } else {
+            searchHighlights = emptyList()
+            currentHighlightIndex = -1
+        }
+
         PdfPageHost(
             bitmap = pageState.bitmap,
             onTap = { chromeVisible = !chromeVisible },
@@ -181,6 +205,8 @@ fun ReaderScreen(
                 annotationToolbarVisible = true
             },
             annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
+            searchHighlights = searchHighlights,
+            currentHighlightIndex = currentHighlightIndex,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -240,7 +266,44 @@ fun ReaderScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.titleSmall,
                 )
+                if (searchViewModel != null) {
+                    IconButton(onClick = {
+                        searchBarVisible = !searchBarVisible
+                        if (!searchBarVisible) searchViewModel.clear()
+                    }) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "搜索",
+                            tint = colors.ink,
+                        )
+                    }
+                }
             }
+        }
+
+        // 搜索栏
+        AnimatedVisibility(
+            visible = searchBarVisible && searchViewModel != null,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+        ) {
+            val state = searchState
+            SearchBar(
+                query = state?.query ?: "",
+                matchIndex = state?.currentMatchIndex ?: 0,
+                totalMatches = state?.totalMatches ?: 0,
+                isSearching = state?.isSearching ?: false,
+                onQueryChanged = { searchViewModel?.search(it) },
+                onSearch = { state?.query?.let { searchViewModel?.search(it) } },
+                onPrevious = { searchViewModel?.previousMatch() },
+                onNext = { searchViewModel?.nextMatch() },
+                onClose = {
+                    searchBarVisible = false
+                    searchViewModel?.clear()
+                },
+                modifier = Modifier.statusBarsPadding(),
+            )
         }
 
         AnimatedVisibility(
@@ -319,6 +382,8 @@ private fun PdfPageHost(
     onPageFling: (Int) -> Unit,
     onLongPress: (Float, Float) -> Unit = { _, _ -> },
     annotations: List<Annotation> = emptyList(),
+    searchHighlights: List<RectF> = emptyList(),
+    currentHighlightIndex: Int = -1,
     modifier: Modifier,
 ) {
     AndroidView(
@@ -338,6 +403,11 @@ private fun PdfPageHost(
         update = { view ->
             view.setBitmap(bitmap)
             view.setAnnotations(annotations)
+            if (searchHighlights.isNotEmpty()) {
+                view.setSearchHighlights(searchHighlights, currentHighlightIndex)
+            } else {
+                view.clearSearchHighlights()
+            }
         },
     )
 }

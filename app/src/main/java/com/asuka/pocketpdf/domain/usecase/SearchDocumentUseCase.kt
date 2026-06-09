@@ -4,6 +4,7 @@ import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.data.pdf.PageTextWithPositions
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.model.SearchResult
+import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -13,16 +14,17 @@ import javax.inject.Inject
  * 全文搜索用例：在指定文档中搜索关键词，返回匹配结果列表。
  *
  * 搜索策略：
- * - 大小写不敏感（lowerQuery vs lowerText.indexOf）
- * - 对每页的 fullText 做全字符串匹配
- * - 匹配到的字符坐标通过 PdfTextPosition 返回，供 UI 层高亮
+ * - 使用 PDFium 引擎 [PdfDocumentEngine] 打开文档 session，逐页调用 searchPage
+ * - 大小写匹配由 PDFium 引擎处理
+ * - 精确矩形坐标通过 [PdfDocumentEngine] 原生的 [com.asuka.pocketpdf.domain.pdf.PdfSearchMatch.rects] 返回
+ * - positions 字段保留但为空列表（PDFium 提供 rects 而非字符坐标，标注流程用 pageTextCache）
  */
-class SearchDocumentUseCase @Inject constructor(
-    private val textExtractor: PdfTextExtractor,
+open class SearchDocumentUseCase @Inject constructor(
+    private val documentEngine: PdfDocumentEngine,
     private val documentRepository: DocumentRepository,
     private val dispatchers: DispatcherProvider,
 ) {
-    suspend operator fun invoke(
+    open suspend operator fun invoke(
         documentId: Long,
         query: String,
     ): Result<List<SearchResult>> {
@@ -39,35 +41,31 @@ class SearchDocumentUseCase @Inject constructor(
                         IllegalStateException("File not found: ${doc.uri}"),
                     )
                 }
-                val pages = textExtractor.extractPagesTextWithPositions(file)
-                val results = mutableListOf<SearchResult>()
-                val lowerQuery = query.lowercase()
-                for (page in pages) {
-                    val lowerText = page.fullText.lowercase()
-                    var startIndex = 0
-                    while (true) {
-                        val index = lowerText.indexOf(lowerQuery, startIndex)
-                        if (index < 0) break
-                        val endIndex = index + query.length
-                        val matchText = page.fullText.substring(index, endIndex)
-                        // Collect positions that overlap with the match range (by character offset)
-                        val matchedPositions = page.positions.filter { pos ->
-                            pos.charEnd > index && pos.charStart < endIndex
+                val session = documentEngine.open(file)
+                try {
+                    val results = mutableListOf<SearchResult>()
+                    val pageCount = session.pageCount
+                    for (pageIndex in 0 until pageCount) {
+                        val pageInfo = session.pageInfo(pageIndex)
+                        val matches = session.searchPage(pageIndex, query)
+                        for (match in matches) {
+                            results.add(
+                                SearchResult(
+                                    pageIndex = match.pageIndex,
+                                    matchText = match.text,
+                                    matchIndex = match.startIndex,
+                                    positions = emptyList(),  // PDFium 提供 rects 而非字符坐标
+                                    pdfPageWidth = pageInfo.widthPoints,
+                                    pdfPageHeight = pageInfo.heightPoints,
+                                    rects = match.rects,
+                                ),
+                            )
                         }
-                        results.add(
-                            SearchResult(
-                                pageIndex = page.pageIndex,
-                                matchText = matchText,
-                                matchIndex = index,
-                                positions = matchedPositions,
-                                pdfPageWidth = page.pdfPageWidth,
-                                pdfPageHeight = page.pdfPageHeight,
-                            ),
-                        )
-                        startIndex = index + 1
                     }
+                    Result.success(results)
+                } finally {
+                    session.close()
                 }
-                Result.success(results)
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -75,7 +73,7 @@ class SearchDocumentUseCase @Inject constructor(
     }
 
     /** 提取文档所有页面的文字坐标（供长按选中，不依赖搜索） */
-    suspend fun extractPageTextPositions(documentId: Long): Result<List<PageTextWithPositions>> {
+    open suspend fun extractPageTextPositions(documentId: Long): Result<List<PageTextWithPositions>> {
         return withContext(dispatchers.io) {
             try {
                 val doc = documentRepository.getDocument(documentId)
@@ -88,6 +86,9 @@ class SearchDocumentUseCase @Inject constructor(
                         IllegalStateException("File not found: ${doc.uri}"),
                     )
                 }
+                // 仍然需要 PdfTextExtractor 来提取完整字符坐标
+                val textExtractor =
+                    com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor(dispatchers)
                 Result.success(textExtractor.extractPagesTextWithPositions(file))
             } catch (e: Exception) {
                 Result.failure(e)
