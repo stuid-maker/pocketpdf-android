@@ -7,6 +7,7 @@ import com.asuka.pocketpdf.data.indexing.WorkManagerIndexingScheduler
 import com.asuka.pocketpdf.data.local.AndroidKeystoreApiKeyCipher
 import com.asuka.pocketpdf.data.local.ApiKeyCipher
 import com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor
+import com.asuka.pocketpdf.data.pdf.PdfiumTextExtractor
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.remote.repository.LlmRepositoryImpl
 import com.asuka.pocketpdf.data.repository.ChatRepositoryImpl
@@ -53,7 +54,7 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindPdfTextExtractor(impl: PdfBoxTextExtractor): PdfTextExtractor
+    abstract fun bindPdfTextExtractor(impl: PdfiumTextExtractor): PdfTextExtractor
 
     @Binds
     @Singleton
