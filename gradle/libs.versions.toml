@@ -29,6 +29,7 @@ datastore = "1.1.1"
 
 # PDF
 pdfboxAndroid = "2.0.27.0"
+pdfiumAndroid = "1.0.30"
 
 # AI / Embedding
 # MediaPipe Text Embedder (Official Google Library)
@@ -99,6 +100,7 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 
 # PDF
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+pdfium-android = { group = "io.legere", name = "pdfiumandroid", version.ref = "pdfiumAndroid" }
 
 # AI / Embedding
 mediapipe-tasks-text = { group = "com.google.mediapipe", name = "tasks-text", version.ref = "mediapipe" }

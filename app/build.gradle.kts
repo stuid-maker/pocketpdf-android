@@ -102,6 +102,7 @@ dependencies {
 
     // PDF
     implementation(libs.pdfbox.android)
+    implementation(libs.pdfium.android)
 
     // AI / Embedding (MediaPipe)
     implementation(libs.mediapipe.tasks.text)

@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 class ChatActivityTest {
 
     @Test
-    fun `activity launches with valid document id`() {
+    fun activityLaunchesWithValidDocumentId() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
@@ -39,7 +39,7 @@ class ChatActivityTest {
     }
 
     @Test
-    fun `activity launches with default document id when extra missing`() {
+    fun activityLaunchesWithDefaultDocumentIdWhenExtraMissing() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
@@ -52,7 +52,7 @@ class ChatActivityTest {
     }
 
     @Test
-    fun `activity launches with document id zero`() {
+    fun activityLaunchesWithDocumentIdZero() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
