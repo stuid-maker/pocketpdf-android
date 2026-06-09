@@ -9,6 +9,7 @@ import com.asuka.pocketpdf.domain.pdf.*
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import java.io.File
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -140,6 +141,27 @@ class SearchDocumentUseCaseTest {
         results.forEach { assertEquals(0, it.pageIndex) }
     }
 
+    @Test
+    fun `search uses PDFium device mapping for highlight rectangles`() = runTest {
+        fakeEngine.matches = listOf(fakeMatch(0, "word", 4))
+        fakeEngine.mappedRects = listOf(PdfPageRect(20f, 30f, 80f, 50f))
+        fakeRepository.document = document(1, testFile.absolutePath)
+
+        val result = useCase(1, "word").getOrThrow().single()
+
+        assertEquals(fakeEngine.mappedRects, result.rects)
+        assertEquals(612f, result.pdfPageWidth)
+        assertEquals(792f, result.pdfPageHeight)
+    }
+
+    @Test(expected = CancellationException::class)
+    fun `search preserves coroutine cancellation`() = runTest {
+        fakeEngine.failure = CancellationException("superseded")
+        fakeRepository.document = document(1, testFile.absolutePath)
+
+        useCase(1, "word")
+    }
+
     // --- Helpers ---
 
     private fun fakeMatch(pageIndex: Int, text: String, startIndex: Int): PdfSearchMatch =
@@ -170,9 +192,13 @@ class SearchDocumentUseCaseTest {
      */
     private class FakePdfDocumentEngine : PdfDocumentEngine {
         var matches: List<PdfSearchMatch> = emptyList()
+        var mappedRects: List<PdfPageRect> = emptyList()
+        var failure: Throwable? = null
 
-        override suspend fun open(file: File, password: String?): PdfDocumentSession =
-            FakeSession(matches)
+        override suspend fun open(file: File, password: String?): PdfDocumentSession {
+            failure?.let { throw it }
+            return FakeSession(matches, mappedRects)
+        }
     }
 
     /**
@@ -180,6 +206,7 @@ class SearchDocumentUseCaseTest {
      */
     private class FakeSession(
         private val allMatches: List<PdfSearchMatch>,
+        private val mappedRects: List<PdfPageRect>,
     ) : PdfDocumentSession {
         private var closed = false
 
@@ -199,6 +226,13 @@ class SearchDocumentUseCaseTest {
             require(!closed) { "Session is closed" }
             return allMatches.filter { it.pageIndex == pageIndex }
         }
+
+        override suspend fun mapPageRectsToDevice(
+            pageIndex: Int,
+            rects: List<PdfPageRect>,
+            widthPx: Int,
+            heightPx: Int,
+        ): List<PdfPageRect> = mappedRects
 
         override fun close() {
             closed = true

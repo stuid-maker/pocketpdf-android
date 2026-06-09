@@ -146,9 +146,8 @@ class PdfiumReaderRenderTest {
             assertEquals("page count", 1, session.pageCount)
 
             val pageInfo = session.pageInfo(0)
-            // Raw media box dimensions remain the same; rotation is separate.
-            assertEquals("widthPoints", 600f, pageInfo.widthPoints, 0.1f)
-            assertEquals("heightPoints", 800f, pageInfo.heightPoints, 0.1f)
+            assertEquals("widthPoints", 800f, pageInfo.widthPoints, 0.1f)
+            assertEquals("heightPoints", 600f, pageInfo.heightPoints, 0.1f)
             assertEquals("rotationDegrees", 90, pageInfo.rotationDegrees)
 
             // Render with swapped dimensions to account for rotation.

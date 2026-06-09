@@ -39,6 +39,26 @@ class ReaderControllerTest {
     }
 
     @Test
+    fun renderSwapsAspectRatioForQuarterTurnRotation() = runTest {
+        val session = mockSession()
+        val engine = mockEngine(session)
+        val request = slot<PdfRenderRequest>()
+        coEvery { session.pageInfo(0) } returns PdfPageInfo(
+            pageIndex = 0,
+            widthPoints = 800f,
+            heightPoints = 600f,
+            rotationDegrees = 90,
+        )
+        coEvery { session.render(capture(request)) } returns mockk()
+        val controller = createController(engine, this)
+
+        controller.open(DOCUMENT, initialPage = 0)
+
+        assertEquals(1200, request.captured.widthPx)
+        assertEquals(900, request.captured.heightPx)
+    }
+
+    @Test
     fun subsequentRendersReuseTheOpenedDocumentSession() = runTest {
         val session = mockSession()
         val engine = mockEngine(session)

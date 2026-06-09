@@ -27,6 +27,7 @@ internal fun DocumentEntity.toDomain(): Document = Document(
     pageCount = pageCount,
     indexStatus = IndexStatus.valueOf(indexStatus),
     importedAt = importedAt,
+    extractorVersion = extractorVersion,
 )
 
 internal fun Document.toEntity(): DocumentEntity = DocumentEntity(
@@ -36,6 +37,7 @@ internal fun Document.toEntity(): DocumentEntity = DocumentEntity(
     pageCount = pageCount,
     indexStatus = indexStatus.name,
     importedAt = importedAt,
+    extractorVersion = extractorVersion,
 )
 
 internal fun ChunkEntity.toDomain(): DocumentChunk = DocumentChunk(

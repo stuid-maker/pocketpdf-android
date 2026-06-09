@@ -128,6 +128,29 @@ class PdfPageViewFlingTest {
     }
 
     @Test
+    fun `setting the same bitmap again preserves zoom`() {
+        val view = PdfPageView(RuntimeEnvironment.getApplication())
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        view.layout(0, 0, 800, 1200)
+        view.setBitmap(bitmap)
+        var capturedDirection: Int? = null
+        view.onPageFling = { capturedDirection = it }
+
+        val lastTime = dispatchDoubleTap(view)
+        view.setBitmap(bitmap)
+        dispatchHorizontalSwipe(
+            view,
+            fromX = 300f,
+            toX = 100f,
+            y = 100f,
+            durationMs = 150,
+            startTime = lastTime + 50,
+        )
+
+        assertNull("Recomposition with the same bitmap should preserve zoom", capturedDirection)
+    }
+
+    @Test
     fun `slow swipe below velocity threshold does NOT trigger fling`() {
         val view = createView()
         var capturedDirection: Int? = null

@@ -10,6 +10,7 @@ import com.asuka.pocketpdf.core.Result as OperationResult
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.pdf.PdfExtractorVersion
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
@@ -81,10 +82,14 @@ class IndexWorker @AssistedInject constructor(
                 invalidateSummaryCacheSafely(documentId)
                 documentRepo.replaceChunks(documentId, emptyList())
                     .getOrThrow()
-                // 无文本内容的 PDF（如纯扫描件），直接标记 INDEXED
-                documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.INDEXED))
+                documentRepo.updateDocument(
+                    doc.copy(
+                        indexStatus = IndexStatus.NEEDS_OCR,
+                        extractorVersion = PdfExtractorVersion.CURRENT,
+                    ),
+                )
                     .getOrThrow()
-                Timber.tag(TAG).i("Document #%d has no extractable text, marked INDEXED", documentId)
+                Timber.tag(TAG).i("Document #%d has no extractable text and needs OCR", documentId)
                 return@withContext Result.success()
             }
 
@@ -105,7 +110,12 @@ class IndexWorker @AssistedInject constructor(
                 .getOrThrow()
 
             // 6. 标记 INDEXED
-            documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.INDEXED))
+            documentRepo.updateDocument(
+                doc.copy(
+                    indexStatus = IndexStatus.INDEXED,
+                    extractorVersion = PdfExtractorVersion.CURRENT,
+                ),
+            )
                 .getOrThrow()
 
             Timber.tag(TAG).i("Document #%d indexed successfully: %d chunks", documentId, chunks.size)

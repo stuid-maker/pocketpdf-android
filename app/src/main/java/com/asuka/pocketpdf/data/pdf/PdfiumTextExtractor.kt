@@ -13,10 +13,9 @@ import javax.inject.Singleton
  * 通过 [PdfDocumentEngine] 打开 PDF 并按页提取文本。
  * 与 [PdfBoxTextExtractor] 的区别：
  * - 底层引擎从 PdfBox-Android 切换到 PDFium（`io.legere.pdfiumandroid`）
- * - 字符级坐标（positions）暂不支持 — PDFium 的 `textPageGetText` 只返回纯文本，
- *   不提供字符级坐标 API，因此 [extractPagesTextWithPositions] 返回的 positions 为空列表。
- *   标注流程已改用 [com.asuka.pocketpdf.ui.reader.SearchUiState.pageTextCache]，
- *   因此这不影响现有功能。
+ * - [extractPagesTextWithPositions] 暂不构建旧模型要求的逐字符 position 列表。
+ *   搜索高亮直接使用 [com.asuka.pocketpdf.domain.pdf.PdfDocumentSession.searchPage]
+ *   返回的 PDFium 原生命中矩形；旧的长按标注位置仍由兼容提取器提供。
  *
  * 全部文本提取在 `withContext(dispatchers.io)` 中执行，避免阻塞主线程。
  * [PdfDocumentEngine.open] 返回的 [com.asuka.pocketpdf.domain.pdf.PdfDocumentSession]
@@ -45,7 +44,7 @@ class PdfiumTextExtractor @Inject constructor(
                     PageTextWithPositions(
                         pageIndex = pageIndex,
                         fullText = text.text,
-                        positions = emptyList(), // PDFium 不提供字符级坐标
+                        positions = emptyList(),
                         pdfPageWidth = pageInfo.widthPoints,
                         pdfPageHeight = pageInfo.heightPoints,
                     )

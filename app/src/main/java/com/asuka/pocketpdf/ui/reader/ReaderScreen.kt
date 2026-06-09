@@ -97,30 +97,36 @@ fun ReaderScreen(
         if (summaryState !is SummaryState.Idle) summarySheetVisible = true
     }
 
+    val activeSearchPage = searchState?.let {
+        activeSearchPage(it.results, it.currentMatchIndex)
+    }
+    LaunchedEffect(activeSearchPage) {
+        if (activeSearchPage != null && activeSearchPage != pageState.pageIndex) {
+            onPageRequested(activeSearchPage)
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF29252D)),
     ) {
         // 计算搜索高亮
         val searchHighlights: List<RectF>
-        val currentHighlightIndex: Int
+        val currentHighlightIndices: Set<Int>
         val st = searchState
         val bmp = pageState.bitmap
         if (st != null && bmp != null && st.totalMatches > 0 && st.rectsAvailable()) {
-            val pageResults = st.results.filter { it.pageIndex == pageState.pageIndex && it.rects.isNotEmpty() }
-            searchHighlights = pageResults.flatMap { result ->
-                val transform = PdfPageTransform(
-                    pdfPageWidthPoints = result.pdfPageWidth,
-                    pdfPageHeightPoints = result.pdfPageHeight,
-                    bitmapWidthPx = bmp.width,
-                    bitmapHeightPx = bmp.height,
-                )
-                transform.pdfRectsToBitmapRects(result.rects)
-            }
-            currentHighlightIndex = pageResults.indexOfFirst { st.results.indexOf(it) == st.currentMatchIndex }
-                .coerceAtLeast(0)
+            val layout = buildSearchHighlightLayout(
+                results = st.results,
+                currentMatchIndex = st.currentMatchIndex,
+                pageIndex = pageState.pageIndex,
+                bitmapWidth = bmp.width,
+                bitmapHeight = bmp.height,
+            )
+            searchHighlights = layout.rects
+            currentHighlightIndices = layout.currentRectIndices
         } else {
             searchHighlights = emptyList()
-            currentHighlightIndex = -1
+            currentHighlightIndices = emptySet()
         }
 
         PdfPageHost(
@@ -206,7 +212,7 @@ fun ReaderScreen(
             },
             annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
             searchHighlights = searchHighlights,
-            currentHighlightIndex = currentHighlightIndex,
+            currentHighlightIndices = currentHighlightIndices,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -383,7 +389,7 @@ private fun PdfPageHost(
     onLongPress: (Float, Float) -> Unit = { _, _ -> },
     annotations: List<Annotation> = emptyList(),
     searchHighlights: List<RectF> = emptyList(),
-    currentHighlightIndex: Int = -1,
+    currentHighlightIndices: Set<Int> = emptySet(),
     modifier: Modifier,
 ) {
     AndroidView(
@@ -404,7 +410,7 @@ private fun PdfPageHost(
             view.setBitmap(bitmap)
             view.setAnnotations(annotations)
             if (searchHighlights.isNotEmpty()) {
-                view.setSearchHighlights(searchHighlights, currentHighlightIndex)
+                view.setSearchHighlights(searchHighlights, currentHighlightIndices)
             } else {
                 view.clearSearchHighlights()
             }

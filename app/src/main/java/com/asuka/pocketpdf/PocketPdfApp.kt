@@ -10,9 +10,9 @@ import javax.inject.Inject
 
 /**
  * Application 入口，挂 Hilt 注解作为依赖图根容器。
- * 此处只做"全局只能做一次"的初始化（日志、PDF 解析库资源加载器等）。
+ * 此处只做"全局只能做一次"的初始化（日志、兼容路径资源加载器等）。
  *
- * PdfBox-Android 初始化说明（W1 Day 2 接入）：
+ * PdfBox-Android 目前仅用于旧的长按标注字符位置路径。初始化说明：
  * `PDFBoxResourceLoader.init(applicationContext)` 调用一次即把 PdfBox 内置字体 / 字符表
  * 资源指向 Android assets。**没有这步**调用，PDFDocument.load 会因找不到默认资源在第一次
  * 解析时抛 `NullPointerException`（PdfBox 内部 Standard14Fonts 加载失败）。

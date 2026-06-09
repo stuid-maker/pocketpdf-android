@@ -46,7 +46,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -512,12 +511,12 @@ private fun DocumentCard(
 @Composable
 private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoader?) {
     val colors = LocalPocketColors.current
-    val cover by produceState<DocumentCover>(
-        initialValue = fallbackCover(document.id, document.title),
-        document.id,
-        document.uri,
-    ) {
-        if (coverLoader != null) value = coverLoader.load(document, 180, 240)
+    var cover by remember(document.id, document.uri) {
+        mutableStateOf<DocumentCover>(fallbackCover(document.id, document.title))
+    }
+    LaunchedEffect(document.id, document.uri, coverLoader) {
+        cover = coverLoader?.load(document, 180, 240)
+            ?: fallbackCover(document.id, document.title)
     }
     val fallbackPalettes = listOf(
         listOf(Color(0xFF7652A8), Color(0xFF302739)),
@@ -569,6 +568,7 @@ private fun indexLabel(status: IndexStatus): String = stringResource(
         IndexStatus.INDEXING -> R.string.library_badge_indexing
         IndexStatus.INDEXED -> R.string.library_badge_indexed
         IndexStatus.FAILED -> R.string.library_badge_failed
+        IndexStatus.NEEDS_OCR -> R.string.library_badge_needs_ocr
     },
 )
 
@@ -580,6 +580,7 @@ private fun indexColor(status: IndexStatus): Color {
         IndexStatus.INDEXING -> colors.warning
         IndexStatus.INDEXED -> colors.success
         IndexStatus.FAILED -> MaterialTheme.colorScheme.error
+        IndexStatus.NEEDS_OCR -> colors.warning
     }
 }
 

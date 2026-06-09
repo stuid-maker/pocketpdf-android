@@ -1,6 +1,10 @@
 package com.asuka.pocketpdf.data.pdf
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.asuka.pocketpdf.core.DispatcherProvider
@@ -19,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * PDF 搜索功能的多语言 fixture 测试。
@@ -63,6 +68,28 @@ class PdfiumSearchFixtureTest {
         return tmpFile
     }
 
+    private fun synthesizeAndroidPdf(text: String): File {
+        val file = File.createTempFile("search_android_", ".pdf", context.cacheDir)
+        val document = PdfDocument()
+        try {
+            val page = document.startPage(PdfDocument.PageInfo.Builder(600, 800, 1).create())
+            page.canvas.drawText(
+                text,
+                50f,
+                120f,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.BLACK
+                    textSize = 32f
+                },
+            )
+            document.finishPage(page)
+            FileOutputStream(file).use(document::writeTo)
+        } finally {
+            document.close()
+        }
+        return file
+    }
+
     private fun createEngine(): PdfiumDocumentEngine {
         PDFBoxResourceLoader.init(context)
         return PdfiumDocumentEngine(context, dispatchers)
@@ -101,30 +128,20 @@ class PdfiumSearchFixtureTest {
         }
     }
 
-    /**
-     * 中文文本搜索。
-     *
-     * 注意：PDFBox 的 PDType1Font.HELVETICA 仅支持 Latin-1 字符集，无法渲染中文字符。
-     * 要合成中文 PDF 需要使用 PDType0Font 加载 TrueType/OpenType 中文字体（如 Noto Sans CJK），
-     * 但 androidTest 环境中不一定有可用字体文件，因此这里用英文 PDF 作为 fallback，
-     * 验证搜索流程的正确性（引擎搜索、结果解析、rect 归一化等）。
-     *
-     * TODO: 当环境支持中文字体时，替换为真实中文 PDF fixture。
-     */
     @Test
-    fun searchChineseTextFallback(): Unit = runBlocking {
-        // Fallback: 使用英文文本验证搜索流程
-        val pdfBytes = synthesizePdf("Chinese search test fallback")
-        val tmpFile = writeTempPdf(pdfBytes)
+    fun searchChineseText(): Unit = runBlocking {
+        val tmpFile = synthesizeAndroidPdf("这是中文搜索关键词测试")
         try {
             val engine = createEngine()
             engine.open(tmpFile).use { session ->
-                val matches: List<PdfSearchMatch> = session.searchPage(0, "search")
-                assertEquals("Should find exactly 1 match for 'search'", 1, matches.size)
+                val matches: List<PdfSearchMatch> = session.searchPage(0, "搜索关键词")
+                assertEquals("Should find exactly 1 Chinese match", 1, matches.size)
 
                 val match = matches[0]
-                assertTrue("Match text should contain 'search', got: '${match.text}'",
-                    match.text.contains("search"))
+                assertTrue(
+                    "Match text should contain Chinese keyword, got: '${match.text}'",
+                    match.text.contains("搜索关键词"),
+                )
                 assertTrue("rects should not be empty", match.rects.isNotEmpty())
 
                 // 验证 rect 坐标归一化：left < right, top < bottom
@@ -138,6 +155,61 @@ class PdfiumSearchFixtureTest {
         } finally {
             tmpFile.delete()
         }
+    }
+
+    @Test
+    fun mappedHighlightIntersectsRenderedGlyphs(): Unit = runBlocking {
+        val tmpFile = writeTempPdf(synthesizePdf("Hello World PDF Search Test"))
+        try {
+            val engine = createEngine()
+            engine.open(tmpFile).use { session ->
+                val pageInfo = session.pageInfo(0)
+                val match = session.searchPage(0, "World").single()
+                val mapped = session.mapPageRectsToDevice(
+                    pageIndex = 0,
+                    rects = match.rects,
+                    widthPx = 612,
+                    heightPx = 792,
+                ).single()
+                val bitmap = session.render(
+                    com.asuka.pocketpdf.domain.pdf.PdfRenderRequest(
+                        pageInfo = pageInfo,
+                        widthPx = 612,
+                        heightPx = 792,
+                    ),
+                )
+                try {
+                    assertTrue(
+                        "Mapped highlight must cover rendered ink: $mapped",
+                        countDarkPixels(bitmap, mapped) > 0,
+                    )
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+        } finally {
+            tmpFile.delete()
+        }
+    }
+
+    private fun countDarkPixels(
+        bitmap: Bitmap,
+        rect: com.asuka.pocketpdf.domain.pdf.PdfPageRect,
+    ): Int {
+        val left = rect.left.toInt().coerceIn(0, bitmap.width - 1)
+        val top = rect.top.toInt().coerceIn(0, bitmap.height - 1)
+        val right = rect.right.toInt().coerceIn(left + 1, bitmap.width)
+        val bottom = rect.bottom.toInt().coerceIn(top + 1, bitmap.height)
+        var count = 0
+        for (y in top until bottom) {
+            for (x in left until right) {
+                val color = bitmap.getPixel(x, y)
+                if (Color.red(color) < 220 || Color.green(color) < 220 || Color.blue(color) < 220) {
+                    count++
+                }
+            }
+        }
+        return count
     }
 
     /**

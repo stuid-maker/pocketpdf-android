@@ -31,7 +31,9 @@ class PdfPageView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
+    private var sourceBitmap: Bitmap? = null
     private var pageBitmap: Bitmap? = null
+    private var ownsPageBitmap = false
     private val drawMatrix = Matrix()
     private val bitmapRect = RectF()
     private val viewRect = RectF()
@@ -74,7 +76,7 @@ class PdfPageView @JvmOverloads constructor(
     }
 
     private var searchHighlights: List<RectF> = emptyList()
-    private var currentHighlightIndex: Int = -1
+    private var currentHighlightIndices: Set<Int> = emptySet()
 
     // 标注渲染
     private val annotationHighlightPaint = Paint().apply {
@@ -92,9 +94,15 @@ class PdfPageView @JvmOverloads constructor(
 
     /** 设置当前页的位图并重置缩放 */
     fun setBitmap(bitmap: Bitmap?) {
+        if (bitmap === sourceBitmap) return
+        if (ownsPageBitmap) {
+            pageBitmap?.recycle()
+        }
+        sourceBitmap = bitmap
         pageBitmap = bitmap?.let {
             if (it.isMutable) Bitmap.createBitmap(it) else it
         }
+        ownsPageBitmap = bitmap?.isMutable == true
         currentScale = 1f
         if (pageBitmap != null) {
             fitToCenter()
@@ -112,16 +120,16 @@ class PdfPageView @JvmOverloads constructor(
     }
 
     /** 设置搜索高亮区域（PDF 页面坐标系） */
-    fun setSearchHighlights(highlights: List<RectF>, currentIndex: Int) {
+    fun setSearchHighlights(highlights: List<RectF>, currentIndices: Set<Int>) {
         this.searchHighlights = highlights
-        this.currentHighlightIndex = currentIndex
+        this.currentHighlightIndices = currentIndices
         invalidate()
     }
 
     /** 清除搜索高亮 */
     fun clearSearchHighlights() {
         searchHighlights = emptyList()
-        currentHighlightIndex = -1
+        currentHighlightIndices = emptySet()
         invalidate()
     }
 
@@ -156,7 +164,7 @@ class PdfPageView @JvmOverloads constructor(
         for ((i, rect) in searchHighlights.withIndex()) {
             val mappedRect = RectF(rect)
             drawMatrix.mapRect(mappedRect)
-            val paint = if (i == currentHighlightIndex) currentHighlightPaint else highlightPaint
+            val paint = if (i in currentHighlightIndices) currentHighlightPaint else highlightPaint
             canvas.drawRect(mappedRect, paint)
         }
         // 绘制标注

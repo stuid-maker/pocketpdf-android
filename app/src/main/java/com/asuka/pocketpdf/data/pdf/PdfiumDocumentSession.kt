@@ -111,6 +111,35 @@ class PdfiumDocumentSession internal constructor(
         }
     }
 
+    override suspend fun mapPageRectsToDevice(
+        pageIndex: Int,
+        rects: List<PdfPageRect>,
+        widthPx: Int,
+        heightPx: Int,
+    ): List<PdfPageRect> {
+        require(widthPx > 0 && heightPx > 0) { "device dimensions must be positive" }
+        if (rects.isEmpty()) return emptyList()
+        return nativeOperation(pageIndex) {
+            document.openPage(pageIndex).use { page ->
+                val rotation = page.getPageRotation()
+                rects.map { rect ->
+                    val points = listOf(
+                        page.mapPageCoordsToDevice(0, 0, widthPx, heightPx, rotation, rect.left.toDouble(), rect.top.toDouble()),
+                        page.mapPageCoordsToDevice(0, 0, widthPx, heightPx, rotation, rect.right.toDouble(), rect.top.toDouble()),
+                        page.mapPageCoordsToDevice(0, 0, widthPx, heightPx, rotation, rect.left.toDouble(), rect.bottom.toDouble()),
+                        page.mapPageCoordsToDevice(0, 0, widthPx, heightPx, rotation, rect.right.toDouble(), rect.bottom.toDouble()),
+                    )
+                    PdfPageRect(
+                        left = points.minOf { it.x }.toFloat(),
+                        top = points.minOf { it.y }.toFloat(),
+                        right = points.maxOf { it.x }.toFloat(),
+                        bottom = points.maxOf { it.y }.toFloat(),
+                    )
+                }
+            }
+        }
+    }
+
     override fun close() {
         if (closed.get()) return
         runBlocking {

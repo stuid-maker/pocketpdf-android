@@ -311,7 +311,7 @@ git commit -m "refactor(index): extract pdf text through pdfium"
 .\gradlew.bat lintDebug
 ```
 
-- [ ] **Step 2: Run real-device acceptance**
+- [x] **Step 2: Run real-device acceptance**
 
 Verify search and highlights at multiple zoom levels on Chinese, English,
 rotated, cropped, multi-line, and scanned documents. Record device/API, fixture,
@@ -323,7 +323,7 @@ After parity acceptance, remove PDFBox search geometry and Android
 `PdfRenderer`. Remove PDFBox entirely only when the fallback counter is zero on
 the acceptance corpus.
 
-- [ ] **Step 4: Update architecture and limitations**
+- [x] **Step 4: Update architecture and limitations**
 
 Document the unified session, extractor versioning, native licenses, and the
 explicit OCR limitation.

@@ -7,6 +7,7 @@ import com.asuka.pocketpdf.domain.model.SearchResult
 import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import javax.inject.Inject
 
@@ -48,16 +49,24 @@ open class SearchDocumentUseCase @Inject constructor(
                     for (pageIndex in 0 until pageCount) {
                         val pageInfo = session.pageInfo(pageIndex)
                         val matches = session.searchPage(pageIndex, query)
+                        val canonicalWidth = pageInfo.widthPoints.toInt().coerceAtLeast(1)
+                        val canonicalHeight = pageInfo.heightPoints.toInt().coerceAtLeast(1)
                         for (match in matches) {
+                            val mappedRects = session.mapPageRectsToDevice(
+                                pageIndex = pageIndex,
+                                rects = match.rects,
+                                widthPx = canonicalWidth,
+                                heightPx = canonicalHeight,
+                            )
                             results.add(
                                 SearchResult(
                                     pageIndex = match.pageIndex,
                                     matchText = match.text,
                                     matchIndex = match.startIndex,
                                     positions = emptyList(),  // PDFium 提供 rects 而非字符坐标
-                                    pdfPageWidth = pageInfo.widthPoints,
-                                    pdfPageHeight = pageInfo.heightPoints,
-                                    rects = match.rects,
+                                    pdfPageWidth = canonicalWidth.toFloat(),
+                                    pdfPageHeight = canonicalHeight.toFloat(),
+                                    rects = mappedRects,
                                 ),
                             )
                         }
@@ -66,6 +75,8 @@ open class SearchDocumentUseCase @Inject constructor(
                 } finally {
                     session.close()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.failure(e)
             }

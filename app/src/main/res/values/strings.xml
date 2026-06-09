@@ -26,6 +26,7 @@
     <string name="library_badge_indexing">索引中</string>
     <string name="library_badge_indexed">已索引</string>
     <string name="library_badge_failed">索引失败</string>
+    <string name="library_badge_needs_ocr">需要 OCR</string>
     <string name="library_display_name_fallback">未命名 PDF · %1$s</string>
     <string name="library_import_failed">导入失败：%1$s</string>
     <string name="library_delete_failed">删除失败：%1$s</string>

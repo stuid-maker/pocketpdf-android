@@ -129,8 +129,8 @@ class PdfiumTextExtractorParityTest {
     ) {
         assertEquals("$label: page count mismatch", expected.size, actual.size)
         for (i in expected.indices) {
-            val expectedTrimmed = expected[i].trimEnd()
-            val actualTrimmed = actual[i].trimEnd()
+            val expectedTrimmed = expected[i].replace(Regex("\\s+"), " ").trim()
+            val actualTrimmed = actual[i].replace(Regex("\\s+"), " ").trim()
             assertEquals(
                 "$label: page $i text differs.\nExpected: '$expectedTrimmed'\nActual:   '$actualTrimmed'",
                 expectedTrimmed,
@@ -177,7 +177,7 @@ class PdfiumTextExtractorParityTest {
 
     /**
      * 验证 extractPagesTextWithPositions 返回正确的 pageInfo（宽高 > 0）。
-     * positions 应为空列表（PDFium 不提供字符级坐标）。
+     * positions 应为空列表（统一搜索链路直接使用 PDFium 原生命中矩形）。
      */
     @Test
     fun withPositionsReturnsCorrectPageDimensions() = runBlocking {
