@@ -1,15 +1,16 @@
 package com.asuka.pocketpdf.ui.reader
 
 import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.pdf.PdfRenderer
-import android.os.ParcelFileDescriptor
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
+import com.asuka.pocketpdf.domain.pdf.PdfDocumentSession
+import com.asuka.pocketpdf.domain.pdf.PdfRenderRequest
 import java.io.Closeable
 import java.io.File
 import kotlin.math.max
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +27,6 @@ data class ReaderPageState(
     val error: String? = null,
 )
 
-interface PdfDocumentSession : Closeable {
-    val pageCount: Int
-    suspend fun render(pageIndex: Int, widthPx: Int): Bitmap
-}
-
 interface ReaderController : Closeable {
     val state: StateFlow<ReaderPageState>
     suspend fun open(document: Document, initialPage: Int)
@@ -38,7 +34,7 @@ interface ReaderController : Closeable {
 }
 
 class PdfReaderController(
-    private val sessionFactory: suspend (String) -> PdfDocumentSession,
+    private val documentEngine: PdfDocumentEngine,
     private val dispatchers: DispatcherProvider,
     private val scope: CoroutineScope,
     private val renderWidth: () -> Int,
@@ -49,20 +45,24 @@ class PdfReaderController(
 
     private var session: PdfDocumentSession? = null
     private var renderJob: Job? = null
+    private var renderGeneration: Long = 0
 
     override suspend fun open(document: Document, initialPage: Int) {
+        renderJob?.cancel()
+        renderGeneration++
         closeSession()
-        val opened = withContext(dispatchers.io) { sessionFactory(document.uri) }
+        val opened = documentEngine.open(File(document.uri))
         session = opened
-        renderNow(initialPage)
+        renderNow(initialPage, renderGeneration)
     }
 
     override fun render(pageIndex: Int) {
         renderJob?.cancel()
-        renderJob = scope.launch { renderNow(pageIndex) }
+        val generation = ++renderGeneration
+        renderJob = scope.launch { renderNow(pageIndex, generation) }
     }
 
-    private suspend fun renderNow(requestedIndex: Int) {
+    private suspend fun renderNow(requestedIndex: Int, generation: Long) {
         val activeSession = session ?: return
         if (activeSession.pageCount <= 0) {
             mutableState.value = ReaderPageState(error = "此 PDF 无页面内容")
@@ -75,18 +75,36 @@ class PdfReaderController(
             isRendering = true,
             error = null,
         )
-        runCatching {
-            withContext(dispatchers.io) {
-                activeSession.render(target, renderWidth())
+        try {
+            val bitmap = withContext(dispatchers.io) {
+                val pageInfo = activeSession.pageInfo(target)
+                val width = max(renderWidth(), 1)
+                val height = max(
+                    (width * pageInfo.heightPoints / pageInfo.widthPoints).toInt(),
+                    1,
+                )
+                activeSession.render(
+                    PdfRenderRequest(
+                        pageInfo = pageInfo,
+                        widthPx = width,
+                        heightPx = height,
+                    ),
+                )
             }
-        }.onSuccess { bitmap ->
+            if (generation != renderGeneration || activeSession !== session) {
+                bitmap.recycle()
+                return
+            }
             mutableState.value.bitmap?.recycle()
             mutableState.value = ReaderPageState(
                 pageIndex = target,
                 pageCount = activeSession.pageCount,
                 bitmap = bitmap,
             )
-        }.onFailure { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            if (generation != renderGeneration || activeSession !== session) return
             mutableState.value = mutableState.value.copy(
                 isRendering = false,
                 error = error.message ?: error.javaClass.simpleName,
@@ -96,6 +114,7 @@ class PdfReaderController(
 
     override fun close() {
         renderJob?.cancel()
+        renderGeneration++
         closeSession()
         mutableState.value = ReaderPageState()
     }
@@ -106,49 +125,15 @@ class PdfReaderController(
     }
 }
 
-class AndroidPdfDocumentSession(
-    private val descriptor: ParcelFileDescriptor,
-    private val renderer: PdfRenderer,
-    private val dispatchers: DispatcherProvider,
-) : PdfDocumentSession {
-
-    override val pageCount: Int get() = renderer.pageCount
-
-    override suspend fun render(pageIndex: Int, widthPx: Int): Bitmap =
-        withContext(dispatchers.io) {
-            renderer.openPage(pageIndex).use { page ->
-                val height = max((widthPx * page.height.toFloat() / page.width).toInt(), 1)
-                Bitmap.createBitmap(widthPx, height, Bitmap.Config.ARGB_8888).also { bitmap ->
-                    bitmap.eraseColor(Color.WHITE)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                }
-            }
-        }
-
-    override fun close() {
-        renderer.close()
-        descriptor.close()
-    }
-}
-
 class ReaderControllerFactory @Inject constructor(
+    private val documentEngine: PdfDocumentEngine,
     private val dispatchers: DispatcherProvider,
 ) {
     fun create(
         scope: CoroutineScope,
         renderWidth: () -> Int,
     ): ReaderController = PdfReaderController(
-        sessionFactory = { uri ->
-            val descriptor = ParcelFileDescriptor.open(
-                File(uri),
-                ParcelFileDescriptor.MODE_READ_ONLY,
-            )
-            AndroidPdfDocumentSession(
-                descriptor = descriptor,
-                renderer = PdfRenderer(descriptor),
-                dispatchers = dispatchers,
-            )
-        },
+        documentEngine = documentEngine,
         dispatchers = dispatchers,
         scope = scope,
         renderWidth = renderWidth,

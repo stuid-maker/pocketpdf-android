@@ -135,18 +135,18 @@ git commit -m "feat(pdf): implement closeable pdfium sessions"
 - Modify: `app/src/test/java/com/asuka/pocketpdf/ui/reader/ReaderControllerTest.kt`
 - Create: `app/src/androidTest/java/com/asuka/pocketpdf/ui/reader/PdfiumReaderRenderTest.kt`
 
-- [ ] **Step 1: Rewrite controller tests against an engine fake**
+- [x] **Step 1: Rewrite controller tests against an engine fake**
 
 Preserve clamping, stale-render rejection, white background, current page, and
 close behavior. Assert one document session is reused across page renders.
 
-- [ ] **Step 2: Verify failure**
+- [x] **Step 2: Verify failure**
 
 ```powershell
 .\gradlew.bat testDebugUnitTest --tests "*ReaderControllerTest"
 ```
 
-- [ ] **Step 3: Replace `PdfRenderer` ownership**
+- [x] **Step 3: Replace `PdfRenderer` ownership**
 
 Inject `PdfDocumentEngine`, open one session per reader, and render through the
 session. Remove Android `PdfRenderer` and its separate descriptor lifecycle.
