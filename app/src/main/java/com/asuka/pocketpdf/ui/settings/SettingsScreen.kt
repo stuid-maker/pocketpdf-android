@@ -308,6 +308,8 @@ private fun SettingsHeader(
             text = if (isSaving) "保存中" else "保存",
             onClick = onSave,
             enabled = !isSaving,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White,
         )
     }
 }

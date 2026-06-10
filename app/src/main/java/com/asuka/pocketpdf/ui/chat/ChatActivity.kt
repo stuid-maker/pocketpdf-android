@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import com.asuka.pocketpdf.R
@@ -84,11 +86,27 @@ class ChatActivity : ComponentActivity() {
 fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var previousMessageCount by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.messages.size) {
+    val lastMessage = uiState.messages.lastOrNull()
+    LaunchedEffect(uiState.messages.size, lastMessage?.content, lastMessage?.isStreaming) {
         if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size - 1)
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val isNearBottom = lastVisibleIndex >= uiState.messages.lastIndex - 1
+            val messageCountChanged = uiState.messages.size != previousMessageCount
+            if (
+                shouldFollowLatest(
+                    messageCountChanged = messageCountChanged,
+                    isNearBottom = isNearBottom,
+                    isStreaming = lastMessage?.isStreaming == true,
+                )
+            ) {
+                listState.scrollToItem(uiState.messages.lastIndex, Int.MAX_VALUE)
+            }
         }
+        previousMessageCount = uiState.messages.size
     }
 
     Scaffold(
@@ -123,7 +141,11 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                 ChatInputBar(
                     text = uiState.inputText,
                     onTextChange = { viewModel.onInputChanged(it) },
-                    onSend = { viewModel.sendMessage() },
+                    onSend = {
+                        viewModel.sendMessage()
+                        focusManager.clearFocus(force = true)
+                        keyboardController?.hide()
+                    },
                     onStop = { viewModel.stopGenerating() },
                     isGenerating = uiState.isGenerating,
                 )

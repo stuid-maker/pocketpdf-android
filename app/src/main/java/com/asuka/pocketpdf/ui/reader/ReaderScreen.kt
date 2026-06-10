@@ -63,6 +63,8 @@ import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
 import com.asuka.pocketpdf.ui.theme.PocketSpacing
 
+private val ReaderAiViolet = Color(0xFFA875F0)
+
 @Composable
 fun ReaderScreen(
     title: String,
@@ -262,7 +264,7 @@ fun ReaderScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",
-                        tint = colors.ink,
+                        tint = Color.White,
                     )
                 }
                 Text(
@@ -280,7 +282,7 @@ fun ReaderScreen(
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "搜索",
-                            tint = colors.ink,
+                            tint = Color.White,
                         )
                     }
                 }
@@ -426,6 +428,8 @@ private fun ReaderToolbar(
     onAi: () -> Unit,
 ) {
     val colors = LocalPocketColors.current
+    val canGoPrevious = pageState.pageIndex > 0
+    val canGoNext = pageState.pageIndex + 1 < pageState.pageCount
     Row(
         modifier = Modifier
             .padding(PocketSpacing.Lg)
@@ -449,12 +453,12 @@ private fun ReaderToolbar(
     ) {
         IconButton(
             onClick = { onPageRequested(pageState.pageIndex - 1) },
-            enabled = pageState.pageIndex > 0,
+            enabled = canGoPrevious,
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "上一页",
-                tint = colors.ink,
+                tint = if (canGoPrevious) Color.White else Color.White.copy(alpha = .35f),
             )
         }
         Text(
@@ -467,28 +471,28 @@ private fun ReaderToolbar(
         )
         IconButton(
             onClick = { onPageRequested(pageState.pageIndex + 1) },
-            enabled = pageState.pageIndex + 1 < pageState.pageCount,
+            enabled = canGoNext,
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "下一页",
-                tint = colors.ink,
+                tint = if (canGoNext) Color.White else Color.White.copy(alpha = .35f),
             )
         }
         IconButton(onClick = onSummary) {
-            Icon(Icons.Default.Refresh, contentDescription = "页面摘要", tint = colors.ink)
+            Icon(Icons.Default.Refresh, contentDescription = "页面摘要", tint = Color.White)
         }
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(colors.crystal)
+                .background(ReaderAiViolet)
                 .clickable(onClick = onAi),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "✦",
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .semantics { contentDescription = "文档 AI" }

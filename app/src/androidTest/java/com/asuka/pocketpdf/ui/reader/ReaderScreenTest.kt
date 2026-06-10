@@ -36,8 +36,11 @@ class ReaderScreenTest {
         }
 
         composeRule.onNodeWithText("20 / 29").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("返回").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("上一页").performClick()
         assertEquals(18, requestedPage)
+        composeRule.onNodeWithContentDescription("下一页").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("页面摘要").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("文档 AI").assertIsDisplayed()
     }
 }

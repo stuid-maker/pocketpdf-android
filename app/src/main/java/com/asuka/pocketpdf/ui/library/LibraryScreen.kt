@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -150,7 +151,7 @@ fun LibraryScreen(
                             .background(colors.paper.copy(alpha = .82f))
                             .defaultMinSize(minHeight = 48.dp),
                         color = Color(0xEE302739),
-                        contentColor = colors.ink,
+                        contentColor = Color.White,
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -160,11 +161,13 @@ fun LibraryScreen(
                                 Icons.Default.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(19.dp),
+                                tint = Color.White,
                             )
                             Spacer(Modifier.width(PocketSpacing.Sm))
                             Text(
                                 stringResource(R.string.library_fab_import),
                                 style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
                             )
                         }
                     }
@@ -259,8 +262,11 @@ private fun LibraryHeader(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(26.dp),
-            color = colors.paper.copy(alpha = .68f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+            color = colors.paper.copy(alpha = .92f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = .48f),
+            ),
         ) {
             Column(
                 modifier = Modifier.padding(PocketSpacing.Xl),
@@ -358,8 +364,11 @@ private fun LibrarySearchBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(PocketRadii.Control),
-        color = colors.paper.copy(alpha = .58f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+        color = colors.paper,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = .72f),
+        ),
     ) {
         TextField(
             value = query,
@@ -402,6 +411,11 @@ private fun DismissibleDocumentCard(
     onRetryIndexing: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val deleteColor = if (isSystemInDarkTheme()) {
+        Color(0xFFFF7A8E)
+    } else {
+        MaterialTheme.colorScheme.error
+    }
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
         if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
@@ -416,7 +430,7 @@ private fun DismissibleDocumentCard(
                 modifier = Modifier.fillMaxSize().padding(horizontal = PocketSpacing.Xl),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Text(stringResource(R.string.library_swipe_delete), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.library_swipe_delete), color = deleteColor)
             }
         },
     ) {
