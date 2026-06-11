@@ -1,6 +1,6 @@
 package com.asuka.pocketpdf.domain.model
 
-import com.asuka.pocketpdf.data.pdf.PdfTextPosition
+import com.asuka.pocketpdf.domain.pdf.PdfTextPosition
 import com.asuka.pocketpdf.domain.pdf.PdfPageRect
 
 /**

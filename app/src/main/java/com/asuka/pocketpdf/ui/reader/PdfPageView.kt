@@ -54,7 +54,7 @@ class PdfPageView @JvmOverloads constructor(
     private var lastTapY = 0f
 
     // Fling（滑动手势翻页）
-    private val velocityTracker = VelocityTracker.obtain()
+    private var velocityTracker: VelocityTracker? = VelocityTracker.obtain()
     private val flingThreshold = 300f          // px/s 最小 fling 速度
     private val flingDistanceThreshold = 60f   // px 最小滑动距离
     var onPageFling: ((direction: Int) -> Unit)? = null  // 翻页回调
@@ -185,13 +185,26 @@ class PdfPageView @JvmOverloads constructor(
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (velocityTracker == null) {
+            velocityTracker = VelocityTracker.obtain()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        velocityTracker?.recycle()
+        velocityTracker = null
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val pointerCount = event.pointerCount
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                velocityTracker.clear()
-                velocityTracker.addMovement(event)
+                velocityTracker?.clear()
+                velocityTracker?.addMovement(event)
                 // 取第一个手指作为跟踪指针
                 activePointerId = event.getPointerId(0)
                 val idx = event.findPointerIndex(activePointerId)
@@ -216,7 +229,7 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                velocityTracker.addMovement(event)
+                velocityTracker?.addMovement(event)
                 if (pointerCount >= 2 && isZooming) {
                     // 双指缩放
                     val newSpan = calculateSpan(event)
@@ -284,9 +297,9 @@ class PdfPageView @JvmOverloads constructor(
                 }
 
                 // Fling 检测（仅在 1x 缩放时触发翻页）
-                velocityTracker.computeCurrentVelocity(1000)
-                val vx = abs(velocityTracker.xVelocity)
-                val vy = abs(velocityTracker.yVelocity)
+                velocityTracker?.computeCurrentVelocity(1000)
+                val vx = abs(velocityTracker?.xVelocity ?: 0f)
+                val vy = abs(velocityTracker?.yVelocity ?: 0f)
                 if (currentScale <= 1.05f && vx > flingThreshold && vx > vy * 1.5f) {
                     // 水平 fling 主导 — 用 downX 计算总位移（lastTouchX 已被 MOVE 更新至终点）
                     val totalDx = event.x - downX
@@ -294,7 +307,7 @@ class PdfPageView @JvmOverloads constructor(
                         onPageFling?.invoke(if (totalDx < 0) 1 else -1)
                     }
                 }
-                velocityTracker.clear()
+                velocityTracker?.clear()
 
                 // 单指抬起 → 检测双击
                 val now = event.eventTime

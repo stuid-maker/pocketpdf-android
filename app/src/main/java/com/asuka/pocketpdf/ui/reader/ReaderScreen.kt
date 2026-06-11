@@ -83,6 +83,7 @@ fun ReaderScreen(
     val colors = LocalPocketColors.current
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
     var summarySheetVisible by rememberSaveable { mutableStateOf(false) }
+    var previousSummaryWasIdle by remember { mutableStateOf(true) }
 
     val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
     var searchBarVisible by rememberSaveable { mutableStateOf(false) }
@@ -96,7 +97,11 @@ fun ReaderScreen(
     var selectedAnnotationBmpRect by remember { mutableStateOf(android.graphics.RectF()) }
 
     LaunchedEffect(summaryState) {
-        if (summaryState !is SummaryState.Idle) summarySheetVisible = true
+        val summaryIsIdle = summaryState is SummaryState.Idle
+        if (previousSummaryWasIdle && !summaryIsIdle) {
+            summarySheetVisible = true
+        }
+        previousSummaryWasIdle = summaryIsIdle
     }
 
     val activeSearchPage = searchState?.let {
@@ -364,6 +369,22 @@ fun ReaderScreen(
                 },
             )
         }
+
+        AnimatedVisibility(
+            visible = summaryState !is SummaryState.Idle && !summarySheetVisible,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = PocketSpacing.Lg)
+                .padding(bottom = 96.dp),
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
+        ) {
+            SummaryStatusBar(
+                summaryState = summaryState,
+                onClick = { summarySheetVisible = true },
+            )
+        }
     }
 
     if (summarySheetVisible) {
@@ -375,11 +396,81 @@ fun ReaderScreen(
             onSummarizeDocument = onSummarizeDocument,
             onStop = onStopSummary,
             onOpenChat = onOpenChat,
-            onDismiss = {
-                onStopSummary()
-                summarySheetVisible = false
-            },
+            onDismiss = { summarySheetVisible = false },
         )
+    }
+}
+
+@Composable
+private fun SummaryStatusBar(
+    summaryState: SummaryState,
+    onClick: () -> Unit,
+) {
+    val colors = LocalPocketColors.current
+    val title = when (summaryState) {
+        is SummaryState.Generating -> summaryState.progress.stageLabel
+        is SummaryState.Done -> "全文总结已完成"
+        is SummaryState.Error -> "总结失败，点击查看"
+        SummaryState.Idle -> return
+    }
+    val detail = (summaryState as? SummaryState.Generating)?.progress?.etaLabel
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 10.dp,
+                shape = RoundedCornerShape(PocketRadii.Floating),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
+            )
+            .clip(RoundedCornerShape(PocketRadii.Floating))
+            .background(Color(0xF23B3244))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = .16f),
+                shape = RoundedCornerShape(PocketRadii.Floating),
+            )
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "打开 AI 总结" }
+            .padding(horizontal = PocketSpacing.Lg, vertical = PocketSpacing.Md),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "✦ $title",
+                modifier = Modifier.weight(1f),
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            detail?.let {
+                Text(
+                    text = it,
+                    color = Color.White.copy(alpha = .75f),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+        if (summaryState is SummaryState.Generating) {
+            Spacer(Modifier.height(PocketSpacing.Sm))
+            val fraction = summaryState.progress.fraction
+            if (fraction != null) {
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ReaderAiViolet,
+                    trackColor = Color.White.copy(alpha = .14f),
+                )
+            } else {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ReaderAiViolet,
+                    trackColor = Color.White.copy(alpha = .14f),
+                )
+            }
+        }
     }
 }
 
@@ -536,10 +627,14 @@ private fun ReaderAiSheet(
                 modifier = Modifier.padding(top = PocketSpacing.Xs),
             )
             Text(
-                text = "正在基于第 ${pageIndex + 1} 页与文档索引回答",
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalPocketColors.current.mutedInk,
-                modifier = Modifier.padding(vertical = PocketSpacing.Md),
+                text = when (summaryState) {
+                    is SummaryState.Generating -> summaryState.progress.stageLabel
+                    is SummaryState.Done -> "全文总结已完成"
+                    is SummaryState.Error -> "总结失败"
+                    SummaryState.Idle -> if (isIndexed) "选择总结方式" else "文档索引中..."
+                },
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(top = PocketSpacing.Xs),
             )
             when (summaryState) {
                 SummaryState.Idle -> {
@@ -551,19 +646,61 @@ private fun ReaderAiSheet(
                         ) { Text("总结全文") }
                     }
                 }
-                SummaryState.Loading -> CircularProgressIndicator()
-                is SummaryState.Streaming -> {
-                    Text(summaryState.tokens, style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = onStop) { Text("停止") }
+                is SummaryState.Generating -> {
+                    Text(
+                        text = summaryState.progress.stageLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    summaryState.progress.etaLabel?.let {
+                        Text(
+                            text = it,
+                            color = LocalPocketColors.current.mutedInk,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    val fraction = summaryState.progress.fraction
+                    if (fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = PocketSpacing.Md),
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = PocketSpacing.Md),
+                        )
+                    }
+                    if (summaryState.text.isNotEmpty()) {
+                        Text(summaryState.text, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onDismiss) { Text("收起并继续阅读") }
+                        TextButton(onClick = onStop) { Text("停止生成") }
+                    }
                 }
-                is SummaryState.Done -> Text(
-                    summaryState.fullText,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                is SummaryState.Error -> Text(
-                    summaryState.message,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                is SummaryState.Done -> {
+                    Text(
+                        summaryState.fullText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onSummarizePage) { Text("总结本页") }
+                        TextButton(onClick = onSummarizeDocument) { Text("重新总结全文") }
+                    }
+                }
+                is SummaryState.Error -> {
+                    Text(
+                        summaryState.message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onSummarizePage) { Text("总结本页") }
+                        TextButton(onClick = onSummarizeDocument) { Text("重试全文总结") }
+                    }
+                }
             }
             Spacer(Modifier.height(PocketSpacing.Lg))
             TextButton(onClick = onOpenChat) {

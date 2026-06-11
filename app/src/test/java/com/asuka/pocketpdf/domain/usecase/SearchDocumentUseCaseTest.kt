@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import io.mockk.mockk
 import org.junit.Before
 import org.junit.Test
 
@@ -38,6 +39,7 @@ class SearchDocumentUseCaseTest {
             documentEngine = fakeEngine,
             documentRepository = fakeRepository,
             dispatchers = TestDispatcherProvider(),
+            textExtractor = mockk(relaxed = true),
         )
     }
 

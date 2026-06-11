@@ -9,11 +9,12 @@ import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.core.Result as OperationResult
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
+import com.asuka.pocketpdf.domain.embedding.EmbeddingModelMissingException
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.pdf.PdfExtractorVersion
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -122,11 +123,16 @@ class IndexWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "IndexWorker failed for document #%d", documentId)
-            // 尝试标记 FAILED，如果失败记录日志但不掩盖原始异常
+            // 尝试标记 FAILED，并记录失败原因供 UI 展示
             try {
                 val doc = documentRepo.getDocument(documentId)
                 if (doc != null) {
-                    documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.FAILED))
+                    val reason = when (e) {
+                        is EmbeddingModelMissingException ->
+                            "嵌入模型缺失，请联系开发者或查看帮助"
+                        else -> e.message?.take(200) ?: e.javaClass.simpleName
+                    }
+                    documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.FAILED, indexError = reason))
                 }
             } catch (updateEx: Exception) {
                 Timber.tag(TAG).e(updateEx, "Failed to mark document #%d as FAILED", documentId)

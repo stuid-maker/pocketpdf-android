@@ -61,6 +61,8 @@ data class SettingsActions(
     val onSystemPromptChanged: (String) -> Unit,
     val onConfirmPreset: () -> Unit,
     val onCancelPreset: () -> Unit,
+    val onConfirmCloudPreset: () -> Unit,
+    val onCancelCloudPreset: () -> Unit,
     val onResetDefaults: () -> Unit,
     val onTestConnection: () -> Unit,
 )
@@ -208,6 +210,30 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = actions.onCancelPreset) { Text("取消") }
+            },
+        )
+    }
+
+    if (state.confirmCloudPresetId != null) {
+        val preset = MODEL_PRESETS.find { it.id == state.confirmCloudPresetId }
+        AlertDialog(
+            onDismissRequest = actions.onCancelCloudPreset,
+            title = { Text("云端服务隐私提示") },
+            text = {
+                Text(
+                    "您即将切换到云端 AI 服务「${preset?.label ?: "云端"}」。\n\n" +
+                    "使用云端服务时，您的文档片段和提问内容将被发送到外部服务器进行处理。\n" +
+                    "请确认您了解并同意这一数据外发行为。\n\n" +
+                    "如需了解详情，请查阅隐私政策。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = actions.onConfirmCloudPreset) {
+                    Text("我已了解，继续切换")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.onCancelCloudPreset) { Text("取消") }
             },
         )
     }

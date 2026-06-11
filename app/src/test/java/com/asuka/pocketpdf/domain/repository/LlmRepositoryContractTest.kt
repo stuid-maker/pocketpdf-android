@@ -36,6 +36,7 @@ class LlmRepositoryContractTest {
             model: String,
             messages: List<ChatMessage>,
             temperature: Float?,
+            maxTokens: Int?,
         ): Flow<String> = flowOf("token1", "token2")
 
         override suspend fun testConnection(baseUrl: String): Result<List<LlmModel>> {

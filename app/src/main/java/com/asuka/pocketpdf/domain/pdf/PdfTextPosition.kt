@@ -1,4 +1,4 @@
-package com.asuka.pocketpdf.data.pdf
+package com.asuka.pocketpdf.domain.pdf
 
 /**
  * 单字符/词位置的 PDF 文本坐标。

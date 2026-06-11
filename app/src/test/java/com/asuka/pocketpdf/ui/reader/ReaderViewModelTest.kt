@@ -4,7 +4,9 @@ import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.model.SummaryScope
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.usecase.FullDocumentProgress
 import com.asuka.pocketpdf.domain.usecase.GetDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.SummarizeDocumentUseCase
 import io.mockk.coEvery
@@ -12,6 +14,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -19,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -32,10 +37,12 @@ class ReaderViewModelTest {
     private val repository: DocumentRepository = mockk()
     private val summarizeDocument: SummarizeDocumentUseCase = mockk(relaxed = true)
     private val settingsDataStore: SettingsDataStore = mockk(relaxed = true)
+    private var clockMs = 0L
     private lateinit var viewModel: ReaderViewModel
 
     @Before
     fun setUp() {
+        clockMs = 0L
         Dispatchers.setMain(dispatcher)
         viewModel = ReaderViewModel(
             getDocument = GetDocumentUseCase(repository),
@@ -47,12 +54,15 @@ class ReaderViewModelTest {
                 override val default: CoroutineDispatcher = dispatcher
             },
         )
+        viewModel.elapsedRealtime = { clockMs }
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    // ── existing load tests ────────────────────────────────────────────────
 
     @Test
     fun `load emits Loaded when document exists and file is present`() = runTest(dispatcher) {
@@ -109,6 +119,94 @@ class ReaderViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is ReaderUiState.Error)
         assertEquals("db unavailable", (state as ReaderUiState.Error).message)
+    }
+
+    // ── new summary progress tests ─────────────────────────────────────────
+
+    @Test
+    fun `full summary exposes stage progress before tokens`() = runTest {
+        val pdf = File.createTempFile("reader", ".pdf").apply { deleteOnExit() }
+        val document = STUB.copy(id = 99L, uri = pdf.absolutePath)
+        coEvery { repository.getDocument(99L) } returns document
+        coEvery { settingsDataStore.modelName } returns flowOf("test-model")
+        coEvery { settingsDataStore.systemPrompt } returns flowOf("")
+
+        viewModel.load(99L)
+        runCurrent()
+        assertTrue(viewModel.uiState.value is ReaderUiState.Loaded)
+
+        coEvery {
+            summarizeDocument(
+                documentId = 99L,
+                model = "test-model",
+                scope = SummaryScope.Full,
+                systemPrompt = any(),
+                onProgress = any(),
+            )
+        } answers {
+            val onProgress = arg<(FullDocumentProgress) -> Unit>(5)
+            onProgress(FullDocumentProgress.Preparing)
+            clockMs = 100L
+            onProgress(FullDocumentProgress.Mapping(completed = 1, total = 3))
+            clockMs = 200L
+            flowOf("第一部分")
+        }
+
+        viewModel.summarizeFullDocument()
+        runCurrent()
+
+        // After full completion, state should be Done with all tokens
+        val state = viewModel.uiState.value
+        assertTrue("Expected Loaded but got $state", state is ReaderUiState.Loaded)
+        val loaded = state as ReaderUiState.Loaded
+        val summaryState = loaded.summaryState
+        assertTrue("Expected Done but got $summaryState", summaryState is SummaryState.Done)
+        assertEquals("第一部分", (summaryState as SummaryState.Done).fullText)
+    }
+
+    @Test
+    fun `stop summary cancels active job`() = runTest {
+        val pdf = File.createTempFile("reader", ".pdf").apply { deleteOnExit() }
+        val document = STUB.copy(id = 100L, uri = pdf.absolutePath)
+        coEvery { repository.getDocument(100L) } returns document
+        coEvery { settingsDataStore.modelName } returns flowOf("test-model")
+        coEvery { settingsDataStore.systemPrompt } returns flowOf("")
+
+        viewModel.load(100L)
+        runCurrent()
+        assertTrue(viewModel.uiState.value is ReaderUiState.Loaded)
+
+        coEvery {
+            summarizeDocument(
+                documentId = 100L,
+                model = "test-model",
+                scope = SummaryScope.Full,
+                systemPrompt = any(),
+                onProgress = any(),
+            )
+        } answers {
+            val onProgress = arg<(FullDocumentProgress) -> Unit>(5)
+            onProgress(FullDocumentProgress.Preparing)
+            flow {
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+
+        viewModel.summarizeFullDocument()
+        runCurrent()
+
+        val stateBeforeCancel = viewModel.uiState.value
+        assertTrue(stateBeforeCancel is ReaderUiState.Loaded)
+        val summaryBefore = (stateBeforeCancel as ReaderUiState.Loaded).summaryState
+        assertTrue("Expected Generating but got $summaryBefore", summaryBefore is SummaryState.Generating)
+
+        viewModel.stopSummarizing()
+        runCurrent()
+
+        val stateAfter = viewModel.uiState.value
+        assertTrue(stateAfter is ReaderUiState.Loaded)
+        val summaryAfter = (stateAfter as ReaderUiState.Loaded).summaryState
+        assertEquals(SummaryState.Idle, summaryAfter)
     }
 
     private companion object {

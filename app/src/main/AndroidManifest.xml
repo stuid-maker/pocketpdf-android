@@ -18,6 +18,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PocketPDF">
 
+        <!-- Disable Sentry auto-init via ContentProvider; we initialize manually in PocketPdfApp -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false"
+            tools:replace="android:value" />
+
         <!--
           W2 Day 4: 禁用默认 WorkManager initializer，改用 HiltWorkerFactory。
         -->

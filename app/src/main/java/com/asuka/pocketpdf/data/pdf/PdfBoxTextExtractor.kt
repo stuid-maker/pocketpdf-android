@@ -1,6 +1,9 @@
 package com.asuka.pocketpdf.data.pdf
 
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.domain.pdf.PageTextWithPositions
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextPosition
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.text.PDFTextStripper

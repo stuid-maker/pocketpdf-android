@@ -23,6 +23,7 @@ import com.asuka.pocketpdf.data.local.entity.DocumentEntity
  * - W4 追加 ChatMessageEntity → version = 3 + AutoMigration
  * - W5 追加 AnnotationEntity → version = 4 + AutoMigration
  * - T7 追加 extractorVersion → version = 5 + AutoMigration
+ * - T8 追加 indexError → version = 6 + AutoMigration
  *
  * `exportSchema = true` 让 KSP 把每个版本的 schema 落到 `app/schemas/<dbname>/<version>.json`，
  * 这些 json 进 Git 后续 Code Review 能直观看到表结构 diff。
@@ -34,13 +35,14 @@ import com.asuka.pocketpdf.data.local.entity.DocumentEntity
         ChatMessageEntity::class,
         AnnotationEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
     ]
 )
 @TypeConverters(VectorTypeConverter::class)

@@ -1,0 +1,53 @@
+<h2>主页与阅读器的对比强度</h2>
+<p class="subtitle">两套都保留现有紫水晶风格，区别在卡片、搜索框和 AI 按钮的醒目程度。</p>
+
+<div class="cards">
+  <div class="card" data-choice="balanced" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#f3eef6">
+      <div style="background:#fffafd;border:1px solid #cfc1d7;border-radius:22px;padding:18px;color:#211b28">
+        <div style="font-size:12px;color:#7652a8;font-weight:700">下午好</div>
+        <div style="font-size:23px;font-weight:750;line-height:1.2;margin-top:6px">你的知识，正在形成脉络。</div>
+        <div style="margin-top:15px;background:#ffffff;border:1.5px solid #a993b7;border-radius:16px;padding:12px;color:#62586a">⌕　搜索文档</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+        <div style="background:#d85d72;color:white;border-radius:10px;padding:8px 12px;font-weight:700">删除</div>
+        <div style="background:#7652a8;color:white;border-radius:16px;padding:11px 16px;font-weight:700">＋ 导入 PDF</div>
+      </div>
+      <div style="margin-top:16px;background:#302739;border-radius:18px;padding:12px;display:flex;gap:12px;align-items:center;color:white">
+        <span>←</span><span>⌕</span><span style="flex:1"></span><span>‹</span><span>›</span><span>↻</span>
+        <span style="background:#a875f0;border-radius:12px;padding:8px 12px;font-weight:800">✦ AI</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 克制增强（推荐）</h3>
+      <p>卡片与搜索框清楚可辨，但仍像原生工具；亮紫只集中在 PDF 的 AI 键。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="strong" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#eee6f3">
+      <div style="background:#ffffff;border:2px solid #a98abb;border-radius:22px;padding:18px;color:#211b28;box-shadow:0 8px 22px rgba(72,42,90,.12)">
+        <div style="font-size:12px;color:#684092;font-weight:800">下午好</div>
+        <div style="font-size:23px;font-weight:800;line-height:1.2;margin-top:6px">你的知识，正在形成脉络。</div>
+        <div style="margin-top:15px;background:#fff;border:2px solid #7652a8;border-radius:16px;padding:12px;color:#493d51">⌕　搜索文档</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+        <div style="background:#ef6078;color:white;border-radius:10px;padding:8px 12px;font-weight:800">删除</div>
+        <div style="background:#684092;color:white;border-radius:16px;padding:11px 16px;font-weight:800">＋ 导入 PDF</div>
+      </div>
+      <div style="margin-top:16px;background:#261d2e;border-radius:18px;padding:12px;display:flex;gap:12px;align-items:center;color:white">
+        <span>←</span><span>⌕</span><span style="flex:1"></span><span>‹</span><span>›</span><span>↻</span>
+        <span style="background:#bd85ff;box-shadow:0 0 16px rgba(189,133,255,.55);border-radius:12px;padding:8px 12px;font-weight:900">✦ AI</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 高对比增强</h3>
+      <p>边框、阴影与亮紫更强，第一眼更醒目，但会比当前产品风格更“设计化”。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>两套都会包含的交互修复</h3>
+  <p>发送问题后立即清除输入焦点并收起键盘；列表自动滚动到新建的 AI 回答占位处，并随着回答开始保持用户能看到最新内容。</p>
+</div>

@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.reader
 
 import com.asuka.pocketpdf.domain.model.Document
+import com.asuka.pocketpdf.ui.ai.GenerationProgressDisplay
 
 sealed class ReaderUiState {
     data object Loading : ReaderUiState()
@@ -13,8 +14,10 @@ sealed class ReaderUiState {
 
 sealed class SummaryState {
     data object Idle : SummaryState()
-    data object Loading : SummaryState()
-    data class Streaming(val tokens: String) : SummaryState()
+    data class Generating(
+        val text: String = "",
+        val progress: GenerationProgressDisplay,
+    ) : SummaryState()
     data class Done(val fullText: String) : SummaryState()
     data class Error(val message: String) : SummaryState()
 }

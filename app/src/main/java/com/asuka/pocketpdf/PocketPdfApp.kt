@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import dagger.hilt.android.HiltAndroidApp
+import io.sentry.android.core.SentryAndroid
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -36,8 +37,25 @@ class PocketPdfApp : Application(), Configuration.Provider {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        initSentry()
         PDFBoxResourceLoader.init(applicationContext)
-        Timber.tag(TAG).i("PocketPdfApp onCreate · build=%s", BuildConfig.BUILD_TYPE)
+        Timber.tag(TAG).i("PocketPdfApp onCreate · build=%s · version=%s",
+            BuildConfig.BUILD_TYPE, BuildConfig.VERSION_NAME)
+    }
+
+    private fun initSentry() {
+        val dsn = BuildConfig.SENTRY_DSN
+        if (dsn.isBlank()) {
+            Timber.tag(TAG).d("Sentry DSN not configured, skipping crash reporting")
+            return
+        }
+        SentryAndroid.init(this) { options ->
+            options.dsn = dsn
+            options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.2
+            options.isDebug = BuildConfig.DEBUG
+            options.release = BuildConfig.VERSION_NAME
+        }
+        Timber.tag(TAG).i("Sentry initialized · version=%s", BuildConfig.VERSION_NAME)
     }
 
     private companion object {

@@ -1,6 +1,6 @@
 package com.asuka.pocketpdf.ui.reader
 
-import com.asuka.pocketpdf.data.pdf.PageTextWithPositions
+import com.asuka.pocketpdf.domain.pdf.PageTextWithPositions
 import com.asuka.pocketpdf.domain.model.SearchResult
 
 /**

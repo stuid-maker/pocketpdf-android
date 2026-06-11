@@ -57,7 +57,12 @@ class SettingsViewModel @Inject constructor(
             return
         }
         val current = _uiState.value
-        // 从 custom 切换到其他预设，且用户改了 URL → 弹确认
+        // 云端预设：提示隐私确认
+        if (preset.isCloud()) {
+            _uiState.update { it.copy(confirmCloudPresetId = presetId) }
+            return
+        }
+        // 从 custom 切换到非云端预设，且用户改了 URL → 弹确认
         if (current.selectedPreset == "custom" && current.baseUrl.isNotBlank() && current.baseUrl != preset.baseUrl) {
             _uiState.update { it.copy(confirmPresetId = presetId) }
             return
@@ -82,6 +87,17 @@ class SettingsViewModel @Inject constructor(
         val presetId = _uiState.value.confirmPresetId ?: return
         val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
         applyPreset(preset)
+    }
+
+    fun confirmCloudPreset() {
+        val presetId = _uiState.value.confirmCloudPresetId ?: return
+        val preset = MODEL_PRESETS.find { it.id == presetId } ?: return
+        applyPreset(preset)
+        _uiState.update { it.copy(confirmCloudPresetId = null) }
+    }
+
+    fun cancelCloudPreset() {
+        _uiState.update { it.copy(confirmCloudPresetId = null) }
     }
 
     fun cancelPresetOverride() {

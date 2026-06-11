@@ -9,6 +9,7 @@ import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -25,47 +26,45 @@ class SummarizeDocumentUseCaseTest {
     private val documentRepository = mockk<DocumentRepository>()
     private val llmRepository = mockk<LlmRepository>()
     private val summaryCacheRepository = mockk<SummaryCacheRepository>(relaxUnitFun = true)
+    private val fullDocumentSummarizer = mockk<FullDocumentSummarizer>(relaxed = true)
     private val useCase = SummarizeDocumentUseCase(
         retrieveChunks,
         documentRepository,
         llmRepository,
         summaryCacheRepository,
+        fullDocumentSummarizer,
     )
-
-    private fun result(id: Long, pageIndex: Int, text: String, score: Float = 0.9f) =
-        RetrievalResult(
-            chunk = chunk(id, pageIndex, text),
-            score = score,
-        )
 
     private fun chunk(id: Long, pageIndex: Int, text: String) =
         DocumentChunk(
             id = id, documentId = 1L, pageIndex = pageIndex, chunkIndex = 0, text = text,
-            embedding = floatArrayOf(1f),  // 非空，否则过滤掉
+            embedding = floatArrayOf(1f),
         )
 
     private fun stubStream(vararg tokens: String): Flow<String> = flow {
         tokens.forEach { emit(it) }
     }
 
-    /** 为每个测试设置缓存默认行为：缓存未命中（走 LLM） */
     private fun stubCacheMiss() {
-        every { summaryCacheRepository.get(any(), any()) } returns flowOf(null)
+        every {
+            summaryCacheRepository.get(
+                documentId = any(), scope = any(), algorithmVersion = any(),
+                model = any(), systemPrompt = any(),
+            )
+        } returns flowOf(null)
     }
 
     // ── Full mode ──────────────────────────────────────
 
     @Test
-    fun `full mode streams tokens from semantic retrieval`() = runTest {
+    fun `full mode delegates to FullDocumentSummarizer`() = runTest {
         stubCacheMiss()
-        val results = listOf(
-            result(1, 0, "机器学习"),
-            result(2, 0, "深度学习"),
-            result(3, 1, "自然语言处理"),
-        )
-        coEvery { retrieveChunks(1L, "全文核心内容", 5) } returns results
-        every {
-            llmRepository.chatCompletionStream(model = "gemma-3-4b", messages = any(), temperature = null)
+        coEvery {
+            fullDocumentSummarizer.summarize(
+                documentId = 1L, model = "gemma-3-4b",
+                systemPrompt = any(), question = null,
+                onProgress = any(),
+            )
         } returns stubStream("全文", "总结")
 
         val tokens = useCase(1L, "gemma-3-4b", SummaryScope.Full).toList()
@@ -73,15 +72,20 @@ class SummarizeDocumentUseCaseTest {
     }
 
     @Test
-    fun `full mode throws NoChunksException when document has no chunks`() = runTest {
+    fun `full mode throws NoChunksException from summarizer`() = runTest {
         stubCacheMiss()
-        coEvery { retrieveChunks(1L, "全文核心内容", 5) } returns emptyList()
+        coEvery {
+            fullDocumentSummarizer.summarize(
+                documentId = 1L, model = any(), systemPrompt = any(), question = null,
+                onProgress = any(),
+            )
+        } returns flow { throw NoChunksException(1L) }
 
         try {
             useCase(1L, "gemma-3-4b", SummaryScope.Full).toList()
             assertTrue("Expected NoChunksException", false)
         } catch (e: NoChunksException) {
-            // expected
+            assertEquals(1L, e.documentId)
         }
     }
 
@@ -107,8 +111,7 @@ class SummarizeDocumentUseCaseTest {
     @Test
     fun `page mode throws when no chunks on that page`() = runTest {
         stubCacheMiss()
-        val chunks = emptyList<DocumentChunk>()
-        coEvery { documentRepository.getChunksByPage(1L, 4) } returns chunks
+        coEvery { documentRepository.getChunksByPage(1L, 4) } returns emptyList()
 
         try {
             useCase(1L, "gemma-3-4b", SummaryScope.Page(4)).toList()
@@ -138,18 +141,49 @@ class SummarizeDocumentUseCaseTest {
     // ── Error propagation ──────────────────────────────
 
     @Test
-    fun `propagates exception when LLM call fails`() = runTest {
+    fun `propagates exception when page LLM call fails`() = runTest {
         stubCacheMiss()
-        coEvery { retrieveChunks(1L, "全文核心内容", 5) } returns listOf(result(1, 0, "chunk"))
+        val chunks = listOf(chunk(1, 0, "chunk"))
+        coEvery { documentRepository.getChunksByPage(1L, 0) } returns chunks
         every {
             llmRepository.chatCompletionStream(model = "gemma-3-4b", messages = any(), temperature = null)
         } returns flow { throw IOException("network error") }
 
         try {
-            useCase(1L, "gemma-3-4b", SummaryScope.Full).toList()
+            useCase(1L, "gemma-3-4b", SummaryScope.Page(0)).toList()
             assertTrue("Expected IOException", false)
         } catch (e: IOException) {
             assertEquals("network error", e.message)
         }
+    }
+
+    // ── Progress callback ──────────────────────────────
+
+    @Test
+    fun `full summary forwards progress callback`() = runTest {
+        stubCacheMiss()
+        val events = mutableListOf<FullDocumentProgress>()
+        val progressSlot = slot<(FullDocumentProgress) -> Unit>()
+        coEvery {
+            fullDocumentSummarizer.summarize(
+                documentId = 1L,
+                model = "gemma-3-4b",
+                systemPrompt = any(),
+                question = null,
+                onProgress = capture(progressSlot),
+            )
+        } answers {
+            progressSlot.captured.invoke(FullDocumentProgress.Preparing)
+            flowOf("done")
+        }
+
+        useCase(
+            documentId = 1L,
+            model = "gemma-3-4b",
+            scope = SummaryScope.Full,
+            onProgress = events::add,
+        ).toList()
+
+        assertEquals(listOf(FullDocumentProgress.Preparing), events)
     }
 }

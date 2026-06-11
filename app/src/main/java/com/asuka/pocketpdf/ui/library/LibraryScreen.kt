@@ -511,6 +511,16 @@ private fun DocumentCard(
                         .background(indexColor(document.indexStatus).copy(alpha = .09f))
                         .padding(horizontal = 7.dp, vertical = 3.dp),
                 )
+                if (document.indexStatus == IndexStatus.FAILED && !document.indexError.isNullOrBlank()) {
+                    Spacer(Modifier.width(PocketSpacing.Sm))
+                    Text(
+                        text = document.indexError,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.mutedInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (document.indexStatus == IndexStatus.INDEXING) {
                     Spacer(Modifier.width(PocketSpacing.Sm))
                     LinearProgressIndicator(

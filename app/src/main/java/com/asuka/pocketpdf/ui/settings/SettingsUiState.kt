@@ -14,6 +14,7 @@ data class SettingsUiState(
     val availableModels: List<String> = emptyList(),
     val error: String? = null,
     val confirmPresetId: String? = null,
+    val confirmCloudPresetId: String? = null,
 )
 
 data class ModelPreset(
@@ -44,9 +45,11 @@ private val PRESET_BASE_URL_HINTS = mapOf(
     "lmstudio" to "已自动填充本地 LM Studio 地址",
     "deepseek" to "已自动填充 DeepSeek 官方 API 地址",
     "qwen" to "已自动填充通义千问兼容地址",
-    "custom" to "请输入 LLM 服务器地址（如 http://xxx:1234/v1）",
+    "custom" to "请输入 LLM 服务器地址\n注意：仅支持 localhost、127.0.0.1、10.0.2.2（或通过 adb reverse）",
 )
 
 fun ModelPreset.needsApiKey(): Boolean = id in listOf("deepseek", "qwen")
 
 fun ModelPreset.isLocal(): Boolean = id == "lmstudio"
+
+fun ModelPreset.isCloud(): Boolean = id in listOf("deepseek", "qwen")

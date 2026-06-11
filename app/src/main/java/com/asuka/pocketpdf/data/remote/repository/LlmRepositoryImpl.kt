@@ -4,7 +4,6 @@ import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.core.resultOf
 import com.asuka.pocketpdf.data.local.SettingsDataStore
-import com.asuka.pocketpdf.data.remote.LlmApi
 import com.asuka.pocketpdf.data.remote.SseStreamParser
 import com.asuka.pocketpdf.data.remote.dto.ChatCompletionRequestDto
 import com.asuka.pocketpdf.data.remote.dto.MessageDto
@@ -30,19 +29,12 @@ import java.io.IOException
 import javax.inject.Inject
 
 /**
- * [LlmRepository] 的 Retrofit + OkHttp 实现。
+ * [LlmRepository] 的 OkHttp 实现（无 Retrofit）。
  *
- * 职责：
- * 1. 通过 [LlmApi] 发起非流式 HTTP 调用（listModels）
- * 2. 通过原生 [OkHttpClient] 发起流式 chat completions
- * 3. 把 DTO 映射为 domain model
- * 4. 把异常包成 [Result.Failure] 或通过 Flow emit exception
- *
- * 流式调用绕过 Retrofit 的原因：Retrofit 的 suspend 函数会把整个 response body
- * 读进内存再返回，对大流式响应不适用。原生 OkHttp 直接拿到 [ResponseBody.source]。
+ * 全部 HTTP 调用统一走原生 OkHttp + 动态读取 [SettingsDataStore] 的 baseUrl，
+ * 确保设置页、诊断页、聊天流式调用访问的是同一地址，不存在硬编码分歧。
  */
 class LlmRepositoryImpl @Inject constructor(
-    private val api: LlmApi,
     private val okHttpClient: OkHttpClient,
     private val moshi: Moshi,
     private val settingsDataStore: SettingsDataStore,
@@ -54,7 +46,10 @@ class LlmRepositoryImpl @Inject constructor(
 
     override suspend fun listModels(): Result<List<LlmModel>> =
         withContext(dispatchers.io) {
-            resultOf { api.listModels().data.map(ModelDto::toDomain) }
+            resultOf {
+                val baseUrl = settingsDataStore.baseUrl.first()
+                fetchModels(baseUrl)
+            }
         }
 
     /**
@@ -67,12 +62,14 @@ class LlmRepositoryImpl @Inject constructor(
         model: String,
         messages: List<ChatMessage>,
         temperature: Float?,
+        maxTokens: Int?,
     ): Flow<String> = callbackFlow {
         val requestDto = ChatCompletionRequestDto(
             model = model,
             messages = messages.map { MessageDto(role = it.role, content = it.content) },
             stream = true,
             temperature = temperature,
+            maxTokens = maxTokens,
         )
 
         val requestBody = requestAdapter.toJson(requestDto)
@@ -93,9 +90,11 @@ class LlmRepositoryImpl @Inject constructor(
             .build()
 
         var response: okhttp3.Response? = null
+        var call: okhttp3.Call? = null
         try {
+            call = okHttpClient.newCall(request)
             response = withContext(Dispatchers.IO) {
-                okHttpClient.newCall(request).execute()
+                call!!.execute()
             }
 
             if (!response.isSuccessful) {
@@ -129,36 +128,40 @@ class LlmRepositoryImpl @Inject constructor(
         }
 
         awaitClose {
-            Timber.tag(TAG).d("chatCompletionStream Flow cancelled")
+            Timber.tag(TAG).d("chatCompletionStream Flow cancelled, cancelling HTTP call")
+            call?.cancel()
         }
     }
 
     override suspend fun testConnection(baseUrl: String): Result<List<LlmModel>> =
         withContext(dispatchers.io) {
-            resultOf {
-                val apiKey = settingsDataStore.apiKey.first()
-                val request = Request.Builder()
-                    .url("$baseUrl/models")
-                    .header("Content-Type", "application/json")
-                    .apply {
-                        if (!apiKey.isNullOrBlank()) {
-                            addHeader("Authorization", "Bearer $apiKey")
-                        }
-                    }
-                    .get()
-                    .build()
-                val response = okHttpClient.newCall(request).execute()
-                response.use { resp ->
-                    val body = resp.body?.string() ?: throw IOException("Empty response body")
-                    if (!resp.isSuccessful) {
-                        throw IOException("HTTP ${resp.code}: $body")
-                    }
-                    val modelsResponse = moshi.adapter(ModelsResponseDto::class.java).fromJson(body)
-                        ?: throw IOException("Failed to parse models response")
-                    modelsResponse.data.map(ModelDto::toDomain)
+            resultOf { fetchModels(baseUrl) }
+        }
+
+    /** 向指定 baseUrl 的 /models 端点发送 GET 请求并反序列化模型列表 */
+    private suspend fun fetchModels(baseUrl: String): List<LlmModel> {
+        val apiKey = settingsDataStore.apiKey.first()
+        val request = Request.Builder()
+            .url("$baseUrl/models")
+            .get()
+            .header("Content-Type", "application/json")
+            .apply {
+                if (!apiKey.isNullOrBlank()) {
+                    addHeader("Authorization", "Bearer $apiKey")
                 }
             }
+            .build()
+        val response = okHttpClient.newCall(request).execute()
+        return response.use { resp ->
+            val body = resp.body?.string() ?: throw IOException("Empty response body")
+            if (!resp.isSuccessful) {
+                throw IOException("HTTP ${resp.code}: $body")
+            }
+            val modelsResponse = moshi.adapter(ModelsResponseDto::class.java).fromJson(body)
+                ?: throw IOException("Failed to parse models response")
+            modelsResponse.data.map(ModelDto::toDomain)
         }
+    }
 
     companion object {
         private const val TAG = "LlmRepositoryImpl"

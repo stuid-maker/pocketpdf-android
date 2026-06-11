@@ -5,4 +5,5 @@ data class ChatUiState(
     val inputText: String = "",
     val isGenerating: Boolean = false,
     val error: String? = null,
+    val pageCount: Int = 0,
 )

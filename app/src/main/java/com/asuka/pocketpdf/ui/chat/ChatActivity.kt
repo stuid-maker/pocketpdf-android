@@ -166,7 +166,12 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                 }
             }
             items(uiState.messages, key = { it.id }) { message ->
-                ChatBubble(message, documentId)
+                ChatBubble(
+                    message = message,
+                    documentId = documentId,
+                    onRegenerate = { viewModel.retry() },
+                    pageCount = uiState.pageCount,
+                )
             }
         }
     }
@@ -174,7 +179,7 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null) {
+fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null, pageCount: Int = Int.MAX_VALUE) {
     val isUser = message.role == ChatRole.USER
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
@@ -207,10 +212,47 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
                 ),
         ) {
             Column {
+                message.progress?.let { progress ->
+                    Text(
+                        text = progress.stageLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textColor,
+                    )
+                    progress.etaLabel?.let {
+                        Text(
+                            text = it,
+                            fontSize = 12.sp,
+                            color = textColor.copy(alpha = .72f),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    val fraction = progress.fraction
+                    if (fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    if (message.content.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
                 if (message.isStreaming || isUser) {
-                    Text(message.content.ifEmpty { "…" }, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
+                    if (message.content.isNotEmpty() || message.progress == null) {
+                        Text(
+                            text = message.content.ifEmpty { "…" },
+                            fontFamily = FontFamily.Default,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            color = textColor,
+                        )
+                    }
                 } else {
                     val citations = CitationParser.parseWithRanges(message.content)
+                        .filter { it.pageIndex in 0 until pageCount }
                     if (citations.isEmpty()) {
                         Text(message.content, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
                     } else {
@@ -239,7 +281,10 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
                         )
                     }
                 }
-                if (message.isStreaming) { Spacer(Modifier.height(4.dp)); LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+                if (message.isStreaming && message.progress == null) {
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
             DropdownMenu(
                 expanded = showMenu,

@@ -36,7 +36,7 @@ PocketPDF follows **Clean Architecture** with **MVVM** in a single‑module layo
 
 ```
 ┌──────────────────┐
-│   ui (XML+VM)    │  ← Activities, Fragments, ViewModels, Adapters
+│   ui (Compose+VM)  │  ← Activities, ViewModels, Compose screens
 └────────┬─────────┘
          │ depends on
 ┌────────▼─────────┐
@@ -56,15 +56,15 @@ Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **ze
 |-------|--------|-------|
 | Language | Kotlin 2.0 | [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](https://kotlinlang.org) |
 | Platform | minSdk 26 (Android 8.0+) | [![Android](https://img.shields.io/badge/minSdk-26-3DDC84?logo=android)](https://developer.android.com) |
-| UI | XML + Material Components + ViewBinding | [![Material](https://img.shields.io/badge/Material-3-7C4DFF?logo=materialdesign)](https://m3.material.io) |
+| UI | Jetpack Compose (Material 3) | [![Compose](https://img.shields.io/badge/Compose-M3-4285F4?logo=jetpackcompose)](https://developer.android.com/jetpack/compose) |
 | Architecture | Clean Architecture + MVVM + Repository | — |
 | DI | Hilt | [![Hilt](https://img.shields.io/badge/DI-Hilt-2C3E50?logo=dagger)](https://dagger.dev/hilt) |
 | Async | Coroutines + Flow + StateFlow | [![Coroutines](https://img.shields.io/badge/Coroutines-1.9-18C8D6?logo=kotlin)](https://kotlinlang.org/docs/coroutines-overview.html) |
 | Local DB | Room | [![Room](https://img.shields.io/badge/Room-2.7-15A97E?logo=sqlite)](https://developer.android.com/training/data-storage/room) |
 | Networking | Retrofit + OkHttp + okhttp-sse | [![Retrofit](https://img.shields.io/badge/Retrofit-2.11-E65100?logo=square)](https://square.github.io/retrofit) |
-| PDF Rendering | AndroidPdfViewer / PdfRenderer | — |
+| PDF Rendering | Pdfium-Android | — |
 | PDF Text | PdfBox-Android | — |
-| Embedding | Sentence-Embeddings-Android (MiniLM-L6-v2) | — |
+| Embedding | MediaPipe TextEmbedder (Universal Sentence Encoder) | — |
 | LLM Backend | **LM Studio** (default: Gemma 3 4B-IT Q4_K_M) via OpenAI‑compatible API + `adb reverse` | — |
 | Testing | JUnit4 + MockK + Turbine + Espresso | [![Tests](https://img.shields.io/badge/Tests-JUnit%20%7C%20MockK%20%7C%20Turbine-25A162)](https://github.com/stuid-maker/pocketpdf-android) |
 | CI | GitHub Actions | [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions) |
@@ -108,6 +108,7 @@ Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **ze
 - [Android Studio](https://developer.android.com/studio) (Ladybug or later)
 - Android device or emulator (API 26+)
 - [LM Studio](https://lmstudio.ai/) on your PC (for LLM features)
+- **Embedding model** — the on-device vectorization engine needs a TFLite model file. Download it automatically via the Gradle task (recommended) or manually from Google's official storage bucket.
 
 ### Setup
 
@@ -116,12 +117,19 @@ Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **ze
 git clone https://github.com/stuid-maker/pocketpdf-android.git
 cd pocketpdf-android
 
-# 2. Open in Android Studio
+# 2. Download the embedding model (REQUIRED for AI features)
+#    Download universal_sentence_encoder.tflite (~68 MB) from Google's official bucket:
+#    https://storage.googleapis.com/mediapipe-models/text_embedder/universal_sentence_encoder/float32/1/universal_sentence_encoder.tflite
+#    Place it at: app/src/main/assets/models/universal_sentence_encoder.tflite
+
+# 3. Open in Android Studio
 #    File → Open → select pocketpdf-android → wait for Gradle sync
 
-# 3. Build & run
+# 4. Build & run
 #    Select a device and press Run (▶)
 ```
+
+&gt; **Why is this step needed?** The `.tflite` model file is too large to store in Git (~68 MB). Download it from Google's official MediaPipe model storage bucket. If you skip this step, PDF indexing will fail and all AI features (Q&amp;A, summaries) will be unavailable.
 
 ### LLM Backend (LM Studio)
 

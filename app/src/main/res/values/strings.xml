@@ -26,6 +26,9 @@
     <string name="library_badge_indexing">索引中</string>
     <string name="library_badge_indexed">已索引</string>
     <string name="library_badge_failed">索引失败</string>
+    <string name="library_index_help_dialog_title">索引失败原因</string>
+    <string name="library_index_help_dialog_message_model_missing">您的应用缺少嵌入模型文件（universal_sentence_encoder.tflite）。\\n\\n请从以下地址下载模型文件（约 68 MB）：\\nhttps://storage.googleapis.com/mediapipe-models/text_embedder/universal_sentence_encoder/float32/1/universal_sentence_encoder.tflite\\n\\n并将其放入 app/src/main/assets/models/ 目录，然后重新构建并安装应用。\\n\\n返回此页面后重试索引即可。</string>
+    <string name="library_index_help_dialog_ok">知道了</string>
     <string name="library_badge_needs_ocr">需要 OCR</string>
     <string name="library_display_name_fallback">未命名 PDF · %1$s</string>
     <string name="library_import_failed">导入失败：%1$s</string>

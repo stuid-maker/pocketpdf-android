@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.data.embedding
 
 import android.content.Context
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
+import com.asuka.pocketpdf.domain.embedding.EmbeddingModelMissingException
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder.TextEmbedderOptions
@@ -22,8 +23,11 @@ class MediaPipeEmbeddingEngine @Inject constructor(
 
     /**
      * 初始化 MediaPipe TextEmbedder。
-     * 默认使用 Universal Sentence Encoder 或类似模型（需要 .tflite 格式）。
-     * 模型文件需放入 assets/models/ 目录。
+     * 默认使用 Universal Sentence Encoder（需要 .tflite 格式）。
+     * 模型文件需放入 assets/models/ 目录，可通过 Gradle 任务自动下载或手动放置。
+     *
+     * 初始化失败时抛 [EmbeddingModelMissingException]，
+     * 由上层（IndexWorker → Document FAILED → Library 页）向用户展示可读原因。
      */
     private fun ensureInitialized() {
         if (textEmbedder == null) {
@@ -31,7 +35,7 @@ class MediaPipeEmbeddingEngine @Inject constructor(
                 if (textEmbedder == null) {
                     try {
                         val baseOptions = BaseOptions.builder()
-                            .setModelAssetPath("models/universal_sentence_encoder.tflite")
+                            .setModelAssetPath(MODEL_ASSET_PATH)
                             .build()
 
                         val options = TextEmbedderOptions.builder()
@@ -42,8 +46,10 @@ class MediaPipeEmbeddingEngine @Inject constructor(
                         Timber.d("MediaPipe TextEmbedder initialized successfully")
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to initialize MediaPipe TextEmbedder")
-                        // 注意：由于是 Singleton 且在后台运行，这里不抛出异常，
-                        // 但后续 encode 会失败。
+                        throw EmbeddingModelMissingException(
+                            modelPath = MODEL_ASSET_PATH,
+                            originalError = e.message ?: e.javaClass.simpleName,
+                        )
                     }
                 }
             }
@@ -64,5 +70,9 @@ class MediaPipeEmbeddingEngine @Inject constructor(
         texts.map { text ->
             embedder.embed(text).embeddingResult().embeddings().first().floatEmbedding()
         }
+    }
+
+    companion object {
+        const val MODEL_ASSET_PATH = "models/universal_sentence_encoder.tflite"
     }
 }

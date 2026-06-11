@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.data.chunking.ParagraphChunker
 import com.asuka.pocketpdf.data.local.SettingsDataStore
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.Document

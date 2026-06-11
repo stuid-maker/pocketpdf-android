@@ -1,7 +1,9 @@
 package com.asuka.pocketpdf.data.pdf
 
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.domain.pdf.PageTextWithPositions
 import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject

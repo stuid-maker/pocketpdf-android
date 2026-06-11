@@ -1,10 +1,10 @@
 package com.asuka.pocketpdf.domain.usecase
 
 import com.asuka.pocketpdf.core.DispatcherProvider
-import com.asuka.pocketpdf.data.pdf.PageTextWithPositions
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.model.SearchResult
+import com.asuka.pocketpdf.domain.pdf.PageTextWithPositions
 import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
@@ -24,6 +24,7 @@ open class SearchDocumentUseCase @Inject constructor(
     private val documentEngine: PdfDocumentEngine,
     private val documentRepository: DocumentRepository,
     private val dispatchers: DispatcherProvider,
+    private val textExtractor: PdfTextExtractor,
 ) {
     open suspend operator fun invoke(
         documentId: Long,
@@ -97,9 +98,6 @@ open class SearchDocumentUseCase @Inject constructor(
                         IllegalStateException("File not found: ${doc.uri}"),
                     )
                 }
-                // 仍然需要 PdfTextExtractor 来提取完整字符坐标
-                val textExtractor =
-                    com.asuka.pocketpdf.data.pdf.PdfBoxTextExtractor(dispatchers)
                 Result.success(textExtractor.extractPagesTextWithPositions(file))
             } catch (e: Exception) {
                 Result.failure(e)

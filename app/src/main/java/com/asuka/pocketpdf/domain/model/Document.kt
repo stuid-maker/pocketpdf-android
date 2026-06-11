@@ -12,6 +12,7 @@ package com.asuka.pocketpdf.domain.model
  * - [indexStatus]：见 [IndexStatus]，包含待索引、索引中、已索引、需 OCR 和失败状态。
  * - [extractorVersion]：生成当前索引的文本提取器版本，用于升级后自动失效重建。
  * - [importedAt]：Unix epoch 毫秒；列表按此倒序展示。
+ * - [indexError]：索引失败时的原因描述（如模型缺失、嵌入超时）。仅当 status=FAILED 时有效。
  *
  * 纯 Kotlin data class，不依赖任何 Android / Room 类型——确保能在 JVM 单测里直接构造。
  */
@@ -23,4 +24,5 @@ data class Document(
     val indexStatus: IndexStatus,
     val importedAt: Long,
     val extractorVersion: Int = 0,
+    val indexError: String? = null,
 )

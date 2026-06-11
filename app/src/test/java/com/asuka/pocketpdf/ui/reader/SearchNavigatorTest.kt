@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.ui.reader
 
 import com.asuka.pocketpdf.domain.model.SearchResult
 import com.asuka.pocketpdf.domain.usecase.SearchDocumentUseCase
+import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -225,6 +226,7 @@ class SearchNavigatorTest {
             override val io: CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             override val default: CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Unconfined
         },
+        textExtractor = mockk(relaxed = true),
     ) {
         override suspend fun invoke(
             documentId: Long,
@@ -236,7 +238,7 @@ class SearchNavigatorTest {
 
         override suspend fun extractPageTextPositions(
             documentId: Long,
-        ): Result<List<com.asuka.pocketpdf.data.pdf.PageTextWithPositions>> =
+        ): Result<List<com.asuka.pocketpdf.domain.pdf.PageTextWithPositions>> =
             Result.success(emptyList())
     }
 }
