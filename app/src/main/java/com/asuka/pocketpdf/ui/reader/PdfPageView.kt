@@ -3,11 +3,15 @@ package com.asuka.pocketpdf.ui.reader
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -27,7 +31,9 @@ class PdfPageView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
+    private var sourceBitmap: Bitmap? = null
     private var pageBitmap: Bitmap? = null
+    private var ownsPageBitmap = false
     private val drawMatrix = Matrix()
     private val bitmapRect = RectF()
     private val viewRect = RectF()
@@ -47,15 +53,56 @@ class PdfPageView @JvmOverloads constructor(
     private var lastTapX = 0f
     private var lastTapY = 0f
 
+    // Fling（滑动手势翻页）
+    private var velocityTracker: VelocityTracker? = VelocityTracker.obtain()
+    private val flingThreshold = 300f          // px/s 最小 fling 速度
+    private val flingDistanceThreshold = 60f   // px 最小滑动距离
+    var onPageFling: ((direction: Int) -> Unit)? = null  // 翻页回调
+
+    // 长按检测
+    private var downX = 0f
+    private var downY = 0f
+    private var longPressFired = false       // 防止长按后 onTouchListener 也触发 onTap
+    var onLongPress: ((x: Float, y: Float) -> Unit)? = null
+
+    // 搜索高亮画笔
+    private val highlightPaint = Paint().apply {
+        color = Color.argb(80, 255, 200, 0)   // 半透明黄色
+        style = Paint.Style.FILL
+    }
+    private val currentHighlightPaint = Paint().apply {
+        color = Color.argb(120, 255, 140, 0)  // 半透明橙色
+        style = Paint.Style.FILL
+    }
+
+    private var searchHighlights: List<RectF> = emptyList()
+    private var currentHighlightIndices: Set<Int> = emptySet()
+
+    // 标注渲染
+    private val annotationHighlightPaint = Paint().apply {
+        style = Paint.Style.FILL
+    }
+    private val annotationUnderlinePaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    private var annotations: List<com.asuka.pocketpdf.domain.model.Annotation> = emptyList()
+
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
 
     /** 设置当前页的位图并重置缩放 */
     fun setBitmap(bitmap: Bitmap?) {
+        if (bitmap === sourceBitmap) return
+        if (ownsPageBitmap) {
+            pageBitmap?.recycle()
+        }
+        sourceBitmap = bitmap
         pageBitmap = bitmap?.let {
             if (it.isMutable) Bitmap.createBitmap(it) else it
         }
+        ownsPageBitmap = bitmap?.isMutable == true
         currentScale = 1f
         if (pageBitmap != null) {
             fitToCenter()
@@ -72,11 +119,83 @@ class PdfPageView @JvmOverloads constructor(
         invalidate()
     }
 
+    /** 设置搜索高亮区域（PDF 页面坐标系） */
+    fun setSearchHighlights(highlights: List<RectF>, currentIndices: Set<Int>) {
+        this.searchHighlights = highlights
+        this.currentHighlightIndices = currentIndices
+        invalidate()
+    }
+
+    /** 清除搜索高亮 */
+    fun clearSearchHighlights() {
+        searchHighlights = emptyList()
+        currentHighlightIndices = emptySet()
+        invalidate()
+    }
+
+    /** 是否刚刚触发了长按（供外部 onTouchListener 判断是否跳过 onTap） */
+    fun consumeLongPressFlag(): Boolean {
+        val fired = longPressFired
+        longPressFired = false
+        return fired
+    }
+
+    /** 将屏幕触摸坐标转换为 PDF user-space 坐标（需要外部提供 bitmap→PDF 缩放比） */
+    fun screenToPdfCoord(screenX: Float, screenY: Float): Pair<Float, Float> {
+        val inverse = Matrix()
+        if (!drawMatrix.invert(inverse)) return Pair(0f, 0f)
+        val pts = floatArrayOf(screenX, screenY)
+        inverse.mapPoints(pts)
+        return Pair(pts[0], pts[1])
+    }
+
+    /** 设置标注列表 */
+    fun setAnnotations(annotations: List<com.asuka.pocketpdf.domain.model.Annotation>) {
+        this.annotations = annotations
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         pageBitmap?.let { bitmap ->
             canvas.drawBitmap(bitmap, drawMatrix, null)
         }
+        // 绘制搜索高亮
+        for ((i, rect) in searchHighlights.withIndex()) {
+            val mappedRect = RectF(rect)
+            drawMatrix.mapRect(mappedRect)
+            val paint = if (i in currentHighlightIndices) currentHighlightPaint else highlightPaint
+            canvas.drawRect(mappedRect, paint)
+        }
+        // 绘制标注
+        for (annotation in annotations) {
+            val rect = RectF(annotation.rect)
+            drawMatrix.mapRect(rect)
+            when (annotation.type) {
+                com.asuka.pocketpdf.domain.model.AnnotationType.HIGHLIGHT -> {
+                    annotationHighlightPaint.color = annotation.color
+                    annotationHighlightPaint.alpha = 100
+                    canvas.drawRect(rect, annotationHighlightPaint)
+                }
+                com.asuka.pocketpdf.domain.model.AnnotationType.UNDERLINE -> {
+                    annotationUnderlinePaint.color = annotation.color
+                    canvas.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, annotationUnderlinePaint)
+                }
+            }
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (velocityTracker == null) {
+            velocityTracker = VelocityTracker.obtain()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        velocityTracker?.recycle()
+        velocityTracker = null
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -84,6 +203,8 @@ class PdfPageView @JvmOverloads constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                velocityTracker?.clear()
+                velocityTracker?.addMovement(event)
                 // 取第一个手指作为跟踪指针
                 activePointerId = event.getPointerId(0)
                 val idx = event.findPointerIndex(activePointerId)
@@ -92,6 +213,9 @@ class PdfPageView @JvmOverloads constructor(
                 lastSpan = 0f
                 isZooming = false
                 downTime = event.eventTime
+                downX = event.x
+                downY = event.y
+                longPressFired = false
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -105,6 +229,7 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                velocityTracker?.addMovement(event)
                 if (pointerCount >= 2 && isZooming) {
                     // 双指缩放
                     val newSpan = calculateSpan(event)
@@ -153,9 +278,38 @@ class PdfPageView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP -> {
-                // 单指抬起 → 检测双击
+                // 长按检测
                 val upX = event.x
                 val upY = event.y
+                val totalSpan = sqrt((upX - downX) * (upX - downX) + (upY - downY) * (upY - downY))
+                val pressDuration = event.eventTime - downTime
+                if (pressDuration > 500L && totalSpan < 20f && currentScale <= 1.05f) {
+                    longPressFired = true
+                    // 转换为 bitmap 坐标再回调
+                    val inverse = Matrix()
+                    if (drawMatrix.invert(inverse)) {
+                        val pts = floatArrayOf(upX, upY)
+                        inverse.mapPoints(pts)
+                        onLongPress?.invoke(pts[0], pts[1])
+                    } else {
+                        onLongPress?.invoke(upX, upY)
+                    }
+                }
+
+                // Fling 检测（仅在 1x 缩放时触发翻页）
+                velocityTracker?.computeCurrentVelocity(1000)
+                val vx = abs(velocityTracker?.xVelocity ?: 0f)
+                val vy = abs(velocityTracker?.yVelocity ?: 0f)
+                if (currentScale <= 1.05f && vx > flingThreshold && vx > vy * 1.5f) {
+                    // 水平 fling 主导 — 用 downX 计算总位移（lastTouchX 已被 MOVE 更新至终点）
+                    val totalDx = event.x - downX
+                    if (abs(totalDx) > flingDistanceThreshold) {
+                        onPageFling?.invoke(if (totalDx < 0) 1 else -1)
+                    }
+                }
+                velocityTracker?.clear()
+
+                // 单指抬起 → 检测双击
                 val now = event.eventTime
                 val elapsed = now - lastTapTime
                 val distance = sqrt((upX - lastTapX) * (upX - lastTapX) + (upY - lastTapY) * (upY - lastTapY))

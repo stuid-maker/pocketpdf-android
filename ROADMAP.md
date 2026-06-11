@@ -25,7 +25,7 @@ DDL：2026-06-15（周日，第 5 周末）
 - [x] PowerShell 跑 `curl http://localhost:1234/v1/models` 列出模型
 - [x] 模拟器跑通 PingActivity（Medium_Phone_API_36.1 / Android 16）
 - [x] `adb reverse tcp:1234 tcp:1234` 已配
-- [x] App 里 PingActivity：按钮 → `LlmApi.listModels()` → Toast 显示 `google/gemma-3-4b`
+- [x] App 里 PingActivity：按钮 → OkHttp 调用 `/v1/models`（统一走 `LlmRepositoryImpl`，不再用 Retrofit）→ Toast 显示 `google/gemma-3-4b`
 - [x] 打 tag `v0.0.1-env-ready`，写 `week0.md` 收尾
 
 **验收**：✅ 模拟器上点按钮，Toast 显示 `google/gemma-3-4b`，TextView 列出全部 3 个已加载模型；OkHttp 拦截器看到 `200 OK ... (14ms)`。截图 `docs/screenshots/w0-ping-success.png`。
@@ -78,8 +78,8 @@ DDL：2026-06-15（周日，第 5 周末）
 **目标**：能让 LLM 基于文档片段生成内容。
 
 - [ ] `RetrieveChunksUseCase`（余弦相似度 Top-K，K=5）
-- [ ] Retrofit + OkHttp 配置，超时 60s，日志拦截器
-- [ ] `LlmApi`：`/v1/chat/completions`、`/v1/models`（embedding 走端侧 ONNX，不走 HTTP）
+- [x] OkHttp 配置（原生），超时 60s，日志拦截器（已移除 Retrofit，统一用 OkHttp 动态 baseUrl）
+- [x] `LlmRepositoryImpl`：统一原生 OkHttp 实现 `/v1/chat/completions`（流式 SSE）、`/v1/models`（已移除 Retrofit LlmApi 接口）
 - [ ] SSE / NDJSON 流式响应 → `Flow<String>`
 - [ ] `SummarizeDocumentUseCase`（MapReduce：每 chunk 出小结 → 合并）
 - [ ] 阅读器顶部按钮："总结本页" / "总结全文"

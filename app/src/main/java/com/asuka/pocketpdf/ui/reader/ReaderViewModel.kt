@@ -1,14 +1,18 @@
 package com.asuka.pocketpdf.ui.reader
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.DispatcherProvider
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.model.SummaryScope
+import com.asuka.pocketpdf.domain.usecase.FullDocumentProgress
 import com.asuka.pocketpdf.domain.usecase.GetDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.NoChunksException
 import com.asuka.pocketpdf.domain.usecase.NoChunksForPageException
 import com.asuka.pocketpdf.domain.usecase.SummarizeDocumentUseCase
+import com.asuka.pocketpdf.ui.ai.GenerationProgressDisplay
+import com.asuka.pocketpdf.ui.ai.GenerationProgressEstimator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -30,6 +34,9 @@ class ReaderViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val dispatchers: DispatcherProvider,
 ) : ViewModel() {
+
+    /** Overridable in tests to control progress timing. Default: realtime clock. */
+    var elapsedRealtime: () -> Long = SystemClock::elapsedRealtime
 
     private val _uiState = MutableStateFlow<ReaderUiState>(ReaderUiState.Loading)
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
@@ -84,8 +91,15 @@ class ReaderViewModel @Inject constructor(
     private fun startSummary(documentId: Long, scope: SummaryScope) {
         if (summaryJob?.isActive == true) return
 
-        updateSummaryState(SummaryState.Loading)
+        val estimator = GenerationProgressEstimator()
         val accumulated = StringBuilder()
+        var latestProgress: GenerationProgressDisplay = GenerationProgressDisplay(
+            fraction = null,
+            stageLabel = "准备中",
+            remainingSeconds = null,
+        )
+        updateSummaryState(SummaryState.Generating(text = "", progress = latestProgress))
+
         summaryJob = viewModelScope.launch {
             val model = settingsDataStore.modelName.first()
             val systemPrompt = settingsDataStore.systemPrompt.first()
@@ -95,9 +109,24 @@ class ReaderViewModel @Inject constructor(
                     model = model,
                     scope = scope,
                     systemPrompt = systemPrompt,
+                    onProgress = { event ->
+                        val display = estimator.update(event, elapsedRealtime())
+                        latestProgress = display
+                        updateSummaryState(
+                            SummaryState.Generating(
+                                text = accumulated.toString(),
+                                progress = display,
+                            )
+                        )
+                    },
                 ).collect { token ->
                     accumulated.append(token)
-                    updateSummaryState(SummaryState.Streaming(accumulated.toString()))
+                    updateSummaryState(
+                        SummaryState.Generating(
+                            text = accumulated.toString(),
+                            progress = latestProgress,
+                        )
+                    )
                 }
                 updateSummaryState(SummaryState.Done(accumulated.toString()))
             } catch (e: CancellationException) {

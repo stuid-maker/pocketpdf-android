@@ -1,12 +1,15 @@
 package com.asuka.pocketpdf.data.pdf
 
 import com.asuka.pocketpdf.core.DispatcherProvider
+import com.asuka.pocketpdf.domain.pdf.PageTextWithPositions
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextPosition
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import com.tom_roush.pdfbox.text.TextPosition
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [PdfTextExtractor] 的 PdfBox-Android 实现。
@@ -24,8 +27,7 @@ import javax.inject.Singleton
  *
  * 注意页码：PDFTextStripper 的 page 从 **1 开始**，循环 1..numberOfPages 而不是 0..n-1。
  */
-@Singleton
-class PdfBoxTextExtractor @Inject constructor(
+class PdfBoxTextExtractor(
     private val dispatchers: DispatcherProvider,
 ) : PdfTextExtractor {
 
@@ -47,4 +49,53 @@ class PdfBoxTextExtractor @Inject constructor(
             document.close()
         }
     }
+
+    override suspend fun extractPagesTextWithPositions(file: File): List<PageTextWithPositions> =
+        withContext(dispatchers.io) {
+            val document = PDDocument.load(file)
+            try {
+                val total = document.numberOfPages
+                if (total == 0) return@withContext emptyList()
+                buildList(total) {
+                    for (page in 1..total) {
+                        val pdPage = document.getPage(page - 1)
+                        val mediaBox: PDRectangle = pdPage.mediaBox
+                        val pageWidth = mediaBox.width
+                        val pageHeight = mediaBox.height
+                        val positions = mutableListOf<PdfTextPosition>()
+                        var runningOffset = 0  // 追踪当前字符偏移
+                        val stripper = object : PDFTextStripper() {
+                            override fun writeString(
+                                text: String,
+                                textPositions: List<TextPosition>,
+                            ) {
+                                for (tp in textPositions) {
+                                    val len = tp.unicode.length
+                                    positions.add(
+                                        PdfTextPosition(
+                                            text = tp.unicode,
+                                            pageIndex = page - 1,
+                                            x = tp.xDirAdj,
+                                            y = tp.yDirAdj,
+                                            width = tp.widthDirAdj,
+                                            height = tp.heightDir,
+                                            charStart = runningOffset,
+                                            charEnd = runningOffset + len,
+                                        ),
+                                    )
+                                    runningOffset += len
+                                }
+                                super.writeString(text, textPositions)
+                            }
+                        }
+                        stripper.startPage = page
+                        stripper.endPage = page
+                        val fullText = stripper.getText(document)
+                        add(PageTextWithPositions(page - 1, fullText, positions, pageWidth, pageHeight))
+                    }
+                }
+            } finally {
+                document.close()
+            }
+        }
 }

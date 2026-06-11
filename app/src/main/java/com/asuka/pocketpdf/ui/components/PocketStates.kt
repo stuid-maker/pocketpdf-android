@@ -36,8 +36,8 @@ fun PocketEmptyState(
             .shadow(
                 elevation = 3.dp,
                 shape = RoundedCornerShape(PocketRadii.Floating),
-                ambientColor = Color(0x10302739),
-                spotColor = Color(0x10302739),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
             .background(
                 colors.paper.copy(alpha = .82f),

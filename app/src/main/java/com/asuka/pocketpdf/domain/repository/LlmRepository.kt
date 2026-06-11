@@ -29,6 +29,7 @@ interface LlmRepository {
         model: String,
         messages: List<ChatMessage>,
         temperature: Float? = null,
+        maxTokens: Int? = null,
     ): Flow<String>
 
     /**

@@ -7,6 +7,7 @@ import com.asuka.pocketpdf.data.indexing.IndexingScheduler
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.IndexStatus
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
+import com.asuka.pocketpdf.domain.pdf.PdfExtractorVersion
 import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
@@ -59,6 +60,7 @@ class LibraryViewModel @Inject constructor(
 
     private val pendingDeleteJobs = mutableMapOf<Long, Job>()
     private val staleIndexingUpdates = mutableSetOf<Long>()
+    private val staleExtractorUpdates = mutableSetOf<Long>()
 
     private val _oneShotEvents = Channel<LibraryEvent>(Channel.BUFFERED)
     val oneShotEvents = _oneShotEvents.receiveAsFlow()
@@ -75,6 +77,13 @@ class LibraryViewModel @Inject constructor(
             ) {
                 document.copy(indexStatus = IndexStatus.FAILED).also { recovered ->
                     markStaleIndexingFailed(recovered)
+                }
+            } else if (
+                document.indexStatus == IndexStatus.INDEXED &&
+                document.extractorVersion < PdfExtractorVersion.CURRENT
+            ) {
+                document.copy(indexStatus = IndexStatus.NOT_INDEXED).also { stale ->
+                    rebuildStaleExtractorIndex(stale)
                 }
             } else {
                 document
@@ -174,6 +183,29 @@ class LibraryViewModel @Inject constructor(
                     Timber.tag(TAG).e(
                         result.error,
                         "Failed to persist stale indexing recovery for document #%d",
+                        document.id,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun rebuildStaleExtractorIndex(document: Document) {
+        if (!staleExtractorUpdates.add(document.id)) return
+        viewModelScope.launch {
+            when (val result = documentRepository.updateDocument(document)) {
+                is Result.Success -> {
+                    Timber.tag(TAG).i(
+                        "Rebuilding stale extractor index for document #%d",
+                        document.id,
+                    )
+                    enqueueIndexing(document.id)
+                }
+                is Result.Failure -> {
+                    staleExtractorUpdates.remove(document.id)
+                    Timber.tag(TAG).e(
+                        result.error,
+                        "Failed to invalidate stale extractor index for document #%d",
                         document.id,
                     )
                 }

@@ -29,13 +29,13 @@ datastore = "1.1.1"
 
 # PDF
 pdfboxAndroid = "2.0.27.0"
+pdfiumAndroid = "1.0.30"
 
 # AI / Embedding
 # MediaPipe Text Embedder (Official Google Library)
 mediapipe = "0.10.14"
 
 # Network
-retrofit = "2.11.0"
 okhttp = "4.12.0"
 moshi = "1.15.1"
 
@@ -44,6 +44,9 @@ composeBom = "2024.09.00"
 
 # Logging
 timber = "5.0.1"
+
+# Crash Monitoring
+sentry-android = "7.15.0"
 
 # Test
 junit = "4.13.2"
@@ -83,29 +86,28 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
-	androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+    androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-	# Compose
-	compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-	compose-ui = { group = "androidx.compose.ui", name = "ui" }
-	compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-	compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-	compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-	compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-	compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-	compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-	compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
-	androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+    # Compose
+    compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+    compose-ui = { group = "androidx.compose.ui", name = "ui" }
+    compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+    compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+    compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+    compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+    compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+    compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+    compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
+    androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 
 # PDF
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+pdfium-android = { group = "io.legere", name = "pdfiumandroid", version.ref = "pdfiumAndroid" }
 
 # AI / Embedding
 mediapipe-tasks-text = { group = "com.google.mediapipe", name = "tasks-text", version.ref = "mediapipe" }
 
 # Network
-retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
-retrofit-converter-moshi = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
@@ -115,6 +117,9 @@ moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-code
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+
+# Crash Monitoring
+sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry-android" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -129,6 +134,6 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-	ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+    ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
-	kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+    kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.reader
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,9 +57,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.asuka.pocketpdf.domain.model.Annotation
+import com.asuka.pocketpdf.domain.model.AnnotationType
 import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
 import com.asuka.pocketpdf.ui.theme.PocketSpacing
+
+private val ReaderAiViolet = Color(0xFFA875F0)
 
 @Composable
 fun ReaderScreen(
@@ -70,21 +77,149 @@ fun ReaderScreen(
     onSummarizeDocument: () -> Unit,
     onStopSummary: () -> Unit,
     onOpenChat: () -> Unit,
+    searchViewModel: SearchViewModel? = null,
+    annotationViewModel: AnnotationViewModel? = null,
 ) {
     val colors = LocalPocketColors.current
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
     var summarySheetVisible by rememberSaveable { mutableStateOf(false) }
+    var previousSummaryWasIdle by remember { mutableStateOf(true) }
+
+    val searchState by searchViewModel?.uiState?.collectAsState() ?: remember { mutableStateOf(null) }
+    var searchBarVisible by rememberSaveable { mutableStateOf(false) }
+
+    // 标注工具栏状态
+    var annotationToolbarVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedAnnotationText by rememberSaveable { mutableStateOf("") }
+    // 当前选中文本的 PDF 坐标（用于创建标注矩形）
+    var selectedAnnotationRect by remember { mutableStateOf(android.graphics.RectF()) }
+    // 当前选中文本的 bitmap 坐标（已缩放，用于 PdfPageView 渲染）
+    var selectedAnnotationBmpRect by remember { mutableStateOf(android.graphics.RectF()) }
 
     LaunchedEffect(summaryState) {
-        if (summaryState !is SummaryState.Idle) summarySheetVisible = true
+        val summaryIsIdle = summaryState is SummaryState.Idle
+        if (previousSummaryWasIdle && !summaryIsIdle) {
+            summarySheetVisible = true
+        }
+        previousSummaryWasIdle = summaryIsIdle
+    }
+
+    val activeSearchPage = searchState?.let {
+        activeSearchPage(it.results, it.currentMatchIndex)
+    }
+    LaunchedEffect(activeSearchPage) {
+        if (activeSearchPage != null && activeSearchPage != pageState.pageIndex) {
+            onPageRequested(activeSearchPage)
+        }
     }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF29252D)),
     ) {
+        // 计算搜索高亮
+        val searchHighlights: List<RectF>
+        val currentHighlightIndices: Set<Int>
+        val st = searchState
+        val bmp = pageState.bitmap
+        if (st != null && bmp != null && st.totalMatches > 0 && st.rectsAvailable()) {
+            val layout = buildSearchHighlightLayout(
+                results = st.results,
+                currentMatchIndex = st.currentMatchIndex,
+                pageIndex = pageState.pageIndex,
+                bitmapWidth = bmp.width,
+                bitmapHeight = bmp.height,
+            )
+            searchHighlights = layout.rects
+            currentHighlightIndices = layout.currentRectIndices
+        } else {
+            searchHighlights = emptyList()
+            currentHighlightIndices = emptySet()
+        }
+
         PdfPageHost(
             bitmap = pageState.bitmap,
             onTap = { chromeVisible = !chromeVisible },
+            onPageFling = { direction ->
+                val newPage = pageState.pageIndex + direction
+                if (newPage in 0 until pageState.pageCount) {
+                    onPageRequested(newPage)
+                }
+            },
+            onLongPress = { bmpX, bmpY ->
+                // 优先使用全页文字坐标缓存（独立于搜索）
+                val state = searchState
+                val bmp = pageState.bitmap
+                selectedAnnotationText = ""
+                if (state != null && bmp != null) {
+                    // 尝试从 pageTextCache 获取当前页文字坐标
+                    val pageText = state.pageTextCache[pageState.pageIndex]
+                    if (pageText != null) {
+                        val scaleX = if (pageText.pdfPageWidth > 0) bmp.width / pageText.pdfPageWidth else 1f
+                        val scaleY = if (pageText.pdfPageHeight > 0) bmp.height / pageText.pdfPageHeight else 1f
+                        val pdfX = bmpX / scaleX
+                        val pdfY = bmpY / scaleY
+                        // 遍历该页所有文字位置，找到被触摸的单词
+                        for (pos in pageText.positions) {
+                            if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
+                                pdfY >= pos.y - pos.height && pdfY <= pos.y
+                            ) {
+                                selectedAnnotationText = pos.text
+                                val rect = android.graphics.RectF(
+                                    pos.x * scaleX, (pos.y - pos.height) * scaleY,
+                                    (pos.x + pos.width) * scaleX, pos.y * scaleY,
+                                )
+                                selectedAnnotationRect = android.graphics.RectF(pos.x, pos.y - pos.height, pos.x + pos.width, pos.y)
+                                selectedAnnotationBmpRect = rect
+                                break
+                            }
+                        }
+                    }
+                    // 回退：使用搜索结果（保留兼容）
+                    if (selectedAnnotationText.isEmpty()) {
+                        val pageResults = state.results.filter { it.pageIndex == pageState.pageIndex }
+                        val first = pageResults.firstOrNull()
+                        if (first != null) {
+                            val scaleX = if (first.pdfPageWidth > 0) bmp.width / first.pdfPageWidth else 1f
+                            val scaleY = if (first.pdfPageHeight > 0) bmp.height / first.pdfPageHeight else 1f
+                            val pdfX = bmpX / scaleX
+                            val pdfY = bmpY / scaleY
+                            for (result in pageResults) {
+                                for (pos in result.positions) {
+                                    if (pdfX >= pos.x && pdfX <= pos.x + pos.width &&
+                                        pdfY >= pos.y - pos.height && pdfY <= pos.y
+                                    ) {
+                                        selectedAnnotationText = buildString {
+                                            for (p in result.positions) append(p.text)
+                                        }
+                                        val minX = result.positions.minOf { it.x }
+                                        val minY = result.positions.minOf { it.y - it.height }
+                                        val maxX = result.positions.maxOf { it.x + it.width }
+                                        val maxY = result.positions.maxOf { it.y }
+                                        selectedAnnotationRect = android.graphics.RectF(minX, minY, maxX, maxY)
+                                        selectedAnnotationBmpRect = android.graphics.RectF(
+                                            minX * scaleX, minY * scaleY,
+                                            maxX * scaleX, maxY * scaleY,
+                                        )
+                                        break
+                                    }
+                                }
+                                if (selectedAnnotationText.isNotEmpty()) break
+                            }
+                        }
+                    }
+                }
+                if (selectedAnnotationText.isEmpty()) {
+                    // 缓存未命中 → 触发异步加载，下次长按可用
+                    if (state?.pageTextCache?.isEmpty() == true) {
+                        searchViewModel?.loadPageTextPositions()
+                    }
+                    selectedAnnotationText = "(未识别文字，请重试)"
+                }
+                annotationToolbarVisible = true
+            },
+            annotations = annotationViewModel?.annotations?.collectAsState()?.value?.get(pageState.pageIndex) ?: emptyList(),
+            searchHighlights = searchHighlights,
+            currentHighlightIndices = currentHighlightIndices,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -144,11 +279,80 @@ fun ReaderScreen(
                     color = Color.White,
                     style = MaterialTheme.typography.titleSmall,
                 )
+                if (searchViewModel != null) {
+                    IconButton(onClick = {
+                        searchBarVisible = !searchBarVisible
+                        if (!searchBarVisible) searchViewModel.clear()
+                    }) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "搜索",
+                            tint = Color.White,
+                        )
+                    }
+                }
             }
         }
 
+        // 搜索栏
         AnimatedVisibility(
-            visible = chromeVisible,
+            visible = searchBarVisible && searchViewModel != null,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn() + slideInVertically { -it / 2 },
+            exit = fadeOut() + slideOutVertically { -it / 2 },
+        ) {
+            val state = searchState
+            SearchBar(
+                query = state?.query ?: "",
+                matchIndex = state?.currentMatchIndex ?: 0,
+                totalMatches = state?.totalMatches ?: 0,
+                isSearching = state?.isSearching ?: false,
+                onQueryChanged = { searchViewModel?.search(it) },
+                onSearch = { state?.query?.let { searchViewModel?.search(it) } },
+                onPrevious = { searchViewModel?.previousMatch() },
+                onNext = { searchViewModel?.nextMatch() },
+                onClose = {
+                    searchBarVisible = false
+                    searchViewModel?.clear()
+                },
+                modifier = Modifier.statusBarsPadding(),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = annotationToolbarVisible && annotationViewModel != null,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
+        ) {
+            AnnotationToolbar(
+                selectedText = selectedAnnotationText,
+                onHighlight = { color ->
+                    annotationViewModel?.addAnnotation(
+                        pageState.pageIndex,
+                        AnnotationType.HIGHLIGHT,
+                        color,
+                        selectedAnnotationText,
+                        selectedAnnotationRect,
+                    )
+                    annotationToolbarVisible = false
+                },
+                onUnderline = { color ->
+                    annotationViewModel?.addAnnotation(
+                        pageState.pageIndex,
+                        AnnotationType.UNDERLINE,
+                        color,
+                        selectedAnnotationText,
+                        selectedAnnotationRect,
+                    )
+                    annotationToolbarVisible = false
+                },
+                onDismiss = { annotationToolbarVisible = false },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = chromeVisible && !annotationToolbarVisible,
             modifier = Modifier.align(Alignment.BottomCenter),
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut() + slideOutVertically { it / 2 },
@@ -165,6 +369,22 @@ fun ReaderScreen(
                 },
             )
         }
+
+        AnimatedVisibility(
+            visible = summaryState !is SummaryState.Idle && !summarySheetVisible,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = PocketSpacing.Lg)
+                .padding(bottom = 96.dp),
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
+        ) {
+            SummaryStatusBar(
+                summaryState = summaryState,
+                onClick = { summarySheetVisible = true },
+            )
+        }
     }
 
     if (summarySheetVisible) {
@@ -176,11 +396,81 @@ fun ReaderScreen(
             onSummarizeDocument = onSummarizeDocument,
             onStop = onStopSummary,
             onOpenChat = onOpenChat,
-            onDismiss = {
-                onStopSummary()
-                summarySheetVisible = false
-            },
+            onDismiss = { summarySheetVisible = false },
         )
+    }
+}
+
+@Composable
+private fun SummaryStatusBar(
+    summaryState: SummaryState,
+    onClick: () -> Unit,
+) {
+    val colors = LocalPocketColors.current
+    val title = when (summaryState) {
+        is SummaryState.Generating -> summaryState.progress.stageLabel
+        is SummaryState.Done -> "全文总结已完成"
+        is SummaryState.Error -> "总结失败，点击查看"
+        SummaryState.Idle -> return
+    }
+    val detail = (summaryState as? SummaryState.Generating)?.progress?.etaLabel
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 10.dp,
+                shape = RoundedCornerShape(PocketRadii.Floating),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
+            )
+            .clip(RoundedCornerShape(PocketRadii.Floating))
+            .background(Color(0xF23B3244))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = .16f),
+                shape = RoundedCornerShape(PocketRadii.Floating),
+            )
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "打开 AI 总结" }
+            .padding(horizontal = PocketSpacing.Lg, vertical = PocketSpacing.Md),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "✦ $title",
+                modifier = Modifier.weight(1f),
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            detail?.let {
+                Text(
+                    text = it,
+                    color = Color.White.copy(alpha = .75f),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+        if (summaryState is SummaryState.Generating) {
+            Spacer(Modifier.height(PocketSpacing.Sm))
+            val fraction = summaryState.progress.fraction
+            if (fraction != null) {
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ReaderAiViolet,
+                    trackColor = Color.White.copy(alpha = .14f),
+                )
+            } else {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ReaderAiViolet,
+                    trackColor = Color.White.copy(alpha = .14f),
+                )
+            }
+        }
     }
 }
 
@@ -188,6 +478,11 @@ fun ReaderScreen(
 private fun PdfPageHost(
     bitmap: Bitmap?,
     onTap: () -> Unit,
+    onPageFling: (Int) -> Unit,
+    onLongPress: (Float, Float) -> Unit = { _, _ -> },
+    annotations: List<Annotation> = emptyList(),
+    searchHighlights: List<RectF> = emptyList(),
+    currentHighlightIndices: Set<Int> = emptySet(),
     modifier: Modifier,
 ) {
     AndroidView(
@@ -195,12 +490,24 @@ private fun PdfPageHost(
         factory = { context ->
             PdfPageView(context).apply {
                 setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_UP) onTap()
+                    if (event.action == MotionEvent.ACTION_UP && !consumeLongPressFlag()) {
+                        onTap()
+                    }
                     false
                 }
+                this.onPageFling = { direction -> onPageFling(direction) }
+                this.onLongPress = { x, y -> onLongPress(x, y) }
             }
         },
-        update = { view -> view.setBitmap(bitmap) },
+        update = { view ->
+            view.setBitmap(bitmap)
+            view.setAnnotations(annotations)
+            if (searchHighlights.isNotEmpty()) {
+                view.setSearchHighlights(searchHighlights, currentHighlightIndices)
+            } else {
+                view.clearSearchHighlights()
+            }
+        },
     )
 }
 
@@ -212,6 +519,8 @@ private fun ReaderToolbar(
     onAi: () -> Unit,
 ) {
     val colors = LocalPocketColors.current
+    val canGoPrevious = pageState.pageIndex > 0
+    val canGoNext = pageState.pageIndex + 1 < pageState.pageCount
     Row(
         modifier = Modifier
             .padding(PocketSpacing.Lg)
@@ -219,8 +528,8 @@ private fun ReaderToolbar(
             .shadow(
                 elevation = 12.dp,
                 shape = RoundedCornerShape(PocketRadii.Floating),
-                ambientColor = Color.Black.copy(alpha = .28f),
-                spotColor = Color.Black.copy(alpha = .28f),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
             .clip(RoundedCornerShape(PocketRadii.Floating))
             .background(Color(0xEE302739))
@@ -235,12 +544,12 @@ private fun ReaderToolbar(
     ) {
         IconButton(
             onClick = { onPageRequested(pageState.pageIndex - 1) },
-            enabled = pageState.pageIndex > 0,
+            enabled = canGoPrevious,
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "上一页",
-                tint = Color.White,
+                tint = if (canGoPrevious) Color.White else Color.White.copy(alpha = .35f),
             )
         }
         Text(
@@ -253,12 +562,12 @@ private fun ReaderToolbar(
         )
         IconButton(
             onClick = { onPageRequested(pageState.pageIndex + 1) },
-            enabled = pageState.pageIndex + 1 < pageState.pageCount,
+            enabled = canGoNext,
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "下一页",
-                tint = Color.White,
+                tint = if (canGoNext) Color.White else Color.White.copy(alpha = .35f),
             )
         }
         IconButton(onClick = onSummary) {
@@ -266,15 +575,15 @@ private fun ReaderToolbar(
         }
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(PocketRadii.Control))
-                .background(Color(0xFFC4A4ED))
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(ReaderAiViolet)
                 .clickable(onClick = onAi),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "✦",
-                color = Color(0xFF30223C),
+                color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .semantics { contentDescription = "文档 AI" }
@@ -318,10 +627,14 @@ private fun ReaderAiSheet(
                 modifier = Modifier.padding(top = PocketSpacing.Xs),
             )
             Text(
-                text = "正在基于第 ${pageIndex + 1} 页与文档索引回答",
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalPocketColors.current.mutedInk,
-                modifier = Modifier.padding(vertical = PocketSpacing.Md),
+                text = when (summaryState) {
+                    is SummaryState.Generating -> summaryState.progress.stageLabel
+                    is SummaryState.Done -> "全文总结已完成"
+                    is SummaryState.Error -> "总结失败"
+                    SummaryState.Idle -> if (isIndexed) "选择总结方式" else "文档索引中..."
+                },
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(top = PocketSpacing.Xs),
             )
             when (summaryState) {
                 SummaryState.Idle -> {
@@ -333,19 +646,61 @@ private fun ReaderAiSheet(
                         ) { Text("总结全文") }
                     }
                 }
-                SummaryState.Loading -> CircularProgressIndicator()
-                is SummaryState.Streaming -> {
-                    Text(summaryState.tokens, style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = onStop) { Text("停止") }
+                is SummaryState.Generating -> {
+                    Text(
+                        text = summaryState.progress.stageLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    summaryState.progress.etaLabel?.let {
+                        Text(
+                            text = it,
+                            color = LocalPocketColors.current.mutedInk,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    val fraction = summaryState.progress.fraction
+                    if (fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = PocketSpacing.Md),
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = PocketSpacing.Md),
+                        )
+                    }
+                    if (summaryState.text.isNotEmpty()) {
+                        Text(summaryState.text, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onDismiss) { Text("收起并继续阅读") }
+                        TextButton(onClick = onStop) { Text("停止生成") }
+                    }
                 }
-                is SummaryState.Done -> Text(
-                    summaryState.fullText,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                is SummaryState.Error -> Text(
-                    summaryState.message,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                is SummaryState.Done -> {
+                    Text(
+                        summaryState.fullText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onSummarizePage) { Text("总结本页") }
+                        TextButton(onClick = onSummarizeDocument) { Text("重新总结全文") }
+                    }
+                }
+                is SummaryState.Error -> {
+                    Text(
+                        summaryState.message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(PocketSpacing.Sm)) {
+                        TextButton(onClick = onSummarizePage) { Text("总结本页") }
+                        TextButton(onClick = onSummarizeDocument) { Text("重试全文总结") }
+                    }
+                }
             }
             Spacer(Modifier.height(PocketSpacing.Lg))
             TextButton(onClick = onOpenChat) {

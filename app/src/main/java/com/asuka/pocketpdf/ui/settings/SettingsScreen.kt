@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,8 @@ data class SettingsActions(
     val onSystemPromptChanged: (String) -> Unit,
     val onConfirmPreset: () -> Unit,
     val onCancelPreset: () -> Unit,
+    val onConfirmCloudPreset: () -> Unit,
+    val onCancelCloudPreset: () -> Unit,
     val onResetDefaults: () -> Unit,
     val onTestConnection: () -> Unit,
 )
@@ -74,8 +77,8 @@ fun SettingsScreen(
     actions: SettingsActions,
 ) {
     val colors = LocalPocketColors.current
-    var editor by remember { mutableStateOf<SettingsEditor?>(null) }
-    var presetDialogVisible by remember { mutableStateOf(false) }
+    var editor by rememberSaveable { mutableStateOf<SettingsEditor?>(null) }
+    var presetDialogVisible by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -210,6 +213,30 @@ fun SettingsScreen(
             },
         )
     }
+
+    if (state.confirmCloudPresetId != null) {
+        val preset = MODEL_PRESETS.find { it.id == state.confirmCloudPresetId }
+        AlertDialog(
+            onDismissRequest = actions.onCancelCloudPreset,
+            title = { Text("云端服务隐私提示") },
+            text = {
+                Text(
+                    "您即将切换到云端 AI 服务「${preset?.label ?: "云端"}」。\n\n" +
+                    "使用云端服务时，您的文档片段和提问内容将被发送到外部服务器进行处理。\n" +
+                    "请确认您了解并同意这一数据外发行为。\n\n" +
+                    "如需了解详情，请查阅隐私政策。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = actions.onConfirmCloudPreset) {
+                    Text("我已了解，继续切换")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.onCancelCloudPreset) { Text("取消") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -281,7 +308,7 @@ private fun SettingsHeader(
     ) {
         Surface(
             onClick = onBack,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(48.dp),
             shape = RoundedCornerShape(18.dp),
             color = colors.paper.copy(alpha = .58f),
             border = androidx.compose.foundation.BorderStroke(
@@ -307,6 +334,8 @@ private fun SettingsHeader(
             text = if (isSaving) "保存中" else "保存",
             onClick = onSave,
             enabled = !isSaving,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White,
         )
     }
 }
@@ -337,8 +366,8 @@ private fun SettingsSection(
                 .shadow(
                     elevation = 3.dp,
                     shape = RoundedCornerShape(PocketRadii.Card),
-                    ambientColor = Color(0x10302739),
-                    spotColor = Color(0x10302739),
+                    ambientColor = colors.shadowAmbient,
+                    spotColor = colors.shadowSpot,
                 )
                 .background(
                     colors.paper,

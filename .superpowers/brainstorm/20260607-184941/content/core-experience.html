@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PocketPDF 核心体验</title>
+<style>
+:root{--ink:#211c27;--muted:#766f7b;--purple:#7652a8;--deep:#2f2638;--paper:#f8f5f9;--line:rgba(60,43,70,.10)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#31233e,#100d14 45%);color:#f7f2fa;font-family:"Segoe UI","Microsoft YaHei",sans-serif}
+header{max-width:1320px;margin:auto;padding:42px 30px 18px}.eyebrow{font-size:11px;letter-spacing:.18em;color:#b99be5}h1{font-size:38px;margin:9px 0 8px;letter-spacing:-.04em}header p{margin:0;color:#aaa1b0}
+.flow{max-width:1320px;margin:auto;padding:24px 30px 55px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start}
+.stage{position:relative}.number{display:flex;align-items:center;gap:9px;margin-bottom:12px;color:#cfc3d8;font-size:13px}.number i{width:24px;height:24px;border-radius:8px;background:#7550a5;display:grid;place-items:center;font-style:normal;font-weight:700}
+.phone{width:100%;max-width:360px;aspect-ratio:9/18.8;margin:auto;border-radius:38px;overflow:hidden;background:var(--paper);color:var(--ink);position:relative;border:1px solid rgba(255,255,255,.55);box-shadow:0 30px 70px rgba(0,0,0,.35)}
+.status{height:28px;padding:10px 18px 0;display:flex;justify-content:space-between;font-size:8px}.top{height:62px;padding:10px 18px;display:flex;align-items:center;justify-content:space-between}.top b{font-size:18px}.icon{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.65);border:1px solid white;display:grid;place-items:center}
+.welcome{padding:18px 20px 12px}.welcome small{color:var(--purple);font-weight:700}.welcome h2{font-size:27px;line-height:1.12;margin:7px 0 7px;letter-spacing:-.045em}.welcome p{font-size:10px;line-height:1.45;color:var(--muted);margin:0}
+.search{margin:12px 20px;height:40px;border-radius:15px;background:white;border:1px solid white;box-shadow:0 7px 24px rgba(74,48,91,.07);display:flex;align-items:center;padding:0 13px;color:#8b8490;font-size:10px}
+.section-title{display:flex;justify-content:space-between;padding:10px 20px 9px;font-size:10px;color:var(--muted)}.section-title b{font-size:12px;color:var(--ink)}
+.doc{margin:0 20px 10px;background:rgba(255,255,255,.82);border:1px solid white;border-radius:19px;padding:13px;display:grid;grid-template-columns:44px 1fr;gap:11px;box-shadow:0 8px 25px rgba(48,30,59,.06)}
+.cover{height:59px;border-radius:10px;background:linear-gradient(150deg,#7652a8,#33273d);color:#eee2ff;display:grid;place-items:center;font-family:Georgia;font-size:18px}.doc h3{font-size:10px;margin:2px 0 5px;line-height:1.3}.doc p{font-size:8px;margin:0;color:var(--muted)}.bar{height:3px;background:#e8e0eb;margin-top:10px;border-radius:5px}.bar i{display:block;width:68%;height:100%;background:var(--purple);border-radius:5px}
+.float{position:absolute;right:18px;bottom:18px;height:48px;border-radius:17px;background:rgba(54,42,65,.82);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.16);color:white;display:flex;align-items:center;gap:8px;padding:0 16px;font-size:11px;box-shadow:0 13px 30px rgba(39,26,48,.25)}
+.reader{background:#29252d;color:white}.reader .top{position:absolute;z-index:3;left:0;right:0;top:28px;background:linear-gradient(#17131dbb,transparent);height:70px}.reader .top b{font-size:11px;max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reader-page{position:absolute;left:13px;right:13px;top:96px;bottom:74px;background:#fff;color:#111;padding:26px 21px;box-shadow:0 15px 34px rgba(0,0,0,.28)}.reader-page h4{text-align:center;font-family:Georgia;font-size:11px;margin:0 0 12px}.reader-page p{font-family:Georgia;font-size:6px;line-height:1.65;text-align:justify;color:#292929}.reading-progress{position:absolute;left:0;right:0;top:28px;height:2px;background:#51495a;z-index:4}.reading-progress i{display:block;width:68%;height:100%;background:#b89ae4}
+.toolbar{position:absolute;left:16px;right:16px;bottom:14px;height:52px;border-radius:19px;background:rgba(35,29,42,.78);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:space-around;color:#e8e0ee;box-shadow:0 14px 30px rgba(0,0,0,.28)}.toolbar span{font-size:16px}.toolbar .page{font-size:9px;color:#c6bccd}.toolbar .ai{width:34px;height:34px;border-radius:12px;background:#b89ae4;color:#2c2037;display:grid;place-items:center}
+.ai-screen{background:linear-gradient(165deg,#f8f4fa,#eee7f2);overflow:hidden}.ghost-page{position:absolute;inset:28px 0 0;background:#27232b}.ghost-paper{position:absolute;left:15px;right:15px;top:92px;height:300px;background:#fff;opacity:.62}.sheet{position:absolute;left:0;right:0;bottom:0;height:72%;border-radius:29px 29px 0 0;background:rgba(249,246,251,.90);backdrop-filter:blur(27px);border-top:1px solid white;box-shadow:0 -18px 45px rgba(30,20,38,.25);color:var(--ink);padding:12px 18px}.handle{width:38px;height:4px;border-radius:4px;background:#c4bac9;margin:0 auto 15px}.sheet-head{display:flex;justify-content:space-between;align-items:center}.sheet-head small{color:var(--purple);font-weight:700}.sheet-head h2{font-size:18px;margin:4px 0}.context{background:#eee7f2;border-radius:13px;padding:10px 11px;font-size:9px;color:#665e6d;margin:11px 0}.answer{font-size:10px;line-height:1.62;color:#403944}.citation{display:inline-block;color:#654391;background:#e7dbf2;border-radius:7px;padding:2px 5px;font-weight:700}.suggestions{display:flex;gap:6px;overflow:hidden;margin:13px 0}.chip{white-space:nowrap;border:1px solid #d8cbdf;border-radius:99px;padding:7px 9px;font-size:8px;color:#655b6b}.prompt{position:absolute;left:18px;right:18px;bottom:15px;height:43px;border-radius:16px;background:white;border:1px solid white;box-shadow:0 8px 26px rgba(55,36,66,.10);display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 13px;font-size:9px;color:#918a96}.send{width:30px;height:30px;border-radius:11px;background:var(--deep);color:white;display:grid;place-items:center}
+.note{max-width:360px;margin:14px auto 0;color:#a99fae;font-size:12px;line-height:1.6}.arrow{position:absolute;right:-20px;top:48%;color:#8967b4;font-size:24px}
+.approval{max-width:1320px;margin:-20px auto 45px;padding:0 30px;color:#cfc5d4;font-size:14px}.approval b{color:#b99be5}
+@media(max-width:950px){.flow{grid-template-columns:1fr;gap:42px}.phone{max-width:340px}.arrow{display:none}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">CORE EXPERIENCE / 紫晶知识工作台</div><h1>文库不是仓库，阅读也不是终点</h1><p>核心流程保持简单：找到文档、沉浸阅读、在当前语境中唤起 AI。</p></header>
+<main class="flow">
+ <section class="stage"><div class="number"><i>1</i> 文库主页</div><div class="phone">
+  <div class="status"><span>9:41</span><span>● ●● 87%</span></div><div class="top"><b>PocketPDF</b><span class="icon">•••</span></div>
+  <div class="welcome"><small>下午好</small><h2>你的知识，<br>正在形成脉络。</h2><p>继续阅读、梳理与提问。所有处理都由你掌控。</p></div>
+  <div class="search">⌕　搜索你的文库</div><div class="section-title"><b>继续阅读</b><span>最近更新</span></div>
+  <div class="doc"><div class="cover">P</div><div><h3>Modeling and Predicting Smartphone Battery Life</h3><p>29 页 · 阅读至 68% · 索引完成</p><div class="bar"><i></i></div></div></div>
+  <div class="doc"><div class="cover">K</div><div><h3>Effective Kotlin · Second Edition</h3><p>328 页 · 尚未开始 · 索引中</p><div class="bar"><i style="width:22%"></i></div></div></div>
+  <div class="float"><span>＋</span> 导入 PDF</div>
+ </div><p class="note">主页先表达“继续做什么”，再展示文件。文档卡片轻量化，不再使用厚重描边和显眼状态徽章。</p><span class="arrow">→</span></section>
+ <section class="stage"><div class="number"><i>2</i> 沉浸阅读</div><div class="phone reader">
+  <div class="status"><span>9:41</span><span>● ●● 87%</span></div><div class="reading-progress"><i></i></div>
+  <div class="top"><span>‹</span><b>Modeling Smartphone Battery Life</b><span>•••</span></div>
+  <div class="reader-page"><h4>Modeling and Predicting Smartphone Battery Life Under Realistic Usage Patterns</h4><p>Smartphone battery life is strongly affected by user behavior, network conditions and workload characteristics. This paper presents a practical modeling approach based on observed energy use across common scenarios.</p><p>The proposed method combines device telemetry with workload-aware prediction. Results show that contextual signals improve estimation accuracy and provide a useful basis for adaptive power management.</p><p>Experiments were performed under controlled and real-world conditions. The resulting model remains lightweight enough for local inference while preserving interpretable factors.</p></div>
+  <div class="toolbar"><span>‹</span><span class="page">20 / 29</span><span>›</span><span>▤</span><span class="ai">✦</span></div>
+ </div><p class="note">PDF 成为绝对主角。单击画布可隐藏所有控件；底部只保留一个紧凑玻璃工具条，AI 是其中唯一的紫晶按钮。</p><span class="arrow">→</span></section>
+ <section class="stage"><div class="number"><i>3</i> 上下文 AI</div><div class="phone ai-screen">
+  <div class="status"><span>9:41</span><span>● ●● 87%</span></div><div class="ghost-page"><div class="ghost-paper"></div></div>
+  <div class="sheet"><div class="handle"></div><div class="sheet-head"><div><small>✦ POCKET INTELLIGENCE</small><h2>理解这一页</h2></div><span class="icon">×</span></div>
+   <div class="context">正在基于第 20 页与文档索引回答</div>
+   <div class="answer">这部分主要说明作者如何把<strong>设备遥测数据</strong>与使用情境结合，以提升电池寿命预测的准确性。相比只依赖静态参数，它能更好地解释真实使用中的波动。 <span class="citation">第 20 页</span></div>
+   <div class="suggestions"><span class="chip">用更简单的话解释</span><span class="chip">总结实验方法</span><span class="chip">有哪些局限？</span></div>
+   <div class="prompt">继续追问这份文档…<span class="send">↑</span></div>
+  </div>
+ </div><p class="note">AI 以可拖拽面板覆盖在阅读器上，保留文档上下文。支持半屏问答，也能向上展开成完整对话。</p></section>
+</main>
+<div class="approval"><b>这一段需要确认：</b> 是否接受“文库主页 + 沉浸阅读 + 阅读器内 AI 抽屉”作为应用的核心体验骨架？</div>
+</body></html>

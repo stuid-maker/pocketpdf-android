@@ -10,6 +10,7 @@ import com.asuka.pocketpdf.domain.usecase.DeleteDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ImportDocumentUseCase
 import com.asuka.pocketpdf.domain.usecase.ObserveDocumentsUseCase
 import com.asuka.pocketpdf.data.indexing.IndexingScheduler
+import com.asuka.pocketpdf.domain.pdf.PdfExtractorVersion
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -103,6 +104,36 @@ class LibraryViewModelTest {
             val loaded = state as LibraryUiState.Loaded
             assertEquals(2, loaded.documents.size)
             assertEquals(false, loaded.isImporting)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `stale extractor index is invalidated and rescheduled`() = runTest(dispatcher) {
+        val stale = STUB.copy(
+            id = 8L,
+            indexStatus = IndexStatus.INDEXED,
+            extractorVersion = PdfExtractorVersion.CURRENT - 1,
+        )
+        coEvery { repository.updateDocument(any()) } returns Result.Success(Unit)
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            documentsFlow.value = listOf(stale)
+
+            val loaded = awaitItem() as LibraryUiState.Loaded
+            assertEquals(IndexStatus.NOT_INDEXED, loaded.documents.single().indexStatus)
+            runCurrent()
+            coVerify {
+                repository.updateDocument(
+                    match {
+                        it.id == 8L &&
+                            it.indexStatus == IndexStatus.NOT_INDEXED
+                    },
+                )
+            }
+            io.mockk.verify { indexingScheduler.schedule(8L) }
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -35,4 +35,10 @@ data class DocumentEntity(
 
     @ColumnInfo(name = "importedAt")
     val importedAt: Long,
+
+    @ColumnInfo(name = "extractorVersion", defaultValue = "0")
+    val extractorVersion: Int = 0,
+
+    @ColumnInfo(name = "indexError")
+    val indexError: String? = null,
 )

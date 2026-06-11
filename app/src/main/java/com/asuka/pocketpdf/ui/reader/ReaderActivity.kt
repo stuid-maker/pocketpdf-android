@@ -24,6 +24,8 @@ import kotlin.math.min
 class ReaderActivity : ComponentActivity() {
 
     private val viewModel: ReaderViewModel by viewModels()
+    private val searchViewModel: SearchViewModel by viewModels()
+    private val annotationViewModel: AnnotationViewModel by viewModels()
 
     @Inject
     lateinit var controllerFactory: ReaderControllerFactory
@@ -52,6 +54,8 @@ class ReaderActivity : ComponentActivity() {
         val documentId = intent.getLongExtra(EXTRA_DOCUMENT_ID, -1L)
         val initialPage = intent.getIntExtra(EXTRA_PAGE_INDEX, PAGE_INDEX_NONE)
         viewModel.load(documentId)
+        searchViewModel.init(documentId)
+        annotationViewModel.init(documentId)
 
         setContent {
             PocketPDFTheme {
@@ -70,6 +74,8 @@ class ReaderActivity : ComponentActivity() {
                         onSummarizeDocument = {},
                         onStopSummary = viewModel::stopSummarizing,
                         onOpenChat = {},
+                        searchViewModel = searchViewModel,
+                        annotationViewModel = annotationViewModel,
                     )
                     is ReaderUiState.Error -> ReaderScreen(
                         title = "无法打开文档",
@@ -82,6 +88,8 @@ class ReaderActivity : ComponentActivity() {
                         onSummarizeDocument = {},
                         onStopSummary = {},
                         onOpenChat = {},
+                        searchViewModel = searchViewModel,
+                        annotationViewModel = annotationViewModel,
                     )
                     is ReaderUiState.Loaded -> {
                         LaunchedEffect(readerState.document.id) {
@@ -91,6 +99,8 @@ class ReaderActivity : ComponentActivity() {
                                     document = readerState.document,
                                     initialPage = initialPage.takeIf { it >= 0 } ?: 0,
                                 )
+                                // 预加载全页文字坐标，确保长按选中无需先搜索
+                                searchViewModel.loadPageTextPositions()
                             }
                         }
                         ReaderScreen(
@@ -108,6 +118,8 @@ class ReaderActivity : ComponentActivity() {
                             onOpenChat = {
                                 startActivity(ChatActivity.newIntent(this, readerState.document.id))
                             },
+                            searchViewModel = searchViewModel,
+                            annotationViewModel = annotationViewModel,
                         )
                     }
                 }

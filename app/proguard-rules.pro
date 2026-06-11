@@ -38,15 +38,8 @@
 }
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# RETROFIT — interfaces and return types
-# ═════════════════════════════════════════════════════════════════════════════
--keep,allowobfuscation,allowshrinking interface com.asuka.pocketpdf.data.remote.LlmApi
--keep,allowobfuscation,allowshrinking interface retrofit2.** { *; }
--keep class retrofit2.** { *; }
--keepclasseswithmembers class * {
-    @retrofit2.http.* <methods>;
-}
+
+
 -keepclassmembers,allowobfuscation class * {
     @com.squareup.moshi.Json <fields>;
 }
@@ -235,7 +228,7 @@
 -keep class com.asuka.pocketpdf.PocketPdfApp { *; }
 -keep class com.asuka.pocketpdf.ui.library.LibraryActivity { *; }
 -keep class com.asuka.pocketpdf.ui.reader.ReaderActivity { *; }
--keep class com.asuka.pocketpdf.ui.ping.PingActivity { *; }
+# ── Removed: PingActivity class no longer exists in codebase ──
 -keep class com.asuka.pocketpdf.ui.settings.SettingsActivity { *; }
 -keep class com.asuka.pocketpdf.ui.chat.ChatActivity { *; }
 -keep class com.asuka.pocketpdf.data.indexing.IndexWorker { *; }
@@ -277,6 +270,17 @@
 -keep class kotlin.coroutines.** { *; }
 -keepnames class kotlinx.coroutines.android.AndroidDispatcherFactory { *; }
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# API KEY ENCRYPTION — Android Keystore AES/GCM cipher classes
+# ═════════════════════════════════════════════════════════════════════════════
+-keep class com.asuka.pocketpdf.data.local.ApiKeyCipher { *; }
+-keep class com.asuka.pocketpdf.data.local.AndroidKeystoreApiKeyCipher { *; }
+-keep class javax.crypto.** { *; }
+-keep class javax.crypto.spec.** { *; }
+-keep class java.security.KeyStore { *; }
+-keep class java.security.KeyStore$** { *; }
+-keep class android.security.keystore.** { *; }
 
 # ═════════════════════════════════════════════════════════════════════════════
 # KOTLIN REFLECTION / STD LIB — keep metadata needed by Moshi, Retrofit, etc.
@@ -373,6 +377,13 @@
 -dontwarn javax.lang.model.element.Element
 -dontwarn javax.lang.model.element.ElementKind
 -dontwarn javax.lang.model.element.Modifier
+
+# ═════════════════════════════════════════════════════════════════════════════
+# SENTRY — crash monitoring
+# ═════════════════════════════════════════════════════════════════════════════
+-keepattributes LineNumberTable,SourceFile
+-dontwarn io.sentry.**
+-keep class io.sentry.** { *; }
 -dontwarn javax.lang.model.type.TypeMirror
 -dontwarn javax.lang.model.type.TypeVisitor
 -dontwarn javax.lang.model.util.SimpleTypeVisitor8

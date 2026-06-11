@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
+import com.asuka.pocketpdf.ui.theme.LocalPocketColors
 import com.asuka.pocketpdf.ui.theme.PocketRadii
 
 @Composable
@@ -20,16 +21,22 @@ fun PocketCompactButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
 ) {
+    val colors = LocalPocketColors.current
+    val resolvedContainerColor = containerColor ?: colors.crystal
+    val resolvedContentColor = contentColor ?: colors.ink
     Button(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 34.dp),
+        modifier = modifier.defaultMinSize(minHeight = 48.dp),
         enabled = enabled,
         shape = RoundedCornerShape(PocketRadii.Control),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF302739),
-            contentColor = Color.White,
-            disabledContainerColor = Color(0xFF302739).copy(alpha = .38f),
+            containerColor = resolvedContainerColor,
+            contentColor = resolvedContentColor,
+            disabledContainerColor = resolvedContainerColor.copy(alpha = .38f),
+            disabledContentColor = resolvedContentColor.copy(alpha = .55f),
         ),
         contentPadding = PaddingValues(horizontal = 15.dp, vertical = 6.dp),
     ) {

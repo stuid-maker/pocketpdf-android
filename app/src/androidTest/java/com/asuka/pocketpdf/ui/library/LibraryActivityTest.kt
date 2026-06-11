@@ -17,7 +17,7 @@ import org.junit.runner.RunWith
 class LibraryActivityTest {
 
     @Test
-    fun `activity launches without finishing`() {
+    fun activityLaunchesWithoutFinishing() {
         val intent = Intent(ApplicationProvider.getApplicationContext(), LibraryActivity::class.java)
         ActivityScenario.launch<LibraryActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->
@@ -28,7 +28,7 @@ class LibraryActivityTest {
     }
 
     @Test
-    fun `activity launcher does not finish immediately`() {
+    fun activityLauncherDoesNotFinishImmediately() {
         val intent = Intent(ApplicationProvider.getApplicationContext(), LibraryActivity::class.java)
         ActivityScenario.launch<LibraryActivity>(intent).use { scenario ->
             scenario.onActivity { activity ->

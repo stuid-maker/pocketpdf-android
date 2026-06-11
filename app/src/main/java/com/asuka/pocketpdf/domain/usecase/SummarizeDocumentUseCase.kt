@@ -17,6 +17,7 @@ class SummarizeDocumentUseCase @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val llmRepository: LlmRepository,
     private val summaryCacheRepository: SummaryCacheRepository,
+    private val fullDocumentSummarizer: FullDocumentSummarizer,
 ) {
 
     operator fun invoke(
@@ -25,67 +26,91 @@ class SummarizeDocumentUseCase @Inject constructor(
         scope: SummaryScope,
         topK: Int = 5,
         systemPrompt: String = "",
+        onProgress: (FullDocumentProgress) -> Unit = {},
     ): Flow<String> = flow {
-        // 1. Check cache first
-        val cached = summaryCacheRepository.get(documentId, scope).first()
+        val fullResult = StringBuilder()
+        // 1. Check cache first (versioned key)
+        val cached = summaryCacheRepository.get(
+            documentId = documentId,
+            scope = scope,
+            algorithmVersion = FullDocumentSummarizer.ALGORITHM_VERSION,
+            model = model,
+            systemPrompt = systemPrompt,
+        ).first()
         if (cached != null) {
-            Timber.tag(TAG).d("Cache hit for scope=%s", scope)
+            Timber.tag(TAG).d("Cache hit for scope=%s model=%s", scope, model)
             emit(cached)
             return@flow
         }
 
-        Timber.tag(TAG).d("Cache miss for scope=%s, calling LLM", scope)
+        Timber.tag(TAG).d("Cache miss for scope=%s, model=%s", scope, model)
 
-        // 2. Build chunks and prompt (same as before)
-        val chunks = when (scope) {
+        // 2. Process based on scope
+        when (scope) {
             is SummaryScope.Full -> {
-                val query = "全文核心内容"
-                retrieveChunks(documentId, query, topK).map { it.chunk }
+                // Full scope: delegate to FullDocumentSummarizer (all chunks, map-reduce)
+                fullDocumentSummarizer.summarize(
+                    documentId = documentId,
+                    model = model,
+                    systemPrompt = systemPrompt,
+                    question = null, // standard summary
+                    onProgress = onProgress,
+                ).collect { token ->
+                    emit(token)
+                    fullResult.append(token)
+                }
             }
             is SummaryScope.Page -> {
-                documentRepository.getChunksByPage(documentId, scope.pageIndex)
+                // Page scope: existing per-page logic with embedding-filtered chunks
+                val chunks = documentRepository.getChunksByPage(documentId, scope.pageIndex)
                     .filter { it.embedding != null && it.embedding.isNotEmpty() }
+
+                if (chunks.isEmpty()) {
+                    Timber.tag(TAG).d("No chunks for page %d", scope.pageIndex)
+                    throw NoChunksForPageException(scope.pageIndex)
+                }
+
+                Timber.tag(TAG).d("Summarizing %d chunks for page %d",
+                    chunks.size, scope.pageIndex)
+
+                val pairs = chunks.map { "第 ${it.pageIndex + 1} 页" to it.text }
+                val prompt = PromptTemplates.documentSummary(pairs)
+
+                val messages = buildList {
+                    if (systemPrompt.isNotBlank()) {
+                        add(ChatMessage(ChatMessage.ROLE_SYSTEM, systemPrompt))
+                    }
+                    add(ChatMessage(ChatMessage.ROLE_USER, prompt))
+                }
+
+                try {
+                    llmRepository.chatCompletionStream(
+                        model = model,
+                        messages = messages,
+                    ).collect { token ->
+                        emit(token)
+                        fullResult.append(token)
+                    }
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "page summary failed")
+                    throw e
+                }
             }
         }
 
-        if (chunks.isEmpty()) {
-            Timber.tag(TAG).d("No chunks for scope=%s", scope)
-            throw when (scope) {
-                is SummaryScope.Page -> NoChunksForPageException(scope.pageIndex)
-                is SummaryScope.Full -> NoChunksException(documentId)
-            }
-        }
-
-        Timber.tag(TAG).d("Summarizing %d chunks for scope=%s", chunks.size, scope)
-
-        val pairs = chunks.map { "第 ${it.pageIndex + 1} 页" to it.text }
-        val prompt = PromptTemplates.documentSummary(pairs)
-
-        val messages = buildList {
-            if (systemPrompt.isNotBlank()) {
-                add(ChatMessage(ChatMessage.ROLE_SYSTEM, systemPrompt))
-            }
-            add(ChatMessage(ChatMessage.ROLE_USER, prompt))
-        }
-
-        // 3. Call LLM and accumulate result
-        val fullResult = StringBuilder()
-        try {
-            llmRepository.chatCompletionStream(
+        // 3. Write to cache (only on success with non-empty result)
+        val resultText = fullResult.toString()
+        if (resultText.isNotBlank()) {
+            summaryCacheRepository.set(
+                documentId = documentId,
+                scope = scope,
+                algorithmVersion = FullDocumentSummarizer.ALGORITHM_VERSION,
                 model = model,
-                messages = messages,
-            ).collect { token ->
-                emit(token)
-                fullResult.append(token)
-            }
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "summary failed")
-            throw e
+                systemPrompt = systemPrompt,
+                text = resultText,
+            )
+            Timber.tag(TAG).d("Cache written for scope=%s", scope)
         }
-
-        // 4. Write to cache
-        summaryCacheRepository.set(documentId, scope, fullResult.toString())
-        Timber.tag(TAG).d("Cache written for scope=%s", scope)
     }
 
     companion object {

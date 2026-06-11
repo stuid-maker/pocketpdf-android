@@ -7,7 +7,8 @@
 
     <application
         android:name=".PocketPdfApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        tools:replace="android:allowBackup"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -16,6 +17,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PocketPDF">
+
+        <!-- Disable Sentry auto-init via ContentProvider; we initialize manually in PocketPdfApp -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false"
+            tools:replace="android:value" />
 
         <!--
           W2 Day 4: 禁用默认 WorkManager initializer，改用 HiltWorkerFactory。

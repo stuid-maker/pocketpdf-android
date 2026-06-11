@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import com.asuka.pocketpdf.R
@@ -84,11 +86,27 @@ class ChatActivity : ComponentActivity() {
 fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var previousMessageCount by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.messages.size) {
+    val lastMessage = uiState.messages.lastOrNull()
+    LaunchedEffect(uiState.messages.size, lastMessage?.content, lastMessage?.isStreaming) {
         if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size - 1)
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val isNearBottom = lastVisibleIndex >= uiState.messages.lastIndex - 1
+            val messageCountChanged = uiState.messages.size != previousMessageCount
+            if (
+                shouldFollowLatest(
+                    messageCountChanged = messageCountChanged,
+                    isNearBottom = isNearBottom,
+                    isStreaming = lastMessage?.isStreaming == true,
+                )
+            ) {
+                listState.scrollToItem(uiState.messages.lastIndex, Int.MAX_VALUE)
+            }
         }
+        previousMessageCount = uiState.messages.size
     }
 
     Scaffold(
@@ -123,7 +141,11 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                 ChatInputBar(
                     text = uiState.inputText,
                     onTextChange = { viewModel.onInputChanged(it) },
-                    onSend = { viewModel.sendMessage() },
+                    onSend = {
+                        viewModel.sendMessage()
+                        focusManager.clearFocus(force = true)
+                        keyboardController?.hide()
+                    },
                     onStop = { viewModel.stopGenerating() },
                     isGenerating = uiState.isGenerating,
                 )
@@ -144,7 +166,12 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                 }
             }
             items(uiState.messages, key = { it.id }) { message ->
-                ChatBubble(message, documentId)
+                ChatBubble(
+                    message = message,
+                    documentId = documentId,
+                    onRegenerate = { viewModel.retry() },
+                    pageCount = uiState.pageCount,
+                )
             }
         }
     }
@@ -152,14 +179,14 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null) {
+fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null, pageCount: Int = Int.MAX_VALUE) {
     val isUser = message.role == ChatRole.USER
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
     val bgColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val textColor = when {
         isUser -> MaterialTheme.colorScheme.onPrimary
-        isDark -> Color.Black
+        isDark -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }
     val shape = RoundedCornerShape(
@@ -185,10 +212,47 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
                 ),
         ) {
             Column {
+                message.progress?.let { progress ->
+                    Text(
+                        text = progress.stageLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textColor,
+                    )
+                    progress.etaLabel?.let {
+                        Text(
+                            text = it,
+                            fontSize = 12.sp,
+                            color = textColor.copy(alpha = .72f),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    val fraction = progress.fraction
+                    if (fraction != null) {
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    if (message.content.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
                 if (message.isStreaming || isUser) {
-                    Text(message.content.ifEmpty { "…" }, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
+                    if (message.content.isNotEmpty() || message.progress == null) {
+                        Text(
+                            text = message.content.ifEmpty { "…" },
+                            fontFamily = FontFamily.Default,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            color = textColor,
+                        )
+                    }
                 } else {
                     val citations = CitationParser.parseWithRanges(message.content)
+                        .filter { it.pageIndex in 0 until pageCount }
                     if (citations.isEmpty()) {
                         Text(message.content, fontFamily = FontFamily.Default, fontSize = 15.sp, lineHeight = 22.sp, color = textColor)
                     } else {
@@ -217,7 +281,10 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
                         )
                     }
                 }
-                if (message.isStreaming) { Spacer(Modifier.height(4.dp)); LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+                if (message.isStreaming && message.progress == null) {
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
             DropdownMenu(
                 expanded = showMenu,

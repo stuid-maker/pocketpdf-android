@@ -1,10 +1,16 @@
 package com.asuka.pocketpdf.ui.chat
 
 import android.content.Intent
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.asuka.pocketpdf.ui.ai.GenerationProgressDisplay
+import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
 import org.junit.Assert.assertFalse
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -22,8 +28,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ChatActivityTest {
 
+    @get:Rule
+    val composeRule = createComposeRule()
+
     @Test
-    fun `activity launches with valid document id`() {
+    fun activityLaunchesWithValidDocumentId() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
@@ -39,7 +48,7 @@ class ChatActivityTest {
     }
 
     @Test
-    fun `activity launches with default document id when extra missing`() {
+    fun activityLaunchesWithDefaultDocumentIdWhenExtraMissing() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
@@ -52,7 +61,7 @@ class ChatActivityTest {
     }
 
     @Test
-    fun `activity launches with document id zero`() {
+    fun activityLaunchesWithDocumentIdZero() {
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             ChatActivity::class.java,
@@ -64,5 +73,30 @@ class ChatActivityTest {
                 assertFalse("Activity should handle id=0", activity.isFinishing)
             }
         }
+    }
+
+    @Test
+    fun assistantBubbleDisplaysFullDocumentProgress() {
+        composeRule.setContent {
+            PocketPDFTheme {
+                ChatBubble(
+                    message = ChatDisplayMessage(
+                        id = 1L,
+                        role = ChatRole.ASSISTANT,
+                        content = "",
+                        isStreaming = true,
+                        progress = GenerationProgressDisplay(
+                            fraction = .35f,
+                            stageLabel = "正在总结第 1 / 3 部分",
+                            remainingSeconds = 40,
+                        ),
+                    ),
+                    documentId = 1L,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("正在总结第 1 / 3 部分").assertIsDisplayed()
+        composeRule.onNodeWithText("约剩 40秒").assertIsDisplayed()
     }
 }

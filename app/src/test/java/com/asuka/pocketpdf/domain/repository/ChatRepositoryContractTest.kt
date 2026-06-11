@@ -36,6 +36,9 @@ class ChatRepositoryContractTest {
         override suspend fun clearHistory(documentId: Long) {
             messages.remove(documentId)
         }
+
+        override suspend fun getHistorySnapshot(documentId: Long): List<StoredChatMessage> =
+            messages[documentId]?.toList() ?: emptyList()
     }
 
     @Test

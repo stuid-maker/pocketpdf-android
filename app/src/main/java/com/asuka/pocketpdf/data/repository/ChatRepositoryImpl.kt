@@ -32,6 +32,10 @@ class ChatRepositoryImpl @Inject constructor(
         dao.deleteByDocumentId(documentId)
     }
 
+    override suspend fun getHistorySnapshot(documentId: Long): List<StoredChatMessage> {
+        return dao.getByDocumentId(documentId).map { it.toDomain() }
+    }
+
     private fun ChatMessageEntity.toDomain() = StoredChatMessage(
         id = id,
         role = role,

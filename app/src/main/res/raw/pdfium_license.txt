@@ -1,0 +1,12 @@
+PDFiumAndroidKt
+Copyright John Gray and contributors
+Licensed under the Apache License, Version 2.0.
+https://www.apache.org/licenses/LICENSE-2.0
+
+This product includes software developed by the PDFium project.
+PDFium is distributed under a BSD-style license.
+https://pdfium.googlesource.com/pdfium/+/refs/heads/main/LICENSE
+
+The complete corresponding license texts are available from the upstream
+project:
+https://github.com/johngray1965/PdfiumAndroidKt

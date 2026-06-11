@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -104,8 +105,8 @@ fun DiagnosticsScreen(
                             .shadow(
                                 elevation = 3.dp,
                                 shape = RoundedCornerShape(PocketRadii.Card),
-                                ambientColor = Color(0x10302739),
-                                spotColor = Color(0x10302739),
+                                ambientColor = colors.shadowAmbient,
+                                spotColor = colors.shadowSpot,
                             )
                             .background(
                                 colors.paper,
@@ -155,12 +156,13 @@ private fun DiagnosticsHeader(onBack: () -> Unit) {
     ) {
         Surface(
             onClick = onBack,
-            shape = RoundedCornerShape(18.dp),
-            color = colors.paper.copy(alpha = .58f),
+            shape = RoundedCornerShape(PocketRadii.Control),
+            color = colors.crystal,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
                 colors.crystalBorder,
             ),
+            modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,

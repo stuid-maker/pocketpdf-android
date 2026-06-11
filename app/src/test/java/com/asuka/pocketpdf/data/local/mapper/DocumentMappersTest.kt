@@ -18,6 +18,7 @@ class DocumentMappersTest {
             pageCount = 480,
             indexStatus = "INDEXED",
             importedAt = 1_234_567_890L,
+            extractorVersion = 7,
         )
 
         val domain = entity.toDomain()
@@ -28,6 +29,7 @@ class DocumentMappersTest {
         assertEquals(480, domain.pageCount)
         assertEquals(IndexStatus.INDEXED, domain.indexStatus)
         assertEquals(1_234_567_890L, domain.importedAt)
+        assertEquals(7, domain.extractorVersion)
     }
 
     @Test
@@ -39,6 +41,7 @@ class DocumentMappersTest {
             pageCount = 50,
             indexStatus = IndexStatus.FAILED,
             importedAt = 999L,
+            extractorVersion = 4,
         )
 
         val entity = domain.toEntity()
@@ -49,6 +52,7 @@ class DocumentMappersTest {
         assertEquals(50, entity.pageCount)
         assertEquals("FAILED", entity.indexStatus)
         assertEquals(999L, entity.importedAt)
+        assertEquals(4, entity.extractorVersion)
     }
 
     @Test

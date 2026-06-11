@@ -8,11 +8,12 @@ import com.asuka.pocketpdf.data.local.dao.DocumentDao
 import com.asuka.pocketpdf.data.local.entity.DocumentEntity
 import com.asuka.pocketpdf.data.local.mapper.toDomain
 import com.asuka.pocketpdf.data.local.mapper.toEntity
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.data.storage.FileStorage
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.pdf.PdfDocumentEngine
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,7 @@ class DocumentRepositoryImpl @Inject constructor(
     private val chunkDao: ChunkDao,
     private val fileStorage: FileStorage,
     private val pdfTextExtractor: PdfTextExtractor,
+    private val pdfDocumentEngine: PdfDocumentEngine,
     private val dispatchers: DispatcherProvider,
 ) : DocumentRepository {
 
@@ -66,7 +68,12 @@ class DocumentRepositoryImpl @Inject constructor(
         resultOf {
             val copied: File = fileStorage.copyToInternal(sourceUri, displayName)
             val pageCount: Int = try {
-                pdfTextExtractor.extractPagesText(copied).size
+                val session = pdfDocumentEngine.open(copied)
+                try {
+                    session.pageCount
+                } finally {
+                    session.close()
+                }
             } catch (t: Throwable) {
                 copied.delete()
                 throw t

@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.di
 import android.content.Context
 import androidx.room.Room
 import com.asuka.pocketpdf.data.local.AppDatabase
+import com.asuka.pocketpdf.data.local.dao.AnnotationDao
 import com.asuka.pocketpdf.data.local.dao.ChatMessageDao
 import com.asuka.pocketpdf.data.local.dao.ChunkDao
 import com.asuka.pocketpdf.data.local.dao.DocumentDao
@@ -44,4 +45,7 @@ object DatabaseModule {
     fun provideChatMessageDao(database: AppDatabase): ChatMessageDao = database.chatMessageDao()
 
     @Provides fun provideChunkDao(database: AppDatabase): ChunkDao = database.chunkDao()
+
+    @Provides
+    fun provideAnnotationDao(database: AppDatabase): AnnotationDao = database.annotationDao()
 }

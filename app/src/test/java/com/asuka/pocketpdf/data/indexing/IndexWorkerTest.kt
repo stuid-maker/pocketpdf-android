@@ -7,12 +7,13 @@ import androidx.work.WorkerParameters
 import com.asuka.pocketpdf.core.Result
 import com.asuka.pocketpdf.data.chunking.ParagraphChunker
 import com.asuka.pocketpdf.data.local.SettingsDataStore
-import com.asuka.pocketpdf.data.pdf.PdfTextExtractor
+import com.asuka.pocketpdf.domain.pdf.PdfTextExtractor
 import com.asuka.pocketpdf.domain.chunking.TextChunker
 import com.asuka.pocketpdf.domain.embedding.EmbeddingEngine
 import com.asuka.pocketpdf.domain.model.Document
 import com.asuka.pocketpdf.domain.model.DocumentChunk
 import com.asuka.pocketpdf.domain.model.IndexStatus
+import com.asuka.pocketpdf.domain.pdf.PdfExtractorVersion
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
 import io.mockk.coEvery
@@ -105,6 +106,14 @@ class IndexWorkerTest {
         coVerify(exactly = 1) { pdfExtractor.extractPagesText(any()) }
         coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, any()) }
         coVerify(exactly = 1) { embedEngine.getEmbeddings(any()) }
+        coVerify {
+            documentRepo.updateDocument(
+                match {
+                    it.indexStatus == IndexStatus.INDEXED &&
+                        it.extractorVersion == PdfExtractorVersion.CURRENT
+                },
+            )
+        }
     }
 
     @Test
@@ -141,7 +150,7 @@ class IndexWorkerTest {
     }
 
     @Test
-    fun `marks INDEXED when document has no extractable text`() = runTest {
+    fun `marks NEEDS_OCR when document has no extractable text`() = runTest {
         val documentId = 1L
         val doc = Document(
             id = documentId, title = "empty.pdf", uri = "/tmp/empty.pdf",
@@ -162,7 +171,14 @@ class IndexWorkerTest {
         val result = worker.doWork()
 
         assertTrue("Expected Success", result is ListenableWorker.Result.Success)
-        coVerify(atLeast = 1) { documentRepo.updateDocument(match { it.indexStatus == IndexStatus.INDEXED }) }
+        coVerify {
+            documentRepo.updateDocument(
+                match {
+                    it.indexStatus == IndexStatus.NEEDS_OCR &&
+                        it.extractorVersion == PdfExtractorVersion.CURRENT
+                },
+            )
+        }
         coVerify(exactly = 0) { embedEngine.getEmbeddings(any()) }
         coVerify(exactly = 1) { documentRepo.replaceChunks(documentId, emptyList()) }
         coVerify(exactly = 1) { summaryCacheRepository.invalidate(documentId) }

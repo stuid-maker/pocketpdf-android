@@ -5,12 +5,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,7 +47,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -144,10 +145,11 @@ fun LibraryScreen(
                         modifier = Modifier.shadow(
                             elevation = 10.dp,
                             shape = RoundedCornerShape(PocketRadii.Floating),
-                            ambientColor = Color(0x40302739),
-                            spotColor = Color(0x40302739),
-                        ),
-                        shape = RoundedCornerShape(PocketRadii.Floating),
+                            ambientColor = colors.shadowAmbient,
+                            spotColor = colors.shadowSpot,
+                            )
+                            .background(colors.paper.copy(alpha = .82f))
+                            .defaultMinSize(minHeight = 48.dp),
                         color = Color(0xEE302739),
                         contentColor = Color.White,
                     ) {
@@ -159,11 +161,13 @@ fun LibraryScreen(
                                 Icons.Default.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(19.dp),
+                                tint = Color.White,
                             )
                             Spacer(Modifier.width(PocketSpacing.Sm))
                             Text(
                                 stringResource(R.string.library_fab_import),
                                 style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
                             )
                         }
                     }
@@ -238,7 +242,7 @@ private fun LibraryHeader(
             )
             Surface(
                 onClick = onOpenSettings,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(18.dp),
                 color = colors.paper.copy(alpha = .62f),
                 border = androidx.compose.foundation.BorderStroke(
@@ -258,8 +262,11 @@ private fun LibraryHeader(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(26.dp),
-            color = colors.paper.copy(alpha = .68f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+            color = colors.paper.copy(alpha = .92f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = .48f),
+            ),
         ) {
             Column(
                 modifier = Modifier.padding(PocketSpacing.Xl),
@@ -357,8 +364,11 @@ private fun LibrarySearchBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(PocketRadii.Control),
-        color = colors.paper.copy(alpha = .58f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.crystalBorder),
+        color = colors.paper,
+        border = androidx.compose.foundation.BorderStroke(
+            1.5.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = .72f),
+        ),
     ) {
         TextField(
             value = query,
@@ -401,6 +411,11 @@ private fun DismissibleDocumentCard(
     onRetryIndexing: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val deleteColor = if (isSystemInDarkTheme()) {
+        Color(0xFFFF7A8E)
+    } else {
+        MaterialTheme.colorScheme.error
+    }
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
         if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
@@ -415,7 +430,7 @@ private fun DismissibleDocumentCard(
                 modifier = Modifier.fillMaxSize().padding(horizontal = PocketSpacing.Xl),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Text(stringResource(R.string.library_swipe_delete), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.library_swipe_delete), color = deleteColor)
             }
         },
     ) {
@@ -437,11 +452,10 @@ private fun DocumentCard(
             .shadow(
                 elevation = 3.dp,
                 shape = RoundedCornerShape(PocketRadii.Card),
-                ambientColor = Color(0x10302739),
-                spotColor = Color(0x10302739),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
-            .clip(RoundedCornerShape(PocketRadii.Card))
-            .background(colors.paper)
+            .background(colors.paper.copy(alpha = .82f))
             .border(
                 width = 1.dp,
                 color = colors.crystalBorder,
@@ -497,6 +511,16 @@ private fun DocumentCard(
                         .background(indexColor(document.indexStatus).copy(alpha = .09f))
                         .padding(horizontal = 7.dp, vertical = 3.dp),
                 )
+                if (document.indexStatus == IndexStatus.FAILED && !document.indexError.isNullOrBlank()) {
+                    Spacer(Modifier.width(PocketSpacing.Sm))
+                    Text(
+                        text = document.indexError,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.mutedInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (document.indexStatus == IndexStatus.INDEXING) {
                     Spacer(Modifier.width(PocketSpacing.Sm))
                     LinearProgressIndicator(
@@ -510,12 +534,13 @@ private fun DocumentCard(
 
 @Composable
 private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoader?) {
-    val cover by produceState<DocumentCover>(
-        initialValue = fallbackCover(document.id, document.title),
-        document.id,
-        document.uri,
-    ) {
-        if (coverLoader != null) value = coverLoader.load(document, 180, 240)
+    val colors = LocalPocketColors.current
+    var cover by remember(document.id, document.uri) {
+        mutableStateOf<DocumentCover>(fallbackCover(document.id, document.title))
+    }
+    LaunchedEffect(document.id, document.uri, coverLoader) {
+        cover = coverLoader?.load(document, 180, 240)
+            ?: fallbackCover(document.id, document.title)
     }
     val fallbackPalettes = listOf(
         listOf(Color(0xFF7652A8), Color(0xFF302739)),
@@ -529,16 +554,16 @@ private fun DocumentCoverView(document: Document, coverLoader: DocumentCoverLoad
             .shadow(
                 elevation = 3.dp,
                 shape = RoundedCornerShape(8.dp),
-                ambientColor = Color(0x1F302739),
-                spotColor = Color(0x1F302739),
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot,
             )
-            .clip(RoundedCornerShape(8.dp)),
+            .background(colors.paper.copy(alpha = .82f)),
         contentAlignment = Alignment.Center,
     ) {
         when (val current = cover) {
             is DocumentCover.Thumbnail -> Image(
                 bitmap = current.bitmap.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = document.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
@@ -567,6 +592,7 @@ private fun indexLabel(status: IndexStatus): String = stringResource(
         IndexStatus.INDEXING -> R.string.library_badge_indexing
         IndexStatus.INDEXED -> R.string.library_badge_indexed
         IndexStatus.FAILED -> R.string.library_badge_failed
+        IndexStatus.NEEDS_OCR -> R.string.library_badge_needs_ocr
     },
 )
 
@@ -578,6 +604,7 @@ private fun indexColor(status: IndexStatus): Color {
         IndexStatus.INDEXING -> colors.warning
         IndexStatus.INDEXED -> colors.success
         IndexStatus.FAILED -> MaterialTheme.colorScheme.error
+        IndexStatus.NEEDS_OCR -> colors.warning
     }
 }
 

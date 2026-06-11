@@ -2,13 +2,13 @@ package com.asuka.pocketpdf.data.remote
 
 import com.asuka.pocketpdf.data.remote.dto.ChatCompletionChunkDto
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.withContext
 import okio.BufferedSource
 import timber.log.Timber
-import java.io.IOException
 
 /**
  * SSE (Server-Sent Events) / NDJSON 流式响应解析器。
@@ -71,8 +71,10 @@ class SseStreamParser(
                     if (!content.isNullOrEmpty()) {
                         send(content)
                     }
-                } catch (e: IOException) {
-                    Timber.tag(TAG).w(e, "Failed to parse SSE chunk: %s", json)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Failed to parse SSE chunk (skipping): %s", json)
                 }
             }
         }

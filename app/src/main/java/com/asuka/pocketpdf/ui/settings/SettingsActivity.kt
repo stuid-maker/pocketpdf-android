@@ -39,6 +39,8 @@ class SettingsActivity : ComponentActivity() {
                         onSystemPromptChanged = viewModel::onSystemPromptChanged,
                         onConfirmPreset = viewModel::confirmPresetOverride,
                         onCancelPreset = viewModel::cancelPresetOverride,
+                        onConfirmCloudPreset = viewModel::confirmCloudPreset,
+                        onCancelCloudPreset = viewModel::cancelCloudPreset,
                         onResetDefaults = viewModel::resetDefaults,
                         onTestConnection = viewModel::testConnection,
                     ),

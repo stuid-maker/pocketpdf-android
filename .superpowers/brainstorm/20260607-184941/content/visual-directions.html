@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PocketPDF 视觉方向</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0c11;
+      --panel: #17151d;
+      --line: rgba(255,255,255,.10);
+      --text: #f5f2f8;
+      --muted: #a9a4b0;
+      --violet: #9a7bea;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(112,72,180,.16), transparent 32rem),
+        linear-gradient(180deg, #100e15, var(--bg));
+      color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    header {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 48px 32px 20px;
+    }
+    .eyebrow { color: var(--violet); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 10px 0 8px; font-size: clamp(28px, 4vw, 48px); letter-spacing: -.04em; font-weight: 650; }
+    header p { margin: 0; color: var(--muted); font-size: 15px; }
+    .grid {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 24px 32px 56px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .direction {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(24,22,30,.76);
+      cursor: pointer;
+      transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+    .direction:hover { transform: translateY(-4px); border-color: rgba(154,123,234,.52); }
+    .direction.selected { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet), 0 18px 55px rgba(89,58,145,.25); }
+    .preview {
+      min-height: 570px;
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .phone {
+      width: 260px;
+      height: 530px;
+      border-radius: 32px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 28px 60px rgba(0,0,0,.34);
+    }
+    .status { height: 24px; padding: 9px 16px 0; display:flex; justify-content:space-between; font-size: 8px; opacity:.7; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding: 16px 18px 12px; }
+    .brand { font-size: 18px; font-weight: 650; letter-spacing: -.03em; }
+    .round { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; font-size:15px; }
+    .hero { padding: 14px 18px 16px; }
+    .hero small { display:block; font-size:9px; margin-bottom:7px; }
+    .hero strong { display:block; font-size:24px; line-height:1.08; letter-spacing:-.04em; }
+    .hero p { font-size:10px; line-height:1.5; margin:8px 0 0; opacity:.65; }
+    .search { height:36px; border-radius:13px; margin: 2px 18px 14px; padding:0 12px; display:flex; align-items:center; font-size:10px; }
+    .book { margin: 0 18px; border-radius:18px; padding:14px; display:grid; grid-template-columns:44px 1fr; gap:12px; }
+    .cover { height:58px; border-radius:9px; display:grid; place-items:center; font-size:18px; font-weight:700; }
+    .book h4 { margin:3px 0 5px; font-size:11px; }
+    .book p { margin:0; font-size:8px; opacity:.55; }
+    .progress { height:3px; border-radius:9px; margin-top:12px; overflow:hidden; }
+    .progress i { display:block; height:100%; width:68%; }
+    .ai-card { position:absolute; left:18px; right:18px; bottom:20px; border-radius:20px; padding:14px; backdrop-filter:blur(20px); }
+    .ai-row { display:flex; justify-content:space-between; align-items:center; }
+    .ai-card b { font-size:11px; }
+    .ai-card p { font-size:8px; margin:5px 0 0; opacity:.62; }
+    .spark { width:31px; height:31px; border-radius:11px; display:grid; place-items:center; }
+    .caption { border-top:1px solid var(--line); padding: 22px 22px 24px; }
+    .letter { display:inline-grid; place-items:center; width:25px; height:25px; border:1px solid rgba(255,255,255,.16); border-radius:8px; font-size:11px; color:var(--muted); }
+    .caption h2 { display:inline; margin-left:9px; font-size:19px; }
+    .caption p { color:var(--muted); font-size:13px; line-height:1.65; margin:12px 0 16px; }
+    .tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .tag { border:1px solid var(--line); border-radius:99px; padding:5px 8px; font-size:10px; color:#c8c2cf; }
+    .recommend { position:absolute; right:16px; top:16px; padding:6px 9px; border-radius:99px; background:#9a7bea; color:#171021; font-size:10px; font-weight:700; z-index:3; }
+
+    .a .preview { background:#d9d2c8; }
+    .a .phone { background:#f5f0e7; color:#211d28; border:1px solid rgba(37,26,46,.12); }
+    .a .round { background:#e7deef; }
+    .a .hero small { color:#6b567e; }
+    .a .search { background:#e9e2d9; color:#776f79; }
+    .a .book { background:#fffaf3; border:1px solid rgba(50,38,57,.10); }
+    .a .cover { background:#34283e; color:#e7d5ff; font-family:Georgia,serif; }
+    .a .progress { background:#ded5e4; } .a .progress i { background:#71518c; }
+    .a .ai-card { background:rgba(49,39,58,.88); color:#fbf5ff; }
+    .a .spark { background:#b99ad5; color:#2b1939; }
+    .a .brand, .a .hero strong { font-family: Georgia, "Microsoft YaHei", serif; }
+
+    .b .preview { background:#09080d; }
+    .b .phone { background:#101014; color:#f6f4f8; border:1px solid rgba(192,168,255,.23); }
+    .b .round { border:1px solid #37323f; }
+    .b .hero small { color:#a988ff; letter-spacing:.15em; text-transform:uppercase; }
+    .b .search { background:#18171c; border:1px solid #2c2932; color:#77717e; }
+    .b .book { background:#17161b; border:1px solid #302b38; border-radius:12px; }
+    .b .cover { background:#9e7cf2; color:#171020; border-radius:5px; }
+    .b .progress { background:#2d2933; } .b .progress i { background:#a887ff; }
+    .b .ai-card { background:rgba(27,24,33,.80); border:1px solid rgba(183,153,255,.28); }
+    .b .spark { background:#a887ff; color:#171020; }
+    .b .hero strong { font-weight:550; }
+
+    .c .preview {
+      background:
+        radial-gradient(circle at 74% 18%, rgba(137,100,220,.40), transparent 10rem),
+        linear-gradient(145deg,#e8e3eb,#cfc6d9);
+    }
+    .c .phone { background:#f7f4f8; color:#201b26; border:1px solid rgba(255,255,255,.68); }
+    .c .top { background:rgba(249,247,250,.48); backdrop-filter:blur(20px); }
+    .c .round { background:rgba(255,255,255,.58); border:1px solid rgba(255,255,255,.72); }
+    .c .hero small { color:#795aa3; font-weight:650; }
+    .c .search { background:rgba(255,255,255,.56); border:1px solid rgba(255,255,255,.75); color:#746e78; backdrop-filter:blur(16px); }
+    .c .book { background:rgba(255,255,255,.72); border:1px solid rgba(255,255,255,.9); box-shadow:0 9px 30px rgba(51,31,71,.08); }
+    .c .cover { background:linear-gradient(155deg,#6f4ca1,#2f253a); color:#eee4ff; }
+    .c .progress { background:#e3dce8; } .c .progress i { background:#7451a7; }
+    .c .ai-card { background:rgba(43,34,52,.72); color:#fbf8ff; border:1px solid rgba(255,255,255,.18); box-shadow:0 14px 36px rgba(31,20,42,.25); }
+    .c .spark { background:rgba(196,166,242,.92); color:#2b1b3c; }
+    .c .brand { font-weight:700; }
+
+    .footer-note { max-width:1460px; margin:-32px auto 48px; padding:0 32px; color:#77717f; font-size:12px; }
+    @media(max-width:1000px) { .grid{grid-template-columns:1fr;} .preview{min-height:520px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">PocketPDF / Visual Direction</div>
+    <h1>克制，但必须有性格</h1>
+    <p>点击选择最接近你期待的方向。后续会把选定方向扩展到阅读器、AI 面板、设置和全套组件。</p>
+  </header>
+  <main class="grid">
+    <article class="direction a" data-choice="a" onclick="selectDirection(this)">
+      <div class="preview">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>● ●● 87%</span></div>
+          <div class="top"><span class="brand">Pocket PDF</span><span class="round">•••</span></div>
+          <div class="hero"><small>你的阅读桌面</small><strong>继续深入<br>这份研究</strong><p>论文、教材与技术文档，在这里被真正读懂。</p></div>
+          <div class="search">⌕　搜索文档与笔记</div>
+          <div class="book"><div class="cover">P</div><div><h4>Modeling Smartphone Battery Life</h4><p>29 页 · 刚刚阅读 · 已完成索引</p><div class="progress"><i></i></div></div></div>
+          <div class="ai-card"><div class="ai-row"><div><b>文档洞察</b><p>继续上次关于实验方法的提问</p></div><span class="spark">✦</span></div></div>
+        </div>
+      </div>
+      <div class="caption"><span class="letter">A</span><h2>编辑式学术</h2><p>暖灰纸张、深墨色与克制紫。像一本经过精心排版的现代学术刊物，阅读气质最强。</p><div class="tags"><span class="tag">温润纸感</span><span class="tag">编辑排版</span><span class="tag">低透明度</span></div></div>
+    </article>
+
+    <article class="direction b" data-choice="b" onclick="selectDirection(this)">
+      <div class="preview">
+        <div class="phone">
+          <div class="status"><span>09:41</span><span>● ●● 87%</span></div>
+          <div class="top"><span class="brand">POCKET/PDF</span><span class="round">•••</span></div>
+          <div class="hero"><small>RESEARCH LIBRARY</small><strong>Read with<br>precision.</strong><p>本地索引就绪。你的资料保持私密，并可随时追问。</p></div>
+          <div class="search">⌕　SEARCH LIBRARY</div>
+          <div class="book"><div class="cover">01</div><div><h4>Modeling Smartphone Battery Life</h4><p>29 PAGES / INDEX READY</p><div class="progress"><i></i></div></div></div>
+          <div class="ai-card"><div class="ai-row"><div><b>ASK THIS DOCUMENT</b><p>8 indexed sections available</p></div><span class="spark">↗</span></div></div>
+        </div>
+      </div>
+      <div class="caption"><span class="letter">B</span><h2>精密研究终端</h2><p>纯暗色、高对比与更紧凑的几何结构。AI 与本地索引的技术属性最鲜明，也最冷静。</p><div class="tags"><span class="tag">暗色优先</span><span class="tag">精密几何</span><span class="tag">技术气质</span></div></div>
+    </article>
+
+    <article class="direction c" data-choice="c" onclick="selectDirection(this)">
+      <span class="recommend">推荐</span>
+      <div class="preview">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>● ●● 87%</span></div>
+          <div class="top"><span class="brand">PocketPDF</span><span class="round">•••</span></div>
+          <div class="hero"><small>下午好</small><strong>你的知识，<br>正在形成脉络。</strong><p>继续阅读、梳理与提问。所有处理都由你掌控。</p></div>
+          <div class="search">⌕　搜索你的文库</div>
+          <div class="book"><div class="cover">P</div><div><h4>Modeling Smartphone Battery Life</h4><p>29 页 · 阅读至 68% · 索引完成</p><div class="progress"><i></i></div></div></div>
+          <div class="ai-card"><div class="ai-row"><div><b>继续对话</b><p>回到实验方法与结论的讨论</p></div><span class="spark">✦</span></div></div>
+        </div>
+      </div>
+      <div class="caption"><span class="letter">C</span><h2>紫晶知识工作台</h2><p>清晰纸面作为主体，紫色半透明悬浮层承载导航与 AI。现代、安静，同时拥有明确识别度。</p><div class="tags"><span class="tag">轻玻璃质感</span><span class="tag">纸面主体</span><span class="tag">平衡科技与阅读</span></div></div>
+    </article>
+  </main>
+  <p class="footer-note">透明效果只出现在导航、工具条和 AI 等悬浮层，正文与表单保持稳定高对比。</p>
+  <script>
+    function selectDirection(el) {
+      document.querySelectorAll('.direction').forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+      fetch('/api/event', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type:'click', choice:el.dataset.choice, text:el.querySelector('h2').textContent, timestamp:Date.now()})
+      }).catch(()=>{});
+    }
+  </script>
+</body>
+</html>

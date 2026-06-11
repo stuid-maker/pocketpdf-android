@@ -18,6 +18,35 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Sentry DSN：通过 buildConfigField 注入，避免硬编码
+        buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: ""}\"")
+    }
+
+    signingConfigs {
+        create("release") {
+            val propsFile = rootProject.file("local.properties")
+            if (propsFile.exists()) {
+                val lines = propsFile.readLines()
+                val props = lines.associate { line ->
+                    val trimmed = line.trim()
+                    if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                        "" to ""
+                    } else {
+                        val eq = trimmed.indexOf('=')
+                        if (eq > 0) trimmed.substring(0, eq) to trimmed.substring(eq + 1)
+                        else "" to ""
+                    }
+                }.filterKeys { it.isNotEmpty() }
+                val keystorePath = props["KEYSTORE_PATH"]
+                if (!keystorePath.isNullOrBlank()) {
+                    storeFile = file(keystorePath)
+                    storePassword = props["KEYSTORE_PASSWORD"] ?: ""
+                    keyAlias = props["KEY_ALIAS"] ?: "pocketpdf"
+                    keyPassword = props["KEY_PASSWORD"] ?: ""
+                }
+            }
+        }
     }
 
     buildTypes {
@@ -27,6 +56,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val cfg = signingConfigs.getByName("release")
+            if (cfg.storeFile != null) {
+                signingConfig = cfg
+            }
         }
     }
 
@@ -40,7 +73,6 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
         buildConfig = true
         compose = true
     }
@@ -49,6 +81,15 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+    }
+
+    // 防止 .tflite 被 AAPT 压缩（ModelLoader 需要随机读取未压缩文件）
+    aaptOptions {
+        noCompress += "tflite"
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 }
 
@@ -102,13 +143,12 @@ dependencies {
 
     // PDF
     implementation(libs.pdfbox.android)
+    implementation(libs.pdfium.android)
 
     // AI / Embedding (MediaPipe)
     implementation(libs.mediapipe.tasks.text)
 
-    // Network
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.moshi)
+    // Network（不再使用 Retrofit，所有 LLM 调用统一走原生 OkHttp）
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.okhttp.sse)
@@ -118,6 +158,9 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // Crash Monitoring (Sentry)
+    implementation(libs.sentry.android)
 
     // Test
     testImplementation(libs.junit)
