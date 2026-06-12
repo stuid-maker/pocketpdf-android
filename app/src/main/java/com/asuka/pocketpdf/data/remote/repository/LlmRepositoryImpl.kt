@@ -16,9 +16,11 @@ import com.squareup.moshi.Moshi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -26,7 +28,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
+import kotlin.coroutines.coroutineContext
 
 /**
  * [LlmRepository] 的 OkHttp 实现（无 Retrofit）。
@@ -89,47 +93,53 @@ class LlmRepositoryImpl @Inject constructor(
             .post(requestBody)
             .build()
 
-        var response: okhttp3.Response? = null
-        var call: okhttp3.Call? = null
-        try {
-            call = okHttpClient.newCall(request)
-            response = withContext(Dispatchers.IO) {
-                call!!.execute()
-            }
+        val callRef = AtomicReference<okhttp3.Call?>()
+        val responseRef = AtomicReference<okhttp3.Response?>()
+        val worker = launch(dispatchers.io) {
+            try {
+                val call = okHttpClient.newCall(request)
+                callRef.set(call)
+                coroutineContext.ensureActive()
+                val response = call.execute()
+                responseRef.set(response)
 
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string() ?: "HTTP ${response.code}"
-                response.close()
-                throw IOException("Chat completion failed: $errorBody")
-            }
+                response.use { openResponse ->
+                    if (!openResponse.isSuccessful) {
+                        val errorBody = openResponse.body?.string() ?: "HTTP ${openResponse.code}"
+                        throw IOException("Chat completion failed: $errorBody")
+                    }
 
-            val body = response.body
-            if (body == null) {
-                response.close()
-                throw IOException("Chat completion returned empty body")
-            }
-
-            val source = body.source()
-            sseParser.parse(source).collect { token ->
-                val result = trySend(token)
-                if (result.isFailure) {
-                    Timber.tag(TAG).w("channel closed, dropping SSE token")
+                    val body = openResponse.body
+                        ?: throw IOException("Chat completion returned empty body")
+                    sseParser.parse(body.source()).collect { token ->
+                        val result = trySend(token)
+                        if (result.isFailure) {
+                            Timber.tag(TAG).w("channel closed, dropping SSE token")
+                        }
+                    }
                 }
+                channel.close()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                if (callRef.get()?.isCanceled() != true) {
+                    Timber.tag(TAG).e(e, "chatCompletionStream failed")
+                    channel.close(e)
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "chatCompletionStream failed")
+                channel.close(e)
+            } finally {
+                callRef.set(null)
+                responseRef.getAndSet(null)?.close()
             }
-            response.close()
-            channel.close()
-        } catch (e: CancellationException) {
-            response?.close()
-            throw e
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "chatCompletionStream failed")
-            response?.close()
-            throw e
         }
 
         awaitClose {
             Timber.tag(TAG).d("chatCompletionStream Flow cancelled, cancelling HTTP call")
-            call?.cancel()
+            callRef.get()?.cancel()
+            responseRef.get()?.close()
+            worker.cancel()
         }
     }
 
