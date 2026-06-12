@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -729,5 +730,64 @@ class FullDocumentSummarizerTest {
         }
 
         assertTrue(siblingCancelled.get())
+    }
+
+    @Test
+    fun `per call timeout is not reported as overall timeout`() = runTest {
+        coEvery { documentRepository.getChunks(1L) } returns listOf(
+            chunk(1, 0, 0, "slow content"),
+        )
+        every {
+            llmRepository.chatCompletionStream(
+                model = any(), messages = any(), temperature = any()
+            )
+        } returns flow {
+            awaitCancellation()
+        }
+
+        val summarizer = FullDocumentSummarizer.testInstance(
+            documentRepository = documentRepository,
+            llmRepository = llmRepository,
+            perCallTimeoutMillis = 100,
+            overallTimeoutMillis = 1_000,
+        )
+
+        try {
+            summarizer.summarize(1L, testModel).toList()
+            fail("Expected PerCallTimeoutException")
+        } catch (e: PerCallTimeoutException) {
+            assertEquals("small doc final", e.label)
+            assertEquals(100L, e.timeoutMillis)
+        }
+    }
+
+    @Test
+    fun `overall timeout remains distinct from per call timeout`() = runTest {
+        coEvery { documentRepository.getChunks(1L) } returns listOf(
+            chunk(1, 0, 0, "slow content"),
+        )
+        every {
+            llmRepository.chatCompletionStream(
+                model = any(), messages = any(), temperature = any()
+            )
+        } returns flow {
+            awaitCancellation()
+        }
+
+        val summarizer = FullDocumentSummarizer.testInstance(
+            documentRepository = documentRepository,
+            llmRepository = llmRepository,
+            perCallTimeoutMillis = 1_000,
+            overallTimeoutMillis = 100,
+        )
+
+        try {
+            withTimeout(2_000) {
+                summarizer.summarize(1L, testModel).toList()
+            }
+            fail("Expected OverallTimeoutException")
+        } catch (e: OverallTimeoutException) {
+            assertEquals(100L, e.timeoutMillis)
+        }
     }
 }

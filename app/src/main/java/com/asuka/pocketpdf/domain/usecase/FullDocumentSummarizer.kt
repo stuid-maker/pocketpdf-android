@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -54,6 +55,12 @@ class FullDocumentSummarizer @Inject constructor(
     /** Map 阶段并发数。默认 2，设为 1 退化为串行。 */
     internal var mapConcurrency: Int = DEFAULT_MAP_CONCURRENCY
 
+    /** 测试可缩短；生产默认使用 [PER_CALL_TIMEOUT_SECONDS]。 */
+    internal var perCallTimeoutMillis: Long = PER_CALL_TIMEOUT_SECONDS * 1000L
+
+    /** 测试可缩短；生产默认使用 [OVERALL_TIMEOUT_SECONDS]。 */
+    internal var overallTimeoutMillis: Long = OVERALL_TIMEOUT_SECONDS * 1000L
+
     companion object {
         /** 全文摘要算法版本。修改摘要逻辑时必须递增，确保旧缓存自动失效。 */
         const val ALGORITHM_VERSION = 2
@@ -81,9 +88,13 @@ class FullDocumentSummarizer @Inject constructor(
             documentRepository: DocumentRepository,
             llmRepository: LlmRepository,
             batchCharBudget: Int = DEFAULT_BATCH_CHAR_BUDGET,
+            perCallTimeoutMillis: Long = PER_CALL_TIMEOUT_SECONDS * 1000L,
+            overallTimeoutMillis: Long = OVERALL_TIMEOUT_SECONDS * 1000L,
         ): FullDocumentSummarizer {
             return FullDocumentSummarizer(documentRepository, llmRepository).also {
                 it.batchCharBudget = batchCharBudget
+                it.perCallTimeoutMillis = perCallTimeoutMillis
+                it.overallTimeoutMillis = overallTimeoutMillis
             }
         }
     }
@@ -125,7 +136,7 @@ class FullDocumentSummarizer @Inject constructor(
 
         // 全程超时兜底，防止数十次调用累计耗时失控
         try {
-            withTimeout(OVERALL_TIMEOUT_SECONDS * 1000L) {
+            withTimeout(overallTimeoutMillis) {
                 // 3. 处理
                 if (batches.size == 1) {
                     summarizeSmallDoc(batches.first(), model, systemPrompt, question, onProgress)
@@ -136,7 +147,7 @@ class FullDocumentSummarizer @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             throw OverallTimeoutException(
                 batches = batches.size,
-                timeoutSeconds = OVERALL_TIMEOUT_SECONDS,
+                timeoutMillis = overallTimeoutMillis,
             )
         }
     }
@@ -382,13 +393,17 @@ class FullDocumentSummarizer @Inject constructor(
     ): Flow<String> {
         val stream = llmRepository.chatCompletionStream(model, messages)
         return flow {
-            try {
-                withTimeout(PER_CALL_TIMEOUT_SECONDS * 1000L) {
-                    stream.collect { emit(it) }
-                }
-            } catch (e: TimeoutCancellationException) {
-                Timber.tag(TAG).w(e, "LLM call timed out after %ds: %s", PER_CALL_TIMEOUT_SECONDS, label)
-                throw e
+            val completed = withTimeoutOrNull(perCallTimeoutMillis) {
+                stream.collect { emit(it) }
+                true
+            }
+            if (completed == null) {
+                Timber.tag(TAG).w(
+                    "LLM call timed out after %dms: %s",
+                    perCallTimeoutMillis,
+                    label,
+                )
+                throw PerCallTimeoutException(label, perCallTimeoutMillis)
             }
         }
     }
@@ -499,8 +514,25 @@ class AllBatchesEmptyException(
  */
 class OverallTimeoutException(
     batches: Int,
-    timeoutSeconds: Long,
+    val timeoutMillis: Long,
 ) : Exception(
-    "全文摘要超时：${batches} 个批次在 ${timeoutSeconds}s 内未完成，" +
+    "全文摘要超时：${batches} 个批次在 ${formatTimeout(timeoutMillis)} 内未完成，" +
     "请减小文档或切换到更快的模型"
-)
+) {
+    companion object {
+        private fun formatTimeout(timeoutMillis: Long): String =
+            if (timeoutMillis % 1000L == 0L) {
+                "${timeoutMillis / 1000L}s"
+            } else {
+                "${timeoutMillis}ms"
+            }
+    }
+}
+
+/**
+ * 单次 LLM 流调用超时，不等同于整个 Map-Reduce 流程超时。
+ */
+class PerCallTimeoutException(
+    val label: String,
+    val timeoutMillis: Long,
+) : Exception("LLM 调用超时：$label 在 ${timeoutMillis}ms 内未完成")
