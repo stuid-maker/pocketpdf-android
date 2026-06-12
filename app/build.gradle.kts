@@ -1,9 +1,104 @@
+import java.net.URI
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.security.MessageDigest
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
+}
+
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
+fun resolveConfigValue(key: String): String = sequenceOf(
+    providers.gradleProperty(key).orNull,
+    providers.environmentVariable(key).orNull,
+    localProperties.getProperty(key),
+).firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+
+fun sha256(path: Path): String =
+    Files.newInputStream(path).use { input ->
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+        digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+fun prepareModelAsset(destination: Path, expectedSha256: String, download: (Path) -> Unit) {
+    if (Files.isRegularFile(destination) && sha256(destination) == expectedSha256) return
+
+    Files.createDirectories(destination.parent)
+    val temporary = destination.resolveSibling("${destination.fileName}.download")
+    Files.deleteIfExists(temporary)
+    try {
+        download(temporary)
+        check(Files.isRegularFile(temporary)) {
+            "Embedding model download did not create $temporary"
+        }
+        check(sha256(temporary) == expectedSha256) {
+            "Embedding model SHA-256 verification failed. Delete the local model and retry."
+        }
+        try {
+            Files.move(temporary, destination, ATOMIC_MOVE, REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(temporary, destination, REPLACE_EXISTING)
+        }
+    } catch (error: Exception) {
+        Files.deleteIfExists(temporary)
+        if (error is IllegalStateException && error.message.orEmpty().contains("SHA-256")) {
+            throw error
+        }
+        throw GradleException(
+            "Unable to prepare the embedding model. Check network access to the pinned " +
+                "MediaPipe model URL, then retry the build.",
+            error,
+        )
+    }
+}
+
+val sentryDsn = resolveConfigValue("SENTRY_DSN")
+
+val embeddingModelUrl =
+    "https://storage.googleapis.com/mediapipe-models/text_embedder/" +
+        "universal_sentence_encoder/float32/1/universal_sentence_encoder.tflite"
+val embeddingModelSha256 =
+    "89ad3c74175dd8caa398cc22b657296d94302d20c525c12b58b29420f7249749"
+val embeddingModelFile =
+    layout.projectDirectory.file("src/main/assets/models/universal_sentence_encoder.tflite")
+
+val prepareEmbeddingModel by tasks.registering {
+    group = "build setup"
+    description = "Downloads and verifies the pinned MediaPipe embedding model."
+    outputs.file(embeddingModelFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        prepareModelAsset(embeddingModelFile.asFile.toPath(), embeddingModelSha256) { temporary ->
+            val connection = URI(embeddingModelUrl).toURL().openConnection().apply {
+                connectTimeout = 30_000
+                readTimeout = 60_000
+            }
+            connection.getInputStream().use { input ->
+                Files.copy(input, temporary, REPLACE_EXISTING)
+            }
+        }
+    }
 }
 
 android {
@@ -20,30 +115,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Sentry DSN：通过 buildConfigField 注入，避免硬编码
-        buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: ""}\"")
+        buildConfigField("String", "SENTRY_DSN", "\"${sentryDsn.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
 
     signingConfigs {
         create("release") {
-            val propsFile = rootProject.file("local.properties")
-            if (propsFile.exists()) {
-                val lines = propsFile.readLines()
-                val props = lines.associate { line ->
-                    val trimmed = line.trim()
-                    if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                        "" to ""
-                    } else {
-                        val eq = trimmed.indexOf('=')
-                        if (eq > 0) trimmed.substring(0, eq) to trimmed.substring(eq + 1)
-                        else "" to ""
-                    }
-                }.filterKeys { it.isNotEmpty() }
-                val keystorePath = props["KEYSTORE_PATH"]
+            if (localProperties.isNotEmpty()) {
+                val keystorePath = localProperties.getProperty("KEYSTORE_PATH")
                 if (!keystorePath.isNullOrBlank()) {
                     storeFile = file(keystorePath)
-                    storePassword = props["KEYSTORE_PASSWORD"] ?: ""
-                    keyAlias = props["KEY_ALIAS"] ?: "pocketpdf"
-                    keyPassword = props["KEY_PASSWORD"] ?: ""
+                    storePassword = localProperties.getProperty("KEYSTORE_PASSWORD", "")
+                    keyAlias = localProperties.getProperty("KEY_ALIAS", "pocketpdf")
+                    keyPassword = localProperties.getProperty("KEY_PASSWORD", "")
                 }
             }
         }
@@ -90,6 +173,15 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+tasks.configureEach {
+    if (
+        (name.startsWith("merge") && name.endsWith("Assets")) ||
+        name.contains("lint", ignoreCase = true)
+    ) {
+        dependsOn(prepareEmbeddingModel)
     }
 }
 

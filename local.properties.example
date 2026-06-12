@@ -15,4 +15,5 @@ KEY_PASSWORD=你的密码
 # 在 https://sentry.io 创建 Android 项目后获取 DSN
 # 格式：https://xxx@xxx.ingest.sentry.io/xxx
 # 不填则 Sentry 自动禁用（不报错）
+# 读取优先级：Gradle -PSENTRY_DSN > 环境变量 SENTRY_DSN > 此文件
 SENTRY_DSN=

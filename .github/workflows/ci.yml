@@ -62,10 +62,14 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Run lint
-        run: ./gradlew lint
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: ./gradlew lint -PSENTRY_DSN="$SENTRY_DSN"
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: ./gradlew testDebugUnitTest -PSENTRY_DSN="$SENTRY_DSN"
 
       - name: Decode release keystore
         if: ${{ secrets.KEYSTORE_BASE64 != '' }}
@@ -84,7 +88,9 @@ jobs:
           EOF
 
       - name: Assemble release
-        run: ./gradlew assembleRelease
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: ./gradlew assembleRelease -PSENTRY_DSN="$SENTRY_DSN"
 
       - name: Upload lint results
         if: always()

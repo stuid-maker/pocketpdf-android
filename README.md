@@ -108,7 +108,7 @@ Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **ze
 - [Android Studio](https://developer.android.com/studio) (Ladybug or later)
 - Android device or emulator (API 26+)
 - [LM Studio](https://lmstudio.ai/) on your PC (for LLM features)
-- **Embedding model** — the on-device vectorization engine needs a TFLite model file. Download it automatically via the Gradle task (recommended) or manually from Google's official storage bucket.
+- **Embedding model** — Gradle downloads and verifies the pinned ~6.1 MB TFLite model automatically when it is missing.
 
 ### Setup
 
@@ -117,19 +117,17 @@ Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **ze
 git clone https://github.com/stuid-maker/pocketpdf-android.git
 cd pocketpdf-android
 
-# 2. Download the embedding model (REQUIRED for AI features)
-#    Download universal_sentence_encoder.tflite (~68 MB) from Google's official bucket:
-#    https://storage.googleapis.com/mediapipe-models/text_embedder/universal_sentence_encoder/float32/1/universal_sentence_encoder.tflite
-#    Place it at: app/src/main/assets/models/universal_sentence_encoder.tflite
-
-# 3. Open in Android Studio
+# 2. Open in Android Studio
 #    File → Open → select pocketpdf-android → wait for Gradle sync
 
-# 4. Build & run
+# 3. Build & run
 #    Select a device and press Run (▶)
 ```
 
-&gt; **Why is this step needed?** The `.tflite` model file is too large to store in Git (~68 MB). Download it from Google's official MediaPipe model storage bucket. If you skip this step, PDF indexing will fail and all AI features (Q&amp;A, summaries) will be unavailable.
+Gradle's `prepareEmbeddingModel` task downloads the audited MediaPipe model to
+`app/src/main/assets/models/universal_sentence_encoder.tflite`, verifies its pinned SHA-256,
+and fails the build clearly if the download or verification cannot complete. A valid local
+copy is reused, so subsequent builds work offline.
 
 ### LLM Backend (LM Studio)
 
