@@ -4,15 +4,20 @@ import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.asuka.pocketpdf.ui.ai.GenerationProgressDisplay
 import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * ChatActivity UI 测试：验证 Compose 聊天界面可正常启动。
@@ -98,5 +103,28 @@ class ChatActivityTest {
 
         composeRule.onNodeWithText("正在总结第 1 / 3 部分").assertIsDisplayed()
         composeRule.onNodeWithText("约剩 40秒").assertIsDisplayed()
+    }
+
+    @Test
+    fun regenerateMenuPassesSelectedAssistantMessageId() {
+        val selectedMessageId = AtomicLong(-1L)
+        composeRule.setContent {
+            PocketPDFTheme {
+                ChatBubble(
+                    message = ChatDisplayMessage(
+                        id = 42L,
+                        role = ChatRole.ASSISTANT,
+                        content = "answer",
+                    ),
+                    documentId = 1L,
+                    onRegenerate = selectedMessageId::set,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("answer").performTouchInput { longClick() }
+        composeRule.onNodeWithText("重新生成").performClick()
+
+        assertEquals(42L, selectedMessageId.get())
     }
 }

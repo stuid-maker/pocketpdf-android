@@ -45,7 +45,7 @@ class ChatViewModel @Inject constructor(
     private var generateJob: Job? = null
     private var historyJob: Job? = null
     private var documentId: Long = -1L
-    private var lastQuestion: String = ""
+    private var lastFailedQuestion: String? = null
 
     override fun onCleared() {
         generateJob?.cancel()
@@ -100,8 +100,6 @@ class ChatViewModel @Inject constructor(
         val text = _uiState.value.inputText.trim()
         if (text.isEmpty() || _uiState.value.isGenerating || documentId <= 0) return
 
-        lastQuestion = text
-
         val userMsgId = ++localMessageCounter
         val userMsg = ChatDisplayMessage(
             id = userMsgId,
@@ -125,14 +123,12 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(messages = it.messages + placeholder) }
 
         generateJob = viewModelScope.launch {
-            // Save user message first, then snapshot — avoids race where
-            // current question appears twice in the context
+            val history = chatRepository.getHistorySnapshot(documentId)
             try {
                 chatRepository.saveMessage(documentId, ChatMessage(ChatMessage.ROLE_USER, text))
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "save user message failed")
             }
-            val history = chatRepository.getHistorySnapshot(documentId)
             val progressEstimator = GenerationProgressEstimator()
             try {
                 val model = settingsDataStore.modelName.first()
@@ -169,6 +165,7 @@ class ChatViewModel @Inject constructor(
                         },
                     )
                 }
+                lastFailedQuestion = null
                 saveAiToDb(aiMsgId)
             } catch (e: CancellationException) {
                 _uiState.update { state ->
@@ -183,6 +180,7 @@ class ChatViewModel @Inject constructor(
                 saveAiToDb(aiMsgId)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "chat generation failed")
+                lastFailedQuestion = text
                 _uiState.update { state ->
                     state.copy(
                         isGenerating = false,
@@ -219,11 +217,31 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
-    fun retry() {
-        if (lastQuestion.isBlank()) return
-        val q = lastQuestion
-        lastQuestion = ""
-        _uiState.update { it.copy(inputText = q, error = null) }
+    fun retry(assistantMessageId: Long) {
+        val messages = _uiState.value.messages
+        val assistantIndex = messages.indexOfFirst {
+            it.id == assistantMessageId && it.role == ChatRole.ASSISTANT
+        }
+        val question = if (assistantIndex > 0) {
+            messages.subList(0, assistantIndex)
+                .lastOrNull { it.role == ChatRole.USER }
+                ?.content
+        } else {
+            null
+        }
+        if (question.isNullOrBlank()) {
+            _uiState.update { it.copy(error = REGENERATE_QUESTION_NOT_FOUND_ERROR) }
+            return
+        }
+
+        _uiState.update { it.copy(inputText = question, error = null) }
+        sendMessage()
+    }
+
+    fun retryLastFailure() {
+        val question = lastFailedQuestion ?: return
+        lastFailedQuestion = null
+        _uiState.update { it.copy(inputText = question, error = null) }
         sendMessage()
     }
 
@@ -243,6 +261,7 @@ class ChatViewModel @Inject constructor(
 
     companion object {
         const val TAG = "ChatViewModel"
+        const val REGENERATE_QUESTION_NOT_FOUND_ERROR = "找不到该回答对应的问题，无法重新生成"
         /** 本地临时消息的 ID 起始偏移。DB 自增 ID 通常 < 10⁶，此偏移保证不冲突。 */
         private const val LOCAL_ID_OFFSET = 1_000_000_000L
 

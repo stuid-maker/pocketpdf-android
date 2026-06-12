@@ -129,7 +129,7 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(error, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 13.sp)
-                            TextButton(onClick = { viewModel.retry() }) {
+                            TextButton(onClick = viewModel::retryLastFailure) {
                                 Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text(stringResource(R.string.chat_retry))
@@ -169,7 +169,7 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
                 ChatBubble(
                     message = message,
                     documentId = documentId,
-                    onRegenerate = { viewModel.retry() },
+                    onRegenerate = viewModel::retry,
                     pageCount = uiState.pageCount,
                 )
             }
@@ -179,7 +179,7 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() -> Unit)? = null, pageCount: Int = Int.MAX_VALUE) {
+fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: ((Long) -> Unit)? = null, pageCount: Int = Int.MAX_VALUE) {
     val isUser = message.role == ChatRole.USER
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
@@ -301,7 +301,7 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: (() 
                 DropdownMenuItem(
                     text = { Text("重新生成") },
                     onClick = {
-                        onRegenerate?.invoke()
+                        onRegenerate?.invoke(message.id)
                         showMenu = false
                     }
                 )
