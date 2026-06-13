@@ -5,8 +5,23 @@ PocketPDF is an Android PDF reader with on-device indexing and retrieval-augment
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin)](https://kotlinlang.org)
 [![CI](https://img.shields.io/github/actions/workflow/status/stuid-maker/pocketpdf-android/ci.yml?branch=main&logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions)
-[![Release](https://img.shields.io/badge/release-v1.2.0-7652A8)](https://github.com/stuid-maker/pocketpdf-android/releases)
+[![Release](https://img.shields.io/github/v/release/stuid-maker/pocketpdf-android?logo=github)](https://github.com/stuid-maker/pocketpdf-android/releases/latest)
 [![Tests](https://img.shields.io/badge/tests-402%20JVM%20%2B%2031%20Android-brightgreen)](https://github.com/stuid-maker/pocketpdf-android/actions)
+[![Downloads](https://img.shields.io/github/downloads/stuid-maker/pocketpdf-android/total?logo=github)](https://github.com/stuid-maker/pocketpdf-android/releases)
+
+## Download
+
+Download the latest signed APK from the [GitHub Releases page](https://github.com/stuid-maker/pocketpdf-android/releases/latest), or grab the current build directly:
+
+- **[PocketPDF v1.2.0 (APK, ~67 MB)](https://github.com/stuid-maker/pocketpdf-android/releases/download/v1.2.0/PocketPDF-v1.2.0.apk)**
+
+Verify the download (optional):
+
+```text
+SHA-256: 4eb326e9cfedf390ed5745137a216a7737585ca891205c56e71b7dcc486bcc1b
+```
+
+Requires Android 8.0 (API 26) or newer. You may need to allow installation from unknown sources.
 
 ## Highlights
 
