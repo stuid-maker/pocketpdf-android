@@ -6,6 +6,7 @@ import com.asuka.pocketpdf.data.local.AppDatabase
 import com.asuka.pocketpdf.data.local.dao.AnnotationDao
 import com.asuka.pocketpdf.data.local.dao.ChatMessageDao
 import com.asuka.pocketpdf.data.local.dao.ChunkDao
+import com.asuka.pocketpdf.data.local.dao.ConversationDao
 import com.asuka.pocketpdf.data.local.dao.DocumentDao
 import dagger.Module
 import dagger.Provides
@@ -36,13 +37,18 @@ object DatabaseModule {
         context,
         AppDatabase::class.java,
         AppDatabase.DATABASE_NAME,
-    ).build()
+    )
+        .addMigrations(AppDatabase.MIGRATION_6_7)
+        .build()
 
     @Provides
     fun provideDocumentDao(database: AppDatabase): DocumentDao = database.documentDao()
 
     @Provides
     fun provideChatMessageDao(database: AppDatabase): ChatMessageDao = database.chatMessageDao()
+
+    @Provides
+    fun provideConversationDao(database: AppDatabase): ConversationDao = database.conversationDao()
 
     @Provides fun provideChunkDao(database: AppDatabase): ChunkDao = database.chunkDao()
 

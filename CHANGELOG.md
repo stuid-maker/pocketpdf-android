@@ -2,6 +2,29 @@
 
 All notable user-facing and engineering changes are recorded here.
 
+## [1.3.0] - 2026-06-13
+
+### Added
+
+- Multiple independent chat conversations per document, with a conversation drawer to switch, create, rename, and delete.
+- Per-conversation message history and LLM context; each conversation keeps its own thread.
+- Clear-current-conversation action in the chat overflow menu.
+
+### Changed
+
+- Chat persistence is now scoped by conversation instead of a single history per document.
+- Room schema upgraded to v7: new `conversations` table and a `conversationId` foreign key on `chat_messages`.
+- `FullDocumentSummarizer` now receives an injected `FullDocumentSummarizerConfig` instead of mutable test hooks.
+- Release metadata now reports `versionName 1.3.0` and `versionCode 4`.
+
+### Fixed
+
+- `PdfiumDocumentSession.close()` no longer blocks the main thread with `runBlocking`; native close runs on an IO dispatcher while the session is marked closed synchronously.
+
+### Migration
+
+- Manual migration 6 to 7 backfills one default conversation per document that already had chat history, preserving existing messages.
+
 ## [1.2.0] - 2026-06-13
 
 ### Added

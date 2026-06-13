@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.ui.chat
 
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.model.ChatMessage
+import com.asuka.pocketpdf.domain.model.Conversation
 import com.asuka.pocketpdf.domain.model.StoredChatMessage
 import com.asuka.pocketpdf.domain.repository.ChatRepository
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
@@ -36,6 +37,7 @@ class ChatViewModelConversationTest {
     private val chatRepository: ChatRepository = mockk()
     private val documentRepository: DocumentRepository = mockk(relaxed = true)
     private val storedMessages = MutableStateFlow<List<StoredChatMessage>>(emptyList())
+    private val conversation = Conversation(CONV_ID, DOC_ID, "对话 1", 1L, 1L)
     private lateinit var viewModel: ChatViewModel
 
     @Before
@@ -43,7 +45,9 @@ class ChatViewModelConversationTest {
         Dispatchers.setMain(dispatcher)
         every { settingsDataStore.modelName } returns flowOf("test-model")
         every { settingsDataStore.systemPrompt } returns flowOf("")
-        every { chatRepository.observeMessages(any()) } returns storedMessages
+        every { chatRepository.observeConversations(DOC_ID) } returns flowOf(listOf(conversation))
+        coEvery { chatRepository.getConversations(DOC_ID) } returns listOf(conversation)
+        every { chatRepository.observeMessages(CONV_ID) } returns storedMessages
         coEvery { chatRepository.saveMessage(any(), any()) } returns Unit
         coEvery { chatRepository.getHistorySnapshot(any()) } returns emptyList()
         coEvery {
@@ -69,21 +73,22 @@ class ChatViewModelConversationTest {
             StoredChatMessage(1L, StoredChatMessage.ROLE_USER, "earlier question"),
             StoredChatMessage(2L, StoredChatMessage.ROLE_ASSISTANT, "earlier answer"),
         )
-        coEvery { chatRepository.getHistorySnapshot(7L) } returns priorHistory
+        coEvery { chatRepository.getHistorySnapshot(CONV_ID) } returns priorHistory
 
-        viewModel.load(7L)
+        viewModel.load(DOC_ID)
+        runCurrent()
         viewModel.onInputChanged("current question")
         viewModel.sendMessage()
         runCurrent()
 
         coVerifyOrder {
-            chatRepository.getHistorySnapshot(7L)
+            chatRepository.getHistorySnapshot(CONV_ID)
             chatRepository.saveMessage(
-                7L,
+                CONV_ID,
                 ChatMessage(ChatMessage.ROLE_USER, "current question"),
             )
             askDocument(
-                documentId = 7L,
+                documentId = DOC_ID,
                 question = "current question",
                 model = "test-model",
                 topK = any(),
@@ -103,19 +108,19 @@ class ChatViewModelConversationTest {
             StoredChatMessage(13L, StoredChatMessage.ROLE_ASSISTANT, "second answer"),
         )
 
-        viewModel.load(7L)
+        viewModel.load(DOC_ID)
         runCurrent()
         viewModel.retry(11L)
         runCurrent()
 
         coVerifyOrder {
-            chatRepository.getHistorySnapshot(7L)
+            chatRepository.getHistorySnapshot(CONV_ID)
             chatRepository.saveMessage(
-                7L,
+                CONV_ID,
                 ChatMessage(ChatMessage.ROLE_USER, "first question"),
             )
             askDocument(
-                documentId = 7L,
+                documentId = DOC_ID,
                 question = "first question",
                 model = "test-model",
                 topK = any(),
@@ -135,7 +140,7 @@ class ChatViewModelConversationTest {
             StoredChatMessage(20L, StoredChatMessage.ROLE_ASSISTANT, "orphan answer"),
         )
 
-        viewModel.load(7L)
+        viewModel.load(DOC_ID)
         runCurrent()
         viewModel.retry(20L)
         runCurrent()
@@ -150,7 +155,7 @@ class ChatViewModelConversationTest {
             StoredChatMessage(30L, StoredChatMessage.ROLE_USER, "question"),
         )
 
-        viewModel.load(7L)
+        viewModel.load(DOC_ID)
         runCurrent()
         viewModel.retry(30L)
         runCurrent()
@@ -173,7 +178,8 @@ class ChatViewModelConversationTest {
             )
         } returns flow { throw IllegalStateException("boom") } andThen flowOf("recovered")
 
-        viewModel.load(7L)
+        viewModel.load(DOC_ID)
+        runCurrent()
         viewModel.onInputChanged("failed question")
         viewModel.sendMessage()
         runCurrent()
@@ -186,5 +192,10 @@ class ChatViewModelConversationTest {
         assertTrue(viewModel.uiState.value.messages.any {
             it.role == ChatRole.ASSISTANT && it.content == "recovered"
         })
+    }
+
+    private companion object {
+        const val DOC_ID = 7L
+        const val CONV_ID = 700L
     }
 }

@@ -10,7 +10,10 @@ import com.asuka.pocketpdf.domain.pdf.PdfRenderRequest
 import com.asuka.pocketpdf.domain.pdf.PdfSearchMatch
 import com.asuka.pocketpdf.domain.pdf.PdfSessionClosedException
 import io.legere.pdfiumandroid.PdfDocument
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -23,6 +26,7 @@ class PdfiumDocumentSession internal constructor(
 
     private val operationMutex = Mutex()
     private val closed = AtomicBoolean(false)
+    private val closeScope = CoroutineScope(SupervisorJob() + dispatchers.io)
 
     override val pageCount: Int = document.getPageCount()
 
@@ -141,12 +145,16 @@ class PdfiumDocumentSession internal constructor(
     }
 
     override fun close() {
-        if (closed.get()) return
-        runBlocking {
-            operationMutex.withLock {
-                if (closed.compareAndSet(false, true)) {
+        // 同步置位 closed，保证 close() 返回后新操作立即抛出 PdfSessionClosedException；
+        // 真正的 native document.close() 调度到 IO 线程执行，避免在主线程 runBlocking。
+        if (!closed.compareAndSet(false, true)) return
+        closeScope.launch {
+            try {
+                operationMutex.withLock {
                     document.close()
                 }
+            } finally {
+                closeScope.cancel()
             }
         }
     }

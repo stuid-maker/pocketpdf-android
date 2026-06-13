@@ -30,6 +30,7 @@ Requires Android 8.0 (API 26) or newer. You may need to allow installation from 
 - Highlight and underline selected text with Room-backed persistence.
 - Build document embeddings locally with MediaPipe Text Embedder.
 - Ask cited questions against the current document.
+- Keep multiple independent chat conversations per document and switch between them.
 - Generate page or full-document summaries with bounded-concurrency Map-Reduce.
 - Show generation stage, progress, and approximate remaining time.
 - Collapse long-running summaries and keep reading without cancelling them.

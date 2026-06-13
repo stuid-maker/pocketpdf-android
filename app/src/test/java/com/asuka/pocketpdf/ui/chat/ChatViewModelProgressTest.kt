@@ -1,6 +1,7 @@
 package com.asuka.pocketpdf.ui.chat
 
 import com.asuka.pocketpdf.data.local.SettingsDataStore
+import com.asuka.pocketpdf.domain.model.Conversation
 import com.asuka.pocketpdf.domain.repository.ChatRepository
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.usecase.AskDocumentUseCase
@@ -41,6 +42,9 @@ class ChatViewModelProgressTest {
         Dispatchers.setMain(dispatcher)
         every { settingsDataStore.modelName } returns flowOf("test-model")
         every { settingsDataStore.systemPrompt } returns flowOf("")
+        val conversation = Conversation(CONV_ID, DOC_ID, "对话 1", 1L, 1L)
+        every { chatRepository.observeConversations(DOC_ID) } returns flowOf(listOf(conversation))
+        coEvery { chatRepository.getConversations(DOC_ID) } returns listOf(conversation)
         every { chatRepository.observeMessages(any()) } returns emptyFlow()
         coEvery { chatRepository.saveMessage(any(), any()) } returns Unit
         coEvery { chatRepository.getHistorySnapshot(any()) } returns emptyList()
@@ -74,7 +78,8 @@ class ChatViewModelProgressTest {
             flowOf("全文总结")
         }
 
-        viewModel.load(1L)
+        viewModel.load(DOC_ID)
+        runCurrent()
         viewModel.onInputChanged("总结全文")
         viewModel.sendMessage()
         runCurrent()
@@ -93,7 +98,8 @@ class ChatViewModelProgressTest {
             askDocument(any(), any(), any(), any(), any(), any(), any())
         } returns flowOf("答案")
 
-        viewModel.load(1L)
+        viewModel.load(DOC_ID)
+        runCurrent()
         viewModel.onInputChanged("金额是多少")
         viewModel.sendMessage()
         runCurrent()
@@ -115,7 +121,8 @@ class ChatViewModelProgressTest {
             flow { awaitCancellation() }
         }
 
-        viewModel.load(1L)
+        viewModel.load(DOC_ID)
+        runCurrent()
         viewModel.onInputChanged("总结全文")
         viewModel.sendMessage()
         runCurrent()
@@ -128,5 +135,7 @@ class ChatViewModelProgressTest {
 
     private companion object {
         const val NOW_MS = 1_000_000L
+        const val DOC_ID = 1L
+        const val CONV_ID = 100L
     }
 }

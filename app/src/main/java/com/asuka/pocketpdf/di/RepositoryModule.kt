@@ -18,6 +18,7 @@ import com.asuka.pocketpdf.domain.repository.ChatRepository
 import com.asuka.pocketpdf.domain.repository.DocumentRepository
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
+import com.asuka.pocketpdf.domain.usecase.FullDocumentSummarizerConfig
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -77,5 +78,9 @@ abstract class RepositoryModule {
         @Provides
         @Singleton
         fun provideDispatcherProvider(): DispatcherProvider = DefaultDispatcherProvider()
+
+        @Provides
+        fun provideFullDocumentSummarizerConfig(): FullDocumentSummarizerConfig =
+            FullDocumentSummarizerConfig()
     }
 }

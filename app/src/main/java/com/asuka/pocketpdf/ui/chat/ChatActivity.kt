@@ -17,8 +17,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import com.asuka.pocketpdf.domain.model.Conversation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,7 +69,8 @@ class ChatActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val documentId = intent.getLongExtra(EXTRA_DOCUMENT_ID, -1L)
-        viewModel.load(documentId)
+        val conversationId = intent.getLongExtra(EXTRA_CONVERSATION_ID, -1L)
+        viewModel.load(documentId, conversationId.takeIf { it > 0 })
 
         setContent {
             PocketPDFTheme {
@@ -74,9 +81,12 @@ class ChatActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_DOCUMENT_ID = "com.asuka.pocketpdf.extra.DOCUMENT_ID"
+        private const val EXTRA_CONVERSATION_ID = "com.asuka.pocketpdf.extra.CONVERSATION_ID"
 
-        fun newIntent(context: Context, documentId: Long): Intent =
-            Intent(context, ChatActivity::class.java).putExtra(EXTRA_DOCUMENT_ID, documentId)
+        fun newIntent(context: Context, documentId: Long, conversationId: Long = -1L): Intent =
+            Intent(context, ChatActivity::class.java)
+                .putExtra(EXTRA_DOCUMENT_ID, documentId)
+                .putExtra(EXTRA_CONVERSATION_ID, conversationId)
     }
 }
 
@@ -89,6 +99,14 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var previousMessageCount by remember { mutableIntStateOf(0) }
+
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var overflowExpanded by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<Conversation?>(null) }
+
+    val currentTitle = uiState.conversations.firstOrNull { it.id == uiState.conversationId }?.title
+        ?: stringResource(R.string.chat_title)
 
     val lastMessage = uiState.messages.lastOrNull()
     LaunchedEffect(uiState.messages.size, lastMessage?.content, lastMessage?.isStreaming) {
@@ -109,72 +127,213 @@ fun ChatScreen(viewModel: ChatViewModel, documentId: Long, onClose: () -> Unit) 
         previousMessageCount = uiState.messages.size
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.chat_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_close))
-                    }
-                }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ConversationDrawer(
+                conversations = uiState.conversations,
+                activeId = uiState.conversationId,
+                onSelect = { id ->
+                    viewModel.switchConversation(id)
+                    scope.launch { drawerState.close() }
+                },
+                onNew = {
+                    viewModel.newConversation()
+                    scope.launch { drawerState.close() }
+                },
+                onRename = { renameTarget = it },
+                onDelete = { viewModel.deleteConversation(it) },
             )
         },
-        bottomBar = {
-            Column {
-                uiState.error?.let { error ->
-                    Surface(color = MaterialTheme.colorScheme.errorContainer) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(error, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 13.sp)
-                            TextButton(onClick = viewModel::retryLastFailure) {
-                                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringResource(R.string.chat_retry))
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(currentTitle, maxLines = 1) },
+                    navigationIcon = {
+                        IconButton(onClick = onClose) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_close))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.chat_conversations))
+                        }
+                        Box {
+                            IconButton(onClick = { overflowExpanded = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
                             }
-                            TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.chat_dismiss)) }
+                            DropdownMenu(
+                                expanded = overflowExpanded,
+                                onDismissRequest = { overflowExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.chat_clear_current)) },
+                                    onClick = {
+                                        viewModel.clearCurrentConversation()
+                                        overflowExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
+            },
+            bottomBar = {
+                Column {
+                    uiState.error?.let { error ->
+                        Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(error, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 13.sp)
+                                TextButton(onClick = viewModel::retryLastFailure) {
+                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringResource(R.string.chat_retry))
+                                }
+                                TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.chat_dismiss)) }
+                            }
+                        }
+                    }
+                    ChatInputBar(
+                        text = uiState.inputText,
+                        onTextChange = { viewModel.onInputChanged(it) },
+                        onSend = {
+                            viewModel.sendMessage()
+                            focusManager.clearFocus(force = true)
+                            keyboardController?.hide()
+                        },
+                        onStop = { viewModel.stopGenerating() },
+                        isGenerating = uiState.isGenerating,
+                    )
+                }
+            }
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                if (uiState.messages.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.chat_empty_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                ChatInputBar(
-                    text = uiState.inputText,
-                    onTextChange = { viewModel.onInputChanged(it) },
-                    onSend = {
-                        viewModel.sendMessage()
-                        focusManager.clearFocus(force = true)
-                        keyboardController?.hide()
-                    },
-                    onStop = { viewModel.stopGenerating() },
-                    isGenerating = uiState.isGenerating,
-                )
-            }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp),
-        ) {
-            if (uiState.messages.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.chat_empty_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                items(uiState.messages, key = { it.id }) { message ->
+                    ChatBubble(
+                        message = message,
+                        documentId = documentId,
+                        onRegenerate = viewModel::retry,
+                        pageCount = uiState.pageCount,
+                    )
                 }
-            }
-            items(uiState.messages, key = { it.id }) { message ->
-                ChatBubble(
-                    message = message,
-                    documentId = documentId,
-                    onRegenerate = viewModel::retry,
-                    pageCount = uiState.pageCount,
-                )
             }
         }
     }
+
+    renameTarget?.let { target ->
+        RenameConversationDialog(
+            initialName = target.title,
+            onConfirm = { newName ->
+                viewModel.renameConversation(target.id, newName)
+                renameTarget = null
+            },
+            onDismiss = { renameTarget = null },
+        )
+    }
+}
+
+@Composable
+private fun ConversationDrawer(
+    conversations: List<Conversation>,
+    activeId: Long,
+    onSelect: (Long) -> Unit,
+    onNew: () -> Unit,
+    onRename: (Conversation) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    ModalDrawerSheet {
+        Column(modifier = Modifier.fillMaxHeight()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_conversations),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onNew) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_new_conversation))
+                }
+            }
+            HorizontalDivider()
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(conversations, key = { it.id }) { conversation ->
+                    val untitled = stringResource(R.string.chat_untitled)
+                    NavigationDrawerItem(
+                        label = { Text(conversation.title.ifBlank { untitled }, maxLines = 1) },
+                        selected = conversation.id == activeId,
+                        onClick = { onSelect(conversation.id) },
+                        badge = {
+                            Row {
+                                IconButton(onClick = { onRename(conversation) }) {
+                                    Icon(
+                                        Icons.Filled.Edit,
+                                        contentDescription = stringResource(R.string.chat_rename),
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                                IconButton(onClick = { onDelete(conversation.id) }) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = stringResource(R.string.chat_delete),
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenameConversationDialog(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_rename_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.chat_conversation_name_hint)) },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank(),
+            ) { Text(stringResource(R.string.chat_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) }
+        },
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

@@ -44,19 +44,26 @@ class ChatViewModel @Inject constructor(
     private var localMessageCounter = LOCAL_ID_OFFSET
     private var generateJob: Job? = null
     private var historyJob: Job? = null
+    private var conversationsJob: Job? = null
     private var documentId: Long = -1L
+    private var conversationId: Long = -1L
     private var lastFailedQuestion: String? = null
 
     override fun onCleared() {
         generateJob?.cancel()
         historyJob?.cancel()
+        conversationsJob?.cancel()
         super.onCleared()
     }
 
-    fun load(documentId: Long) {
-        if (this.documentId == documentId) return
+    /**
+     * 进入某文档的聊天。
+     *
+     * @param conversationId 指定要打开的会话；为空时打开最近更新的会话，无会话则自动新建。
+     */
+    fun load(documentId: Long, conversationId: Long? = null) {
+        if (this.documentId == documentId && this.conversationId > 0) return
         this.documentId = documentId
-        localMessageCounter = LOCAL_ID_OFFSET
 
         // Load page count for citation validation
         viewModelScope.launch {
@@ -64,10 +71,89 @@ class ChatViewModel @Inject constructor(
             _uiState.update { it.copy(pageCount = doc?.pageCount ?: 0) }
         }
 
-        // Cancel old history collection before starting new one
+        // Observe the conversation list for this document
+        conversationsJob?.cancel()
+        conversationsJob = viewModelScope.launch {
+            chatRepository.observeConversations(documentId).collect { list ->
+                _uiState.update { it.copy(conversations = list) }
+            }
+        }
+
+        // Resolve the active conversation, then start observing its messages
+        viewModelScope.launch {
+            try {
+                val existing = chatRepository.getConversations(documentId)
+                val target = conversationId?.takeIf { id -> existing.any { it.id == id } }
+                    ?: existing.firstOrNull()?.id
+                    ?: chatRepository.createConversation(documentId, defaultTitle(existing.size))
+                activateConversation(target)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to initialize conversations for document %d", documentId)
+            }
+        }
+    }
+
+    /** 切换当前活跃会话，重新订阅其消息流。 */
+    fun switchConversation(conversationId: Long) {
+        if (conversationId <= 0 || conversationId == this.conversationId) return
+        activateConversation(conversationId)
+    }
+
+    /** 在当前文档下新建一条会话并切换过去。 */
+    fun newConversation() {
+        if (documentId <= 0) return
+        viewModelScope.launch {
+            val count = chatRepository.getConversations(documentId).size
+            val id = chatRepository.createConversation(documentId, defaultTitle(count))
+            activateConversation(id)
+        }
+    }
+
+    fun renameConversation(conversationId: Long, title: String) {
+        val trimmed = title.trim()
+        if (conversationId <= 0 || trimmed.isEmpty()) return
+        viewModelScope.launch { chatRepository.renameConversation(conversationId, trimmed) }
+    }
+
+    /** 删除会话；若删除的是当前会话，则切到剩余最近会话或自动新建一条。 */
+    fun deleteConversation(conversationId: Long) {
+        if (documentId <= 0 || conversationId <= 0) return
+        viewModelScope.launch {
+            chatRepository.deleteConversation(conversationId)
+            if (conversationId == this@ChatViewModel.conversationId) {
+                val remaining = chatRepository.getConversations(documentId)
+                val next = remaining.firstOrNull()?.id
+                    ?: chatRepository.createConversation(documentId, defaultTitle(0))
+                activateConversation(next)
+            }
+        }
+    }
+
+    /** 清空当前会话的全部消息（保留会话本身）。 */
+    fun clearCurrentConversation() {
+        val id = conversationId
+        if (id <= 0) return
+        viewModelScope.launch { chatRepository.clearHistory(id) }
+    }
+
+    private fun activateConversation(conversationId: Long) {
+        this.conversationId = conversationId
+        localMessageCounter = LOCAL_ID_OFFSET
+        generateJob?.cancel()
+        generateJob = null
+        lastFailedQuestion = null
+        _uiState.update {
+            it.copy(
+                conversationId = conversationId,
+                messages = emptyList(),
+                isGenerating = false,
+                error = null,
+            )
+        }
+
         historyJob?.cancel()
         historyJob = viewModelScope.launch {
-            chatRepository.observeMessages(documentId).collect { dbMessages ->
+            chatRepository.observeMessages(conversationId).collect { dbMessages ->
                 _uiState.update { state ->
                     val dbDisplayMessages = dbMessages.map { msg ->
                         ChatDisplayMessage(
@@ -92,13 +178,15 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun defaultTitle(existingCount: Int): String = "对话 ${existingCount + 1}"
+
     fun onInputChanged(text: String) {
         _uiState.update { it.copy(inputText = text) }
     }
 
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
-        if (text.isEmpty() || _uiState.value.isGenerating || documentId <= 0) return
+        if (text.isEmpty() || _uiState.value.isGenerating || documentId <= 0 || conversationId <= 0) return
 
         val userMsgId = ++localMessageCounter
         val userMsg = ChatDisplayMessage(
@@ -122,10 +210,11 @@ class ChatViewModel @Inject constructor(
         )
         _uiState.update { it.copy(messages = it.messages + placeholder) }
 
+        val activeConversationId = conversationId
         generateJob = viewModelScope.launch {
-            val history = chatRepository.getHistorySnapshot(documentId)
+            val history = chatRepository.getHistorySnapshot(activeConversationId)
             try {
-                chatRepository.saveMessage(documentId, ChatMessage(ChatMessage.ROLE_USER, text))
+                chatRepository.saveMessage(activeConversationId, ChatMessage(ChatMessage.ROLE_USER, text))
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "save user message failed")
             }
@@ -166,7 +255,7 @@ class ChatViewModel @Inject constructor(
                     )
                 }
                 lastFailedQuestion = null
-                saveAiToDb(aiMsgId)
+                saveAiToDb(activeConversationId, aiMsgId)
             } catch (e: CancellationException) {
                 _uiState.update { state ->
                     state.copy(
@@ -174,10 +263,10 @@ class ChatViewModel @Inject constructor(
                         messages = state.messages.map { msg ->
                             if (msg.id == aiMsgId) msg.copy(isStreaming = false, progress = null)
                             else msg
-                        },
-                    )
+                    },
+                )
                 }
-                saveAiToDb(aiMsgId)
+                saveAiToDb(activeConversationId, aiMsgId)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "chat generation failed")
                 lastFailedQuestion = text
@@ -188,10 +277,10 @@ class ChatViewModel @Inject constructor(
                         messages = state.messages.map { msg ->
                             if (msg.id == aiMsgId) msg.copy(isStreaming = false, progress = null)
                             else msg
-                        },
-                    )
+                    },
+                )
                 }
-                saveAiToDb(aiMsgId)
+                saveAiToDb(activeConversationId, aiMsgId)
             }
         }
     }
@@ -245,12 +334,12 @@ class ChatViewModel @Inject constructor(
         sendMessage()
     }
 
-    private fun saveAiToDb(aiMsgId: Long) {
+    private fun saveAiToDb(conversationId: Long, aiMsgId: Long) {
         viewModelScope.launch {
             try {
                 val aiContent = _uiState.value.messages.find { it.id == aiMsgId }?.content ?: ""
                 if (aiContent.isNotBlank()) {
-                    chatRepository.saveMessage(documentId, ChatMessage(ChatMessage.ROLE_ASSISTANT, aiContent))
+                    chatRepository.saveMessage(conversationId, ChatMessage(ChatMessage.ROLE_ASSISTANT, aiContent))
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "save AI message failed")

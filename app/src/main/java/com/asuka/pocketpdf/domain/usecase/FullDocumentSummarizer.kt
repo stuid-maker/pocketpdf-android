@@ -43,23 +43,17 @@ import javax.inject.Inject
 class FullDocumentSummarizer @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val llmRepository: LlmRepository,
+    private val config: FullDocumentSummarizerConfig = FullDocumentSummarizerConfig(),
 ) {
-    /**
-     * provider-independent 保守字符预算。
-     *
-     * 定义为内部变量（而非构造参数），避免 Hilt 无法注入 Int。
-     * 测试可通过 [FullDocumentSummarizer.testInstance] 设置自定义预算。
-     */
-    internal var batchCharBudget: Int = DEFAULT_BATCH_CHAR_BUDGET
+    /** provider-independent 保守字符预算。 */
+    private val batchCharBudget: Int get() = config.batchCharBudget
 
     /** Map 阶段并发数。默认 2，设为 1 退化为串行。 */
-    internal var mapConcurrency: Int = DEFAULT_MAP_CONCURRENCY
+    private val mapConcurrency: Int get() = config.mapConcurrency
 
-    /** 测试可缩短；生产默认使用 [PER_CALL_TIMEOUT_SECONDS]。 */
-    internal var perCallTimeoutMillis: Long = PER_CALL_TIMEOUT_SECONDS * 1000L
+    private val perCallTimeoutMillis: Long get() = config.perCallTimeoutMillis
 
-    /** 测试可缩短；生产默认使用 [OVERALL_TIMEOUT_SECONDS]。 */
-    internal var overallTimeoutMillis: Long = OVERALL_TIMEOUT_SECONDS * 1000L
+    private val overallTimeoutMillis: Long get() = config.overallTimeoutMillis
 
     companion object {
         /** 全文摘要算法版本。修改摘要逻辑时必须递增，确保旧缓存自动失效。 */
@@ -78,25 +72,6 @@ class FullDocumentSummarizer @Inject constructor(
         const val OVERALL_TIMEOUT_SECONDS = 600L
 
         private const val TAG = "FullDocSummarizer"
-
-        /**
-         * 创建测试实例（可自定预算）。
-         *
-         * 注意：Hilt 不使用此方法；仅用于单元测试。
-         */
-        fun testInstance(
-            documentRepository: DocumentRepository,
-            llmRepository: LlmRepository,
-            batchCharBudget: Int = DEFAULT_BATCH_CHAR_BUDGET,
-            perCallTimeoutMillis: Long = PER_CALL_TIMEOUT_SECONDS * 1000L,
-            overallTimeoutMillis: Long = OVERALL_TIMEOUT_SECONDS * 1000L,
-        ): FullDocumentSummarizer {
-            return FullDocumentSummarizer(documentRepository, llmRepository).also {
-                it.batchCharBudget = batchCharBudget
-                it.perCallTimeoutMillis = perCallTimeoutMillis
-                it.overallTimeoutMillis = overallTimeoutMillis
-            }
-        }
     }
 
     /**

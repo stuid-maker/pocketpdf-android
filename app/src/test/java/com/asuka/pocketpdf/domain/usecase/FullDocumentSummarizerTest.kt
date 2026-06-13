@@ -31,10 +31,10 @@ class FullDocumentSummarizerTest {
     private val testModel = "test-model"
     private val defaultBudget = 2000
 
-    private fun createSummarizer(): FullDocumentSummarizer = FullDocumentSummarizer.testInstance(
+    private fun createSummarizer(): FullDocumentSummarizer = FullDocumentSummarizer(
         documentRepository = documentRepository,
         llmRepository = llmRepository,
-        batchCharBudget = defaultBudget,
+        config = FullDocumentSummarizerConfig(batchCharBudget = defaultBudget),
     )
 
     private fun chunk(
@@ -330,10 +330,10 @@ class FullDocumentSummarizerTest {
     @Test
     fun `all batches empty throws AllBatchesEmptyException`() = runTest {
         // budget=100, each chunk 500 chars → 3 separate batches, all return empty
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            batchCharBudget = 100,
+            config = FullDocumentSummarizerConfig(batchCharBudget = 100),
         )
         val chunks = (0 until 3).map { i ->
             chunk(i.toLong(), i, i, "X".repeat(500))
@@ -530,10 +530,10 @@ class FullDocumentSummarizerTest {
     @Test
     fun `multi batch summary reports ordered map and final stages`() = runTest {
         // budget=4 → each chunk is its own batch
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            batchCharBudget = 4,
+            config = FullDocumentSummarizerConfig(batchCharBudget = 4),
         )
         val chunks = listOf(
             chunk(1, 0, 0, "aaaa"),
@@ -602,10 +602,10 @@ class FullDocumentSummarizerTest {
 
     @Test
     fun `map stage limits peak concurrency to two`() = runTest {
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            batchCharBudget = 10,
+            config = FullDocumentSummarizerConfig(batchCharBudget = 10),
         )
         coEvery { documentRepository.getChunks(1L) } returns (0 until 4).map { i ->
             chunk(i.toLong(), i, i, "batch-$i---")
@@ -642,10 +642,10 @@ class FullDocumentSummarizerTest {
 
     @Test
     fun `out of order map completion preserves batch order for reduce`() = runTest {
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            batchCharBudget = 10,
+            config = FullDocumentSummarizerConfig(batchCharBudget = 10),
         )
         coEvery { documentRepository.getChunks(1L) } returns listOf(
             chunk(1, 0, 0, "A---------"),
@@ -689,10 +689,10 @@ class FullDocumentSummarizerTest {
 
     @Test
     fun `map failure cancels in flight sibling requests`() = runTest {
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            batchCharBudget = 10,
+            config = FullDocumentSummarizerConfig(batchCharBudget = 10),
         )
         coEvery { documentRepository.getChunks(1L) } returns listOf(
             chunk(1, 0, 0, "A---------"),
@@ -745,11 +745,13 @@ class FullDocumentSummarizerTest {
             awaitCancellation()
         }
 
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            perCallTimeoutMillis = 100,
-            overallTimeoutMillis = 1_000,
+            config = FullDocumentSummarizerConfig(
+                perCallTimeoutMillis = 100,
+                overallTimeoutMillis = 1_000,
+            ),
         )
 
         try {
@@ -774,11 +776,13 @@ class FullDocumentSummarizerTest {
             awaitCancellation()
         }
 
-        val summarizer = FullDocumentSummarizer.testInstance(
+        val summarizer = FullDocumentSummarizer(
             documentRepository = documentRepository,
             llmRepository = llmRepository,
-            perCallTimeoutMillis = 1_000,
-            overallTimeoutMillis = 100,
+            config = FullDocumentSummarizerConfig(
+                perCallTimeoutMillis = 1_000,
+                overallTimeoutMillis = 100,
+            ),
         )
 
         try {

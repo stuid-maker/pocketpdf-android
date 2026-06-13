@@ -12,6 +12,16 @@ Last updated: 2026-06-13
 | `v1.0.0-release` | Complete | CI, release build, documentation, portfolio baseline |
 | `v1.1.0-compose` | Complete | Purple Crystal Compose migration |
 | `v1.2.0` | Complete | Unified PDFium engine, search, annotations, full-document AI progress, reliability and release audit |
+| `v1.3.0` | Complete | Multi-conversation chat per document, summarizer config injection, off-main-thread session close |
+
+## v1.3.0 Scope
+
+- [x] Multiple chat conversations per document (create, switch, rename, delete).
+- [x] Per-conversation message history and LLM context.
+- [x] Room schema v7 with `conversations` table and `conversationId` on `chat_messages`.
+- [x] Manual migration 6 to 7 backfilling a default conversation per document.
+- [x] `FullDocumentSummarizer` configured via injected `FullDocumentSummarizerConfig` (removed test hooks).
+- [x] `PdfiumDocumentSession.close()` moved off the main-thread `runBlocking`.
 
 ## v1.2.0 Scope
 
@@ -37,15 +47,13 @@ Last updated: 2026-06-13
 
 - Add an API 35/36 emulator matrix to GitHub Actions.
 - Replace broad R8 keep rules with library-specific rules and compare release size.
-- Remove production-facing test hooks from `FullDocumentSummarizer`.
-- Move `PdfiumDocumentSession.close()` away from main-thread `runBlocking`.
 
 ### Product
 
 - Add OCR for scanned PDFs.
 - Add first-run setup guidance for LM Studio and custom endpoints.
 - Add bookmark and annotation export flows.
-- Add conversation management beyond one history per document.
+- Auto-name conversations from their first user question.
 
 ### Performance
 

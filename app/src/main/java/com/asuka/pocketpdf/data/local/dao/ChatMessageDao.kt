@@ -10,15 +10,15 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ChatMessageDao {
 
-    @Query("SELECT * FROM chat_messages WHERE documentId = :documentId ORDER BY id ASC")
-    fun observeByDocumentId(documentId: Long): Flow<List<ChatMessageEntity>>
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY id ASC")
+    fun observeByConversationId(conversationId: Long): Flow<List<ChatMessageEntity>>
 
-    @Query("SELECT * FROM chat_messages WHERE documentId = :documentId ORDER BY id ASC")
-    suspend fun getByDocumentId(documentId: Long): List<ChatMessageEntity>
+    @Query("SELECT * FROM chat_messages WHERE conversationId = :conversationId ORDER BY id ASC")
+    suspend fun getByConversationId(conversationId: Long): List<ChatMessageEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(message: ChatMessageEntity): Long
 
-    @Query("DELETE FROM chat_messages WHERE documentId = :documentId")
-    suspend fun deleteByDocumentId(documentId: Long)
+    @Query("DELETE FROM chat_messages WHERE conversationId = :conversationId")
+    suspend fun deleteByConversationId(conversationId: Long)
 }
