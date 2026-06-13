@@ -1,19 +1,8 @@
 <resources>
     <string name="app_name">PocketPDF</string>
 
-    <!-- Ping 自检界面（Week 0） -->
-    <string name="ping_title">PocketPDF · 环境自检</string>
-    <string name="ping_subtitle">点击下方按钮调用 PC 端 LM Studio 的 /v1/models</string>
-    <string name="ping_button">Ping LM Studio</string>
-    <string name="ping_status_idle">Idle. 等待点击按钮…</string>
-    <string name="ping_status_loading">请求中…</string>
-    <string name="ping_status_error">失败：%1$s</string>
-
-    <!-- 文档库主页（Week 1 Day 3 起） -->
+    <!-- 文档库 -->
     <string name="library_fab_import">导入 PDF</string>
-    <string name="library_empty_title">还没有文档</string>
-    <string name="library_empty_subtitle">点击右下角 + 选一份 PDF 开始</string>
-    <string name="library_empty_button">选择 PDF</string>
     <string name="library_empty_title_new">从一份文档开始</string>
     <string name="library_empty_subtitle_new">导入论文、教材或技术资料。PocketPDF 会在设备上建立可提问的索引。</string>
     <string name="library_greeting">下午好</string>
@@ -21,14 +10,10 @@
     <string name="library_workspace_supporting">继续阅读、梳理与提问。所有处理都由你掌控。</string>
     <string name="library_continue_reading">继续阅读</string>
     <string name="library_swipe_delete">删除</string>
-    <string name="library_item_meta">%1$d 页 · %2$s</string>
     <string name="library_badge_not_indexed">未索引</string>
     <string name="library_badge_indexing">索引中</string>
     <string name="library_badge_indexed">已索引</string>
     <string name="library_badge_failed">索引失败</string>
-    <string name="library_index_help_dialog_title">索引失败原因</string>
-    <string name="library_index_help_dialog_message_model_missing">您的应用缺少嵌入模型文件（universal_sentence_encoder.tflite）。\\n\\n请从以下地址下载模型文件（约 68 MB）：\\nhttps://storage.googleapis.com/mediapipe-models/text_embedder/universal_sentence_encoder/float32/1/universal_sentence_encoder.tflite\\n\\n并将其放入 app/src/main/assets/models/ 目录，然后重新构建并安装应用。\\n\\n返回此页面后重试索引即可。</string>
-    <string name="library_index_help_dialog_ok">知道了</string>
     <string name="library_badge_needs_ocr">需要 OCR</string>
     <string name="library_display_name_fallback">未命名 PDF · %1$s</string>
     <string name="library_import_failed">导入失败：%1$s</string>
@@ -36,50 +21,9 @@
     <string name="library_load_failed">加载失败：%1$s</string>
     <string name="library_delete_undo_message">已删除「%1$s」</string>
     <string name="library_delete_undo_action">撤销</string>
-    <string name="library_reader_placeholder">%1$s · 阅读器待 W1 Day 4 接入</string>
-    <!-- PDF reader -->
-    <string name="reader_title_loading">正在加载 PDF</string>
-    <string name="reader_back">返回</string>
-    <string name="reader_page_content_description">PDF 页面</string>
-    <string name="reader_previous_page">上一页</string>
-    <string name="reader_next_page">下一页</string>
-    <string name="reader_page_indicator">%1$d / %2$d</string>
-    <string name="reader_error_empty_pdf">此 PDF 无页面内容</string>
-    <string name="reader_page_overlay_format">第 %1$d / %2$d 页</string>
-    <string name="reader_error_open_failed">无法打开 PDF：%1$s</string>
-    <string name="reader_error_render_failed">无法渲染页面：%1$s</string>
-
-    <!-- Reader summary (W3) -->
-    <string name="reader_summarize_page">总结本页</string>
-    <string name="reader_summarize_full">总结全文</string>
-    <string name="reader_summary_indexing">请等待文档索引完成</string>
-    <string name="reader_summary_title_page">页面摘要</string>
-    <string name="reader_summary_title_full">全文摘要</string>
-    <string name="reader_summary_stop">停止</string>
-    <string name="reader_summary_close">关闭</string>
-    <string name="reader_summary_copy">复制摘要</string>
-    <string name="reader_summary_copied">已复制</string>
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
-    <string name="settings_save">保存</string>
-    <string name="settings_preset_label">模型预设</string>
-    <string name="settings_base_url_hint">LLM 服务器地址</string>
-    <string name="settings_test_connection">测试连接</string>
-    <string name="settings_model_name_hint">模型名称</string>
-    <string name="settings_api_key_hint">API Key</string>
-    <string name="settings_chunking_label">切块策略（新导入生效）</string>
-    <string name="settings_system_prompt_hint">系统提示词（可选）</string>
-    <string name="settings_reset_defaults">恢复默认值</string>
-    <string name="settings_chunking_sliding_window">滑动窗口（默认）</string>
-    <string name="settings_chunking_paragraph">按段落</string>
-    <string name="settings_saved">已保存</string>
-    <string name="settings_btn_connected">✅ 已连接</string>
-    <string name="settings_btn_retry">❌ 重试</string>
-    <string name="settings_confirm_switch_title">确认切换预设</string>
-    <string name="settings_confirm_switch_message">您已手动修改了连接地址，切换至「%1$s」将覆盖您的修改。是否继续？</string>
-    <string name="settings_confirm_switch_positive">确认切换</string>
-    <string name="settings_confirm_switch_negative">取消</string>
 
     <!-- Chat -->
     <string name="chat_title">文档问答</string>
@@ -91,5 +35,6 @@
     <string name="chat_input_placeholder">输入问题…</string>
     <string name="chat_stop">停止</string>
     <string name="chat_send">发送</string>
-    <string name="chat_generate_failed">生成回答失败</string>
+    <string name="chat_copy">复制</string>
+    <string name="chat_regenerate">重新生成</string>
 </resources>

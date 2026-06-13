@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -182,5 +183,54 @@ class PdfPageViewFlingTest {
         events.forEach { it.recycle() }
 
         assertNull("Vertical swipe should NOT trigger fling (vx <= vy * 1.5)", capturedDirection)
+    }
+
+    @Test
+    fun `short stationary tap invokes standard click action`() {
+        val view = createView()
+        var clicked = false
+        view.setOnClickListener { clicked = true }
+        val downTime = SystemClock.uptimeMillis()
+
+        view.dispatchTouchEvent(
+            MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, 100f, 100f, 0)
+                .also { it.recycle() },
+        )
+        view.dispatchTouchEvent(
+            MotionEvent.obtain(downTime, downTime + 80, MotionEvent.ACTION_UP, 102f, 101f, 0)
+                .also { it.recycle() },
+        )
+
+        assertTrue("A short stationary gesture should call performClick", clicked)
+    }
+
+    @Test
+    fun `horizontal fling does not invoke click action`() {
+        val view = createView()
+        var clickCount = 0
+        view.setOnClickListener { clickCount++ }
+
+        dispatchHorizontalSwipe(view, fromX = 300f, toX = 100f, y = 100f, durationMs = 150)
+
+        assertEquals("A page fling is not a click", 0, clickCount)
+    }
+
+    @Test
+    fun `long press does not invoke click action`() {
+        val view = createView()
+        var clickCount = 0
+        view.setOnClickListener { clickCount++ }
+        val downTime = SystemClock.uptimeMillis()
+
+        view.dispatchTouchEvent(
+            MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, 100f, 100f, 0)
+                .also { it.recycle() },
+        )
+        view.dispatchTouchEvent(
+            MotionEvent.obtain(downTime, downTime + 600, MotionEvent.ACTION_UP, 101f, 102f, 0)
+                .also { it.recycle() },
+        )
+
+        assertEquals("A long press is not a click", 0, clickCount)
     }
 }

@@ -79,8 +79,8 @@ fun LibraryScreen(
     onRetryIndexing: (Long) -> Unit,
     onDeleteDocument: (Document) -> Unit,
     coverLoader: DocumentCoverLoader?,
-    snackbarHostState: SnackbarHostState? = null,
     modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState? = null,
 ) {
     val colors = LocalPocketColors.current
     val resolvedSnackbarHostState = snackbarHostState ?: remember { SnackbarHostState() }

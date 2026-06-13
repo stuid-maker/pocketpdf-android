@@ -1,166 +1,145 @@
-# PocketPDF · 口袋 PDF — RAG 阅读助手 for Android
+# PocketPDF
 
-> An Android PDF reader with **on-device RAG** — import PDFs, chunk & vectorize, then ask questions or generate summaries via a **local LLM** (LM Studio on your PC). Fully offline-capable after setup.
+PocketPDF is an Android PDF reader with on-device indexing and retrieval-augmented AI reading tools. It imports local PDFs, renders and searches them with PDFium, creates embeddings on the device, and connects to an OpenAI-compatible LLM for cited Q&A and summaries.
 
-<div align="center">
-
-[![GitHub Repo](https://img.shields.io/github/stars/stuid-maker/pocketpdf-android?style=flat&logo=github)](https://github.com/stuid-maker/pocketpdf-android)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](https://github.com/stuid-maker/pocketpdf-android)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](https://kotlinlang.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin)](https://kotlinlang.org)
 [![CI](https://img.shields.io/github/actions/workflow/status/stuid-maker/pocketpdf-android/ci.yml?branch=main&logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions)
-[![Status](https://img.shields.io/badge/status-v1.0.0--release-green)](ROADMAP.md)
-[![Tests](https://img.shields.io/badge/tests-246%20passed-brightgreen)](https://github.com/stuid-maker/pocketpdf-android/actions)
-[![Tag](https://img.shields.io/github/v/tag/stuid-maker/pocketpdf-android?logo=git)](https://github.com/stuid-maker/pocketpdf-android/tags)
+[![Release](https://img.shields.io/badge/release-v1.2.0-7652A8)](https://github.com/stuid-maker/pocketpdf-android/releases)
+[![Tests](https://img.shields.io/badge/tests-402%20JVM%20%2B%2031%20Android-brightgreen)](https://github.com/stuid-maker/pocketpdf-android/actions)
 
-</div>
+## Highlights
 
-<p align="center">
-  <b>English</b> · <a href="https://github.com/stuid-maker/pocketpdf-android">GitHub</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="ROADMAP.md">Roadmap</a>
-</p>
-
----
-
-## Features
-
-- 📄 **Import & Read PDFs** — Browse local PDFs, render pages, bookmark your place
-- 🔍 **RAG Q&A** — Ask questions about your document; get answers with page‑level citations
-- 🤖 **AI Summaries** — One‑tap page‑level or full‑document summaries
-- 💻 **Local LLM Support** — Connect to LM Studio (or any OpenAI‑compatible server) on your PC; no internet required after setup
-- 🌙 **Dark Theme** — Material 3 with a purple accent, light & dark modes
-- 🧩 **Smart Chunking** — Text is automatically chunked, embedded (MiniLM‑L6‑v2), and indexed for fast retrieval
+- Import local PDFs through Android's Storage Access Framework.
+- Render, zoom, swipe, and search pages through a unified PDFium session.
+- Highlight and underline selected text with Room-backed persistence.
+- Build document embeddings locally with MediaPipe Text Embedder.
+- Ask cited questions against the current document.
+- Generate page or full-document summaries with bounded-concurrency Map-Reduce.
+- Show generation stage, progress, and approximate remaining time.
+- Collapse long-running summaries and keep reading without cancelling them.
+- Stop generation with immediate OkHttp request cancellation.
+- Regenerate the selected assistant response instead of the latest question.
+- Use LM Studio or another OpenAI-compatible local/cloud endpoint.
 
 ## Architecture
 
-PocketPDF follows **Clean Architecture** with **MVVM** in a single‑module layout:
+PocketPDF is a single-module Clean Architecture application:
 
-```
-┌──────────────────┐
-│   ui (Compose+VM)  │  ← Activities, ViewModels, Compose screens
-└────────┬─────────┘
-         │ depends on
-┌────────▼─────────┐
-│     domain       │  ← Use Cases, Domain Models, Repository Interfaces
-└────────▲─────────┘
-         │ implements
-┌────────┴─────────┐
-│      data        │  ← Room, Retrofit (OpenAI‑compat), PdfBox, Embedder
-└──────────────────┘
+```text
+ui (Compose, ViewModels, PdfPageView)
+        |
+        v
+domain (models, use cases, repository contracts)
+        ^
+        |
+data (Room, PDFium, MediaPipe, OkHttp, WorkManager)
 ```
 
-Dependency rule is strict: `ui → domain ← data`. The `domain` layer has **zero Android dependencies**.
+The UI is Jetpack Compose. The PDF canvas remains a focused custom Android `View` hosted through `AndroidView`. The domain layer is pure Kotlin and does not depend on Android APIs.
 
-## Tech Stack
+| Area | Technology |
+|---|---|
+| Language | Kotlin 2.0.21, Java 17 |
+| Build | AGP 8.7.3, Gradle 8.10.2, KSP |
+| UI | Jetpack Compose Material 3 |
+| Storage | Room 2.6.1, DataStore |
+| PDF | PdfiumAndroid 1.0.30, PdfBox-Android compatibility path |
+| Embedding | MediaPipe Text Embedder, Universal Sentence Encoder TFLite |
+| Network | OkHttp 4.12, Moshi 1.15.1, SSE |
+| Background work | WorkManager |
+| DI | Hilt 2.52 |
+| Tests | JUnit4, MockK, Turbine, Robolectric, Compose UI Test, Espresso |
 
-| Layer | Choice | Badge |
-|-------|--------|-------|
-| Language | Kotlin 2.0 | [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin)](https://kotlinlang.org) |
-| Platform | minSdk 26 (Android 8.0+) | [![Android](https://img.shields.io/badge/minSdk-26-3DDC84?logo=android)](https://developer.android.com) |
-| UI | Jetpack Compose (Material 3) | [![Compose](https://img.shields.io/badge/Compose-M3-4285F4?logo=jetpackcompose)](https://developer.android.com/jetpack/compose) |
-| Architecture | Clean Architecture + MVVM + Repository | — |
-| DI | Hilt | [![Hilt](https://img.shields.io/badge/DI-Hilt-2C3E50?logo=dagger)](https://dagger.dev/hilt) |
-| Async | Coroutines + Flow + StateFlow | [![Coroutines](https://img.shields.io/badge/Coroutines-1.9-18C8D6?logo=kotlin)](https://kotlinlang.org/docs/coroutines-overview.html) |
-| Local DB | Room | [![Room](https://img.shields.io/badge/Room-2.7-15A97E?logo=sqlite)](https://developer.android.com/training/data-storage/room) |
-| Networking | Retrofit + OkHttp + okhttp-sse | [![Retrofit](https://img.shields.io/badge/Retrofit-2.11-E65100?logo=square)](https://square.github.io/retrofit) |
-| PDF Rendering | Pdfium-Android | — |
-| PDF Text | PdfBox-Android | — |
-| Embedding | MediaPipe TextEmbedder (Universal Sentence Encoder) | — |
-| LLM Backend | **LM Studio** (default: Gemma 3 4B-IT Q4_K_M) via OpenAI‑compatible API + `adb reverse` | — |
-| Testing | JUnit4 + MockK + Turbine + Espresso | [![Tests](https://img.shields.io/badge/Tests-JUnit%20%7C%20MockK%20%7C%20Turbine-25A162)](https://github.com/stuid-maker/pocketpdf-android) |
-| CI | GitHub Actions | [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/stuid-maker/pocketpdf-android/actions) |
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flows, contracts, and ADRs.
 
-## Screenshots
+## Requirements
 
-### 📚 Library
+- Android 8.0 / API 26 or newer.
+- JDK 17 for local builds.
+- Android SDK 35.
+- An OpenAI-compatible LLM endpoint for AI generation.
 
-<div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-  <img src="docs/screenshots/library-main.png" width="250" alt="Library main view" />
-  <img src="docs/screenshots/library-empty.png" width="250" alt="Empty library state" />
-  <img src="docs/screenshots/library-menu.png" width="250" alt="Library context menu" />
-</div>
-
-### 📖 Reader
-
-<div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-  <img src="docs/screenshots/reader-pdf.png" width="250" alt="PDF reader view" />
-  <img src="docs/screenshots/reader-summary.png" width="250" alt="AI summary in reader" />
-  <img src="docs/screenshots/reader-error.png" width="250" alt="Reader error state" />
-</div>
-
-### 💬 Chat / Q&A
-
-<div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-  <img src="docs/screenshots/chat-empty.png" width="250" alt="Empty chat view" />
-  <img src="docs/screenshots/chat-conversation.png" width="250" alt="Chat with conversation" />
-</div>
-
-### ⚙️ Settings
-
-<div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-  <img src="docs/screenshots/settings-main.png" width="250" alt="Settings main page" />
-  <img src="docs/screenshots/settings-model-dropdown.png" width="250" alt="Model preset dropdown" />
-</div>
+Embedding and retrieval run on the Android device. AI generation still needs a reachable LLM endpoint. For local-first use, run LM Studio on the development computer.
 
 ## Quick Start
 
-### Prerequisites
-
-- [Android Studio](https://developer.android.com/studio) (Ladybug or later)
-- Android device or emulator (API 26+)
-- [LM Studio](https://lmstudio.ai/) on your PC (for LLM features)
-- **Embedding model** — Gradle downloads and verifies the pinned ~6.1 MB TFLite model automatically when it is missing.
-
-### Setup
-
 ```bash
-# 1. Clone the repository
 git clone https://github.com/stuid-maker/pocketpdf-android.git
 cd pocketpdf-android
-
-# 2. Open in Android Studio
-#    File → Open → select pocketpdf-android → wait for Gradle sync
-
-# 3. Build & run
-#    Select a device and press Run (▶)
+./gradlew assembleDebug
 ```
 
-Gradle's `prepareEmbeddingModel` task downloads the audited MediaPipe model to
-`app/src/main/assets/models/universal_sentence_encoder.tflite`, verifies its pinned SHA-256,
-and fails the build clearly if the download or verification cannot complete. A valid local
-copy is reused, so subsequent builds work offline.
+Gradle automatically prepares:
 
-### LLM Backend (LM Studio)
+```text
+app/src/main/assets/models/universal_sentence_encoder.tflite
+```
+
+The pinned model is 6,120,274 bytes and is accepted only when its SHA-256 is:
+
+```text
+89ad3c74175dd8caa398cc22b657296d94302d20c525c12b58b29420f7249749
+```
+
+The file is downloaded to a temporary path, verified, then moved into place. A valid cached copy allows later offline builds.
+
+### Local LLM
+
+Start an LM Studio OpenAI-compatible server on port `1234`, then bridge a connected Android device or emulator:
 
 ```bash
-# On your PC: Start LM Studio → Developer tab → Start Server (port 1234)
-# Verify it's running:
 curl http://localhost:1234/v1/models
-
-# Bridge to your Android device:
 adb reverse tcp:1234 tcp:1234
-
-# You're all set — PocketPDF will discover models automatically.
 ```
 
-## Roadmap
+The default app endpoint is `http://localhost:1234/v1`. Settings also supports custom OpenAI-compatible endpoints and optional API keys.
 
-| Week | Theme | Status | Tag |
-|------|-------|--------|-----|
-| W0 | Environment setup + docs skeleton | ✅ Done | `v0.0.1-env-ready` |
-| W1 | PDF reader demo | ✅ Done | `v0.1.0-pdf-reader` |
-| W2 | Text chunking + vectorization + indexing | ✅ Done | `v0.2.0-indexed` |
-| W3 | Retrieval + LLM bridging + summarization | ✅ Done | `v0.3.0-summary` |
-| W4 | Q&A with citation backlinks + polish | 🟡 In Progress | `v0.4.0-qa` |
-| W5 | Tests + docs + demo video | ⚪ Pending | `v1.0.0-release` |
+## Verification
+
+```bash
+./gradlew testDebugUnitTest
+./gradlew lint
+./gradlew connectedDebugAndroidTest
+./gradlew assembleRelease
+```
+
+The v1.2.0 release audit passed:
+
+- 402 JVM tests.
+- 31 Android instrumentation tests on Android 16 / API 36.1.
+- Android lint with zero errors.
+- Signed release APK verification.
+- Embedded model path and SHA-256 verification.
+
+See [docs/project-audit-2026-06-13.md](docs/project-audit-2026-06-13.md) for the full result.
+
+## Release Builds
+
+Create `local.properties` from [local.properties.example](local.properties.example) and set the release keystore values. `SENTRY_DSN` is optional.
+
+```bash
+./gradlew assembleRelease
+```
+
+The release asset is the signed APK only. Source code, screenshots, plans, reports, local configuration, credentials, and development artifacts are not attached to GitHub Releases.
 
 ## Documentation
 
-- [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Detailed architectural decisions
-- [`PLAN.md`](PLAN.md) — Project plan & technical choices
-- [`ROADMAP.md`](ROADMAP.md) — Week‑by‑week task list
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Coding conventions & Git workflow
-- [`dev-log/`](docs/dev-log/) — Weekly development logs
+- [CHANGELOG.md](CHANGELOG.md)
+- [ROADMAP.md](ROADMAP.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/project-audit-2026-06-13.md](docs/project-audit-2026-06-13.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/dev-log/](docs/dev-log/)
+
+## Known Limits
+
+- Scanned PDFs without a text layer require OCR, which is not bundled.
+- AI generation depends on the configured LLM endpoint.
+- Chat and summary cache content is stored in the app database without application-level encryption.
+- The current PDFium version remains pinned to `1.0.30`; newer `1.0.x` artifacts use Kotlin 2.2 metadata and are incompatible with this Kotlin 2.0 toolchain.
 
 ## License
 
-[MIT](LICENSE) © stuid-maker
+[MIT](LICENSE)

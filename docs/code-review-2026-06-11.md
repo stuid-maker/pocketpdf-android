@@ -3,12 +3,14 @@
 > 审查日期：2026-06-11 · 审查方式：只读源码审查（未运行构建）
 > 审查范围：构建配置、应用入口、核心页面、数据/状态管理、网络与 AI 调用、权限与安全、性能、测试与发布
 
+> 状态更新（2026-06-13）：本文是审查时点快照。高风险项和后续 6 个联动问题已修复并完成构建、lint、402 个 JVM 测试与 31 个 Android 测试。最终结论见 `docs/project-audit-2026-06-13.md`。
+
 ---
 
 ## A. 项目概览
 
 * **项目类型**：Android 原生应用（单模块 `app`）
-* **技术栈**：Kotlin 2.0 + Jetpack Compose (M3) + Hilt + Room + WorkManager + DataStore + Retrofit/OkHttp(SSE) + Moshi + PdfBox-Android + Pdfium + MediaPipe TextEmbedder + Timber
+* **技术栈（审查时点）**：Kotlin 2.0 + Jetpack Compose (M3) + Hilt + Room + WorkManager + DataStore + OkHttp(SSE) + Moshi + PdfBox-Android + Pdfium + MediaPipe TextEmbedder + Timber
 * **主要功能**：导入 PDF → 切块 + 端侧向量化（RAG 索引）→ Pdfium 渲染阅读 → 连接 OpenAI 兼容 LLM（默认本地 LM Studio，可切 DeepSeek/通义）做问答、页面/全文 Map-Reduce 摘要、引用页码跳转
 * **当前成熟度判断**：工程化程度较高（分层清晰、约 70 个测试文件、CI、Room schema 导出、API Key Keystore 加密），处于 W4「问答+打磨」阶段；但存在一个会让 AI 主链路整体不可用的关键缺陷（见 B-1），距离可发布还有距离
 * **实际查看过的关键文件**：

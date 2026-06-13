@@ -291,7 +291,7 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: ((Lo
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("复制") },
+                    text = { Text(stringResource(R.string.chat_copy)) },
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("chat_message", message.content))
@@ -299,7 +299,7 @@ fun ChatBubble(message: ChatDisplayMessage, documentId: Long, onRegenerate: ((Lo
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("重新生成") },
+                    text = { Text(stringResource(R.string.chat_regenerate)) },
                     onClick = {
                         onRegenerate?.invoke(message.id)
                         showMenu = false

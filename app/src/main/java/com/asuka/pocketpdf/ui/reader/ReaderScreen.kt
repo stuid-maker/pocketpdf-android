@@ -2,7 +2,6 @@ package com.asuka.pocketpdf.ui.reader
 
 import android.graphics.Bitmap
 import android.graphics.RectF
-import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -489,12 +488,7 @@ private fun PdfPageHost(
         modifier = modifier,
         factory = { context ->
             PdfPageView(context).apply {
-                setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_UP && !consumeLongPressFlag()) {
-                        onTap()
-                    }
-                    false
-                }
+                setOnClickListener { onTap() }
                 this.onPageFling = { direction -> onPageFling(direction) }
                 this.onLongPress = { x, y -> onLongPress(x, y) }
             }

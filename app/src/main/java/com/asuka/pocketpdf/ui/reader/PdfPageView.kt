@@ -37,6 +37,8 @@ class PdfPageView @JvmOverloads constructor(
     private val drawMatrix = Matrix()
     private val bitmapRect = RectF()
     private val viewRect = RectF()
+    private val mappedSearchRect = RectF()
+    private val mappedAnnotationRect = RectF()
 
     private var currentScale = 1f
     private var isZooming = false
@@ -162,24 +164,30 @@ class PdfPageView @JvmOverloads constructor(
         }
         // 绘制搜索高亮
         for ((i, rect) in searchHighlights.withIndex()) {
-            val mappedRect = RectF(rect)
-            drawMatrix.mapRect(mappedRect)
+            mappedSearchRect.set(rect)
+            drawMatrix.mapRect(mappedSearchRect)
             val paint = if (i in currentHighlightIndices) currentHighlightPaint else highlightPaint
-            canvas.drawRect(mappedRect, paint)
+            canvas.drawRect(mappedSearchRect, paint)
         }
         // 绘制标注
         for (annotation in annotations) {
-            val rect = RectF(annotation.rect)
-            drawMatrix.mapRect(rect)
+            mappedAnnotationRect.set(annotation.rect)
+            drawMatrix.mapRect(mappedAnnotationRect)
             when (annotation.type) {
                 com.asuka.pocketpdf.domain.model.AnnotationType.HIGHLIGHT -> {
                     annotationHighlightPaint.color = annotation.color
                     annotationHighlightPaint.alpha = 100
-                    canvas.drawRect(rect, annotationHighlightPaint)
+                    canvas.drawRect(mappedAnnotationRect, annotationHighlightPaint)
                 }
                 com.asuka.pocketpdf.domain.model.AnnotationType.UNDERLINE -> {
                     annotationUnderlinePaint.color = annotation.color
-                    canvas.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, annotationUnderlinePaint)
+                    canvas.drawLine(
+                        mappedAnnotationRect.left,
+                        mappedAnnotationRect.bottom,
+                        mappedAnnotationRect.right,
+                        mappedAnnotationRect.bottom,
+                        annotationUnderlinePaint,
+                    )
                 }
             }
         }
@@ -283,7 +291,7 @@ class PdfPageView @JvmOverloads constructor(
                 val upY = event.y
                 val totalSpan = sqrt((upX - downX) * (upX - downX) + (upY - downY) * (upY - downY))
                 val pressDuration = event.eventTime - downTime
-                if (pressDuration > 500L && totalSpan < 20f && currentScale <= 1.05f) {
+                if (pressDuration > LONG_PRESS_TIME && totalSpan < LONG_PRESS_SLOP && currentScale <= 1.05f) {
                     longPressFired = true
                     // 转换为 bitmap 坐标再回调
                     val inverse = Matrix()
@@ -300,10 +308,12 @@ class PdfPageView @JvmOverloads constructor(
                 velocityTracker?.computeCurrentVelocity(1000)
                 val vx = abs(velocityTracker?.xVelocity ?: 0f)
                 val vy = abs(velocityTracker?.yVelocity ?: 0f)
+                var flingFired = false
                 if (currentScale <= 1.05f && vx > flingThreshold && vx > vy * 1.5f) {
                     // 水平 fling 主导 — 用 downX 计算总位移（lastTouchX 已被 MOVE 更新至终点）
                     val totalDx = event.x - downX
                     if (abs(totalDx) > flingDistanceThreshold) {
+                        flingFired = true
                         onPageFling?.invoke(if (totalDx < 0) 1 else -1)
                     }
                 }
@@ -325,6 +335,14 @@ class PdfPageView @JvmOverloads constructor(
                     lastTapX = upX
                     lastTapY = upY
                 }
+                if (
+                    !longPressFired &&
+                    !flingFired &&
+                    pressDuration <= LONG_PRESS_TIME &&
+                    totalSpan < CLICK_SLOP
+                ) {
+                    performClick()
+                }
                 isZooming = false
             }
 
@@ -333,6 +351,11 @@ class PdfPageView @JvmOverloads constructor(
             }
         }
 
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
         return true
     }
 
@@ -455,5 +478,8 @@ class PdfPageView @JvmOverloads constructor(
         private const val MAX_SCALE = 5f
         private const val DOUBLE_TAP_TIME = 300L  // 双击最大间隔（毫秒）
         private const val DOUBLE_TAP_SLOP = 50f   // 双击最大偏移（像素）
+        private const val LONG_PRESS_TIME = 500L
+        private const val LONG_PRESS_SLOP = 20f
+        private const val CLICK_SLOP = 20f
     }
 }

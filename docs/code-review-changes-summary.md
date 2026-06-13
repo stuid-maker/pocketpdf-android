@@ -1,6 +1,6 @@
 # PocketPDF 审查报告改动总结
 
-> 基于 `docs/code-review-2026-06-11.md` · 改动日期：2026-06-11
+> 基于 `docs/code-review-2026-06-11.md` · 初次改动日期：2026-06-11 · 最终验收：2026-06-13
 > 共修复 20+ 项问题，涉及 55+ 个文件
 
 ---
@@ -104,7 +104,7 @@
 | CI 签名 | `Decode release keystore` 步骤：从 GitHub Secrets base64 解码 keystore + 写 local.properties |
 | 本地配置模板 | `local.properties.example` |
 | .gitignore 更新 | `*.keystore` / `*.jks` / `local.properties` |
-| 版本号 | 保持静态 `versionCode=1` / `versionName="1.0"`（Git 自动版本待后续） |
+| 版本号 | 发布前更新为 `versionCode=3` / `versionName="1.2.0"` |
 
 ---
 
@@ -302,7 +302,7 @@
 
 ---
 
-## H. AI 功能专项 — 3/7 修复
+## H. AI 功能专项 — 4/7 修复
 
 ### H-1：LLM 调用超时熔断 ✅
 
@@ -323,9 +323,9 @@
 
 > 见 G-1
 
-### H-4：多轮对话上下文缺失 ❌ 未修复
+### H-4：多轮对话上下文缺失 ✅
 
-> `AskDocumentUseCase` 只发当前问题，不携带历史——功能性缺陷，中等工作量。
+> `ChatViewModel` 在保存当前问题前读取历史快照，并把既有对话传给 `AskDocumentUseCase`；当前问题只追加一次。
 
 ### H-5：SSE 畸形 chunk 崩流 ✅
 
@@ -385,7 +385,6 @@
 
 | 问题 | 原因 | 预估工作量 |
 |------|------|-----------|
-| 多轮对话上下文缺失（H-4） | ChatViewModel 存了历史但 AskDocumentUseCase 不发 | 中 |
 | 流式 token O(n²) 重建（F-4） | 两个 ViewModel 每 token 全量 copy，长回答 GC 压力大 | 中 |
 
 ### 中优先级
@@ -403,7 +402,6 @@
 | 问题 | 原因 |
 |------|------|
 | ReaderScreen/ChatViewModel 重复代码提取 | 不影响功能 |
-| ChatActivity 硬编码中文 | 同文件其他文案已走 stringResource |
 | ReaderAiSheet 文案重复 | UI 微调 |
 | 聊天记录明文落盘加密 | 威胁模型上可接受 |
 | CI 不跑 androidTest | 需 Android 模拟器 |
@@ -422,3 +420,12 @@
 | 报告问题总数 | 40+ |
 | 已修复 | 27 |
 | 未修复 | 13（低优先级为主） |
+
+---
+
+## 2026-06-13 最终验收补充
+
+- OkHttp 取消、超时分类、历史去重、选中回答重新生成、Sentry 配置和模型供应链均有回归测试。
+- AndroidX Test 更新后，Android 16 / API 36.1 上 31/31 instrumentation tests 通过。
+- JVM 测试 402/402 通过，lint 0 errors，release APK 通过 R8、v2 签名和模型资源检查。
+- 当前完整结论与残余风险见 `docs/project-audit-2026-06-13.md`。

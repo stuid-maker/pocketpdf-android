@@ -109,8 +109,8 @@ android {
         applicationId = "com.asuka.pocketpdf"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -167,7 +167,7 @@ android {
     }
 
     // 防止 .tflite 被 AAPT 压缩（ModelLoader 需要随机读取未压缩文件）
-    aaptOptions {
+    androidResources {
         noCompress += "tflite"
     }
 
