@@ -205,6 +205,31 @@ class IndexWorkerTest {
     }
 
     @Test
+    fun `marks FAILED when embedding library initialization throws linkage error`() = runTest {
+        val documentId = 1L
+        val doc = document(documentId)
+        val chunks = listOf(
+            DocumentChunk(documentId = documentId, pageIndex = 0, chunkIndex = 0, text = "content"),
+        )
+
+        stubIndexing(doc, chunks, emptyList())
+        coEvery { embedEngine.getEmbeddings(any()) } throws
+            ExceptionInInitializerError("MediaPipe initialization failed")
+
+        val result = createWorker(documentId).doWork()
+
+        assertTrue("Expected Failure", result is ListenableWorker.Result.Failure)
+        coVerify(atLeast = 1) {
+            documentRepo.updateDocument(
+                match {
+                    it.indexStatus == IndexStatus.FAILED &&
+                        it.indexError?.contains("MediaPipe initialization failed") == true
+                },
+            )
+        }
+    }
+
+    @Test
     fun `marks FAILED when replacing chunks returns failure`() = runTest {
         val documentId = 1L
         val doc = document(documentId)

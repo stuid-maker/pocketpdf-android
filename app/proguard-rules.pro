@@ -185,6 +185,14 @@
 -keep class com.google.mediapipe.tasks.core.** { *; }
 -keep class com.google.mediapipe.tasks.components.** { *; }
 
+# Flogger discovers the enclosing MediaPipe class from the runtime stack.
+# R8 method inlining can remove that frame and crash Graph initialization.
+-keep class com.google.common.flogger.** { *; }
+
+# MediaPipe serializes graph options through protobuf-lite. Its generated
+# schemas and initialization paths are reflection-sensitive under R8.
+-keep class com.google.protobuf.** { *; }
+
 -dontwarn com.google.mediapipe.**
 -dontwarn com.google.protobuf.**
 

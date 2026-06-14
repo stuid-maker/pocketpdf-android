@@ -122,23 +122,28 @@ class IndexWorker @AssistedInject constructor(
             Timber.tag(TAG).i("Document #%d indexed successfully: %d chunks", documentId, chunks.size)
             Result.success()
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "IndexWorker failed for document #%d", documentId)
-            // 尝试标记 FAILED，并记录失败原因供 UI 展示
-            try {
-                val doc = documentRepo.getDocument(documentId)
-                if (doc != null) {
-                    val reason = when (e) {
-                        is EmbeddingModelMissingException ->
-                            "嵌入模型缺失，请联系开发者或查看帮助"
-                        else -> e.message?.take(200) ?: e.javaClass.simpleName
-                    }
-                    documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.FAILED, indexError = reason))
-                }
-            } catch (updateEx: Exception) {
-                Timber.tag(TAG).e(updateEx, "Failed to mark document #%d as FAILED", documentId)
-            }
-            Result.failure()
+            markFailed(documentId, e)
+        } catch (e: LinkageError) {
+            markFailed(documentId, e)
         }
+    }
+
+    private suspend fun markFailed(documentId: Long, error: Throwable): Result {
+        Timber.tag(TAG).e(error, "IndexWorker failed for document #%d", documentId)
+        try {
+            val doc = documentRepo.getDocument(documentId)
+            if (doc != null) {
+                val reason = when (error) {
+                    is EmbeddingModelMissingException ->
+                        "嵌入模型缺失，请联系开发者或查看帮助"
+                    else -> error.message?.take(200) ?: error.javaClass.simpleName
+                }
+                documentRepo.updateDocument(doc.copy(indexStatus = IndexStatus.FAILED, indexError = reason))
+            }
+        } catch (updateError: Exception) {
+            Timber.tag(TAG).e(updateError, "Failed to mark document #%d as FAILED", documentId)
+        }
+        return Result.failure()
     }
 
     /**
