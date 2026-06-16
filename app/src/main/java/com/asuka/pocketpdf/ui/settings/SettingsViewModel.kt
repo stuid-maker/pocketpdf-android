@@ -3,6 +3,7 @@ package com.asuka.pocketpdf.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.asuka.pocketpdf.core.Result
+import com.asuka.pocketpdf.BuildConfig
 import com.asuka.pocketpdf.data.local.SettingsDataStore
 import com.asuka.pocketpdf.domain.repository.LlmRepository
 import com.asuka.pocketpdf.domain.repository.SummaryCacheRepository
@@ -155,8 +156,8 @@ class SettingsViewModel @Inject constructor(
                 settingsDataStore.resetDefaults()
                 _uiState.update {
                     SettingsUiState(
-                        baseUrl = SettingsDataStore.DEFAULT_BASE_URL,
-                        modelName = SettingsDataStore.DEFAULT_MODEL_NAME,
+                        baseUrl = BuildConfig.DEFAULT_BASE_URL,
+                        modelName = BuildConfig.DEFAULT_MODEL_NAME,
                         apiKey = "",
                         saveSuccess = true,
                     )

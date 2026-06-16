@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.asuka.pocketpdf.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -20,15 +21,15 @@ class SettingsDataStore @Inject constructor(
     private val apiKeyCipher: ApiKeyCipher,
 ) {
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_BASE_URL] ?: DEFAULT_BASE_URL
+        prefs[KEY_BASE_URL] ?: BuildConfig.DEFAULT_BASE_URL
     }
 
     val modelName: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_MODEL_NAME] ?: DEFAULT_MODEL_NAME
+        prefs[KEY_MODEL_NAME] ?: BuildConfig.DEFAULT_MODEL_NAME
     }
 
     val apiKey: Flow<String?> = context.dataStore.data.map { prefs ->
-        val stored = prefs[KEY_API_KEY] ?: return@map null
+        val stored = prefs[KEY_API_KEY] ?: BuildConfig.DEFAULT_API_KEY.ifEmpty { return@map null }
         if (apiKeyCipher.isEncrypted(stored)) {
             runCatching { apiKeyCipher.decrypt(stored) }
                 .getOrElse {
@@ -50,7 +51,7 @@ class SettingsDataStore @Inject constructor(
     }
 
     val onboardingCompleted: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[KEY_ONBOARDING_COMPLETED] ?: false
+        prefs[KEY_ONBOARDING_COMPLETED] ?: BuildConfig.SKIP_ONBOARDING
     }
 
     suspend fun setBaseUrl(url: String) {
@@ -101,7 +102,5 @@ class SettingsDataStore @Inject constructor(
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         const val STRATEGY_SLIDING_WINDOW = "sliding_window"
         const val STRATEGY_PARAGRAPH = "paragraph"
-        const val DEFAULT_BASE_URL = "http://localhost:1234/v1"
-        const val DEFAULT_MODEL_NAME = "gemma-3-4b"
     }
 }

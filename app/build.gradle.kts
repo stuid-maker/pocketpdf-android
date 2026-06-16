@@ -73,6 +73,7 @@ fun prepareModelAsset(destination: Path, expectedSha256: String, download: (Path
 }
 
 val sentryDsn = resolveConfigValue("SENTRY_DSN")
+val quickstartApiKey = resolveConfigValue("QUICKSTART_API_KEY")
 
 val embeddingModelUrl =
     "https://storage.googleapis.com/mediapipe-models/text_embedder/" +
@@ -109,13 +110,32 @@ android {
         applicationId = "com.asuka.pocketpdf"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Sentry DSN：通过 buildConfigField 注入，避免硬编码
         buildConfigField("String", "SENTRY_DSN", "\"${sentryDsn.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+    }
+
+    flavorDimensions += "variant"
+    productFlavors {
+        create("standard") {
+            dimension = "variant"
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"http://localhost:1234/v1\"")
+            buildConfigField("String", "DEFAULT_MODEL_NAME", "\"gemma-3-4b\"")
+            buildConfigField("String", "DEFAULT_API_KEY", "\"\"")
+            buildConfigField("boolean", "SKIP_ONBOARDING", "false")
+        }
+        create("quickstart") {
+            dimension = "variant"
+            applicationIdSuffix = ".quickstart"
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"https://dashscope.aliyuncs.com/compatible-mode/v1\"")
+            buildConfigField("String", "DEFAULT_MODEL_NAME", "\"qwen-plus\"")
+            buildConfigField("String", "DEFAULT_API_KEY", "\"${quickstartApiKey}\"")
+            buildConfigField("boolean", "SKIP_ONBOARDING", "true")
+        }
     }
 
     signingConfigs {
