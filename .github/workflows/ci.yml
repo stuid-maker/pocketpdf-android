@@ -88,9 +88,18 @@ jobs:
           EOF
 
       - name: Assemble release
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: ./gradlew assembleRelease -PSENTRY_DSN="$SENTRY_DSN"
+
+      - name: Upload release APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
 
       - name: Upload lint results
         if: always()
