@@ -19,13 +19,17 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.asuka.pocketpdf.R
+import com.asuka.pocketpdf.data.local.SettingsDataStore
+import com.asuka.pocketpdf.ui.onboarding.OnboardingActivity
 import com.asuka.pocketpdf.ui.reader.ReaderActivity
 import com.asuka.pocketpdf.ui.settings.SettingsActivity
 import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -36,6 +40,9 @@ class LibraryActivity : ComponentActivity() {
 
     @Inject
     lateinit var coverLoader: DocumentCoverLoader
+
+    @Inject
+    lateinit var settingsDataStore: SettingsDataStore
 
     private val openDocumentLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument(),
@@ -50,6 +57,17 @@ class LibraryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Check onboarding status before setting content
+        val onboardingCompleted = runBlocking {
+            settingsDataStore.onboardingCompleted.first()
+        }
+        if (!onboardingCompleted) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
+
         setContent {
             PocketPDFTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()

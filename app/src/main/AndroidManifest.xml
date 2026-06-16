@@ -62,6 +62,11 @@
             android:label="设置" />
 
         <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:label="新手引导" />
+
+        <activity
             android:name=".ui.chat.ChatActivity"
             android:exported="false"
             android:label="文档问答" />
