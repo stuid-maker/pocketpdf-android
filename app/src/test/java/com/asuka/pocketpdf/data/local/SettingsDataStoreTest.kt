@@ -2,6 +2,7 @@ package com.asuka.pocketpdf.data.local
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import app.cash.turbine.test
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -45,6 +47,23 @@ class SettingsDataStoreTest {
         store.setApiKey(null)
 
         assertNull(store.apiKey.first())
+    }
+
+    @Test
+    fun `reset defaults does not transiently clear completed onboarding`() = runTest {
+        store.setOnboardingCompleted(true)
+        store.setBaseUrl("https://example.test/v1")
+
+        store.onboardingCompleted.test {
+            assertEquals(true, awaitItem())
+
+            store.resetDefaults()
+
+            val emittedAfterReset = withTimeoutOrNull(500) { awaitItem() }
+            if (emittedAfterReset != null) {
+                assertEquals(true, emittedAfterReset)
+            }
+        }
     }
 
     private class FakeApiKeyCipher : ApiKeyCipher {

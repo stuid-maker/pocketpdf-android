@@ -87,9 +87,11 @@ class SettingsDataStore @Inject constructor(
     suspend fun resetDefaults() {
         // Keep onboarding flag — user shouldn't re-see onboarding after settings reset
         val wasOnboarded = onboardingCompleted.first()
-        context.dataStore.edit { it.clear() }
-        if (wasOnboarded) {
-            context.dataStore.edit { it[KEY_ONBOARDING_COMPLETED] = true }
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+            if (wasOnboarded) {
+                prefs[KEY_ONBOARDING_COMPLETED] = true
+            }
         }
     }
 

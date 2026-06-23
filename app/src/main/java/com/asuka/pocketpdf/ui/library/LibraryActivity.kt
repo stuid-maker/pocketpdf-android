@@ -10,6 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -26,10 +32,10 @@ import com.asuka.pocketpdf.ui.settings.SettingsActivity
 import com.asuka.pocketpdf.ui.theme.PocketPDFTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -58,16 +64,26 @@ class LibraryActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Check onboarding status before setting content
-        val onboardingCompleted = runBlocking {
-            settingsDataStore.onboardingCompleted.first()
-        }
-        if (!onboardingCompleted) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-            finish()
-            return
-        }
+        setContent { PocketPDFTheme { LibraryGateLoading() } }
 
+        lifecycleScope.launch {
+            val onboardingCompleted = runCatching {
+                settingsDataStore.onboardingCompleted.first()
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                Timber.tag(TAG).w(error, "Unable to read onboarding state")
+                true
+            }
+            if (!onboardingCompleted) {
+                startActivity(Intent(this@LibraryActivity, OnboardingActivity::class.java))
+                finish()
+                return@launch
+            }
+            showLibraryContent()
+        }
+    }
+
+    private fun showLibraryContent() {
         setContent {
             PocketPDFTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -170,5 +186,15 @@ class LibraryActivity : ComponentActivity() {
     private companion object {
         const val TAG = "LibraryActivity"
         const val MIME_PDF = "application/pdf"
+    }
+}
+
+@Composable
+private fun LibraryGateLoading() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator()
     }
 }

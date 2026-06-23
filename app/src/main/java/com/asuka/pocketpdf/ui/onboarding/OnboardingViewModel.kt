@@ -14,7 +14,11 @@ class OnboardingViewModel @Inject constructor(
 
     fun completeOnboarding() {
         viewModelScope.launch {
-            settingsDataStore.setOnboardingCompleted(true)
+            markOnboardingCompleted()
         }
+    }
+
+    suspend fun markOnboardingCompleted() {
+        settingsDataStore.setOnboardingCompleted(true)
     }
 }
